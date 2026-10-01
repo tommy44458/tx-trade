@@ -24,7 +24,7 @@ data/
 backups/
 exports/
 # Generated evaluations can contain real model responses and usage metadata.
-/docs/evaluations/
+/docs/
 *.sqlite
 *.sqlite3
 *.db

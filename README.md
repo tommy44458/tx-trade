@@ -28,7 +28,7 @@ Every analysis includes the selected timeframe and its next three higher frames:
 
 `1M` means calendar-month candles, not one-minute candles. Missing history or insufficient indicator warmup is reported as unavailable.
 
-MA/EMA, RSI, MACD, ATR, volume, rolling VWAP, and confirmed swing points are precomputed. In **Settings → Indicators calculated before AI analysis**, select Bollinger, Fibonacci, ADX/DMI, OBV, Donchian, Keltner, or Stochastic for the first model input. These seven default to unchecked; unselected tools remain available on demand. Saving a selection applies to future analyses without starting a model request. See [indicator calculations and defaults](docs/OPTIONAL_INDICATORS.md).
+MA/EMA, RSI, MACD, ATR, volume, rolling VWAP, and confirmed swing points are precomputed. In **Settings → Indicators calculated before AI analysis**, select Bollinger, Fibonacci, ADX/DMI, OBV, Donchian, Keltner, or Stochastic for the first model input. These seven default to unchecked; unselected tools remain available on demand. Saving a selection applies to future analyses without starting a model request.
 
 v3 zones identify possible price friction, not guaranteed reversals. A quote inside a zone is displayed as such; an intrabar crossing alone does not erase the original zone. v4 remains an experimental shadow calculation and is not the strategy reference.
 
@@ -48,7 +48,7 @@ In **Settings**, choose a model provider and connect your account:
 - **ChatGPT:** uses an app-specific OAuth/PKCE sign-in flow. Access depends on provider support, account eligibility, consent, and usage limits. Direct sign-in is implemented but has not yet completed real-user consent and inference testing.
 - Existing **OpenAI API compatibility mode** is retained, but an API key is not required for Codex/ChatGPT desktop analysis.
 
-Use the provider's sign-in flow; do not paste browser cookies or extracted ChatGPT session tokens. The app does not read ChatGPT chat history or copy shared Codex token files. Model requests still require internet access and send the analysis context to the selected provider. This implementation is not a promise of unrestricted subscription access or approval for a hosted/commercial integration. See [desktop authorization and architecture](docs/DESKTOP_APPLICATION.md).
+Use the provider's sign-in flow; do not paste browser cookies or extracted ChatGPT session tokens. The app does not read ChatGPT chat history or copy shared Codex token files. Model requests still require internet access and send the analysis context to the selected provider. This implementation is not a promise of unrestricted subscription access or approval for a hosted/commercial integration.
 
 Keep the app open while work is running: closing it stops its local API and workers.
 
@@ -67,7 +67,7 @@ For Binance, enable **Enable Reading only**. For BingX, use a **read-only key**.
 
 For Binance, save the key pair, use **Test position access**, then open **My positions → Sync positions**. Saved keys, successful reads, verified read-only permissions, and failures are separate states. Both exchanges show the last successful sync and its counts; sync does not start AI analysis. Failed or incomplete responses preserve existing positions. Imported exchange facts are protected; local stops, targets, and notes can be supplemented without changing exchange orders. Manual positions remain available without keys.
 
-Binance integration has automated and mocked UI coverage, but **has not yet been validated against a real Binance account using an Enable Reading-only key**. See [supported account modes and synchronization rules](docs/BINANCE_POSITIONS_PLAN.md).
+Binance integration has automated and mocked UI coverage, but **has not yet been validated against a real Binance account using an Enable Reading-only key**.
 
 ### Build a local package
 
@@ -97,7 +97,7 @@ pnpm release:test
 
 `release:version` without arguments synchronizes package metadata with the current product version. To prepare a new version, first write matching entries under `Unreleased` in [CHANGELOG.md](CHANGELOG.md) and [CHANGELOG.en.md](CHANGELOG.en.md), then run `pnpm release:prepare <version>`; stable versions use `x.y.z`, beta versions use `x.y.z-beta.N`. This prepares dated notes and package versions locally. It does not create tags, publish releases, or enable automatic updates. `pnpm release:check --require-release` checks that the current version has dated notes.
 
-The existing `0.2.0` baseline remains unreleased. GitHub Actions now builds macOS arm64 test DMG/ZIP artifacts for PRs and manual runs. Matching version tags require Developer ID signing and notarization and produce a **draft** GitHub Release. The native update menu waits for active model work and backs up local data before installation; updates are disabled in development and test packages. Run `pnpm desktop:test-release` for local test installers. See [desktop release setup](docs/DESKTOP_RELEASE.md) for required secrets and the first signed installation/upgrade acceptance steps.
+The existing `0.2.0` baseline remains unreleased. GitHub Actions now builds macOS arm64 test DMG/ZIP artifacts for PRs and manual runs. Matching version tags require Developer ID signing and notarization and produce a **draft** GitHub Release. The native update menu waits for active model work and backs up local data before installation; updates are disabled in development and test packages. Run `pnpm desktop:test-release` for local test installers.
 
 ## Architecture and local data
 
@@ -106,13 +106,12 @@ The existing `0.2.0` baseline remains unreleased. GitHub Actions now builds macO
 | `apps/web/` | React/Vite workspace, charts, settings, and streaming discussions |
 | `apps/api/` | FastAPI, market data, Python calculations, model providers, and background workers |
 | `apps/desktop/` | Electron lifecycle, private loopback authorization, native appearance, and packaging |
-| `docs/` | Product requirements, algorithm reviews, and implementation contracts |
 
 The desktop API binds to loopback on a free port and requires an app-session token. SQLite + WAL provides one local personal workspace and shared worker storage; normal operation does not connect to PostgreSQL. This is not a multi-user or publicly hosted service.
 
 On macOS, use **Settings → Open data directory** to find `data/trade_helper.sqlite3` under the app's user-data directory. Browser development defaults to the repository's `data/` directory; `APP_DATA_DIR` or `APP_DB_PATH` can override it.
 
-App-managed keys and login material are encrypted with AES-256-GCM in SQLite. **The encryption master key is in the same database**, so a database copy contains recoverable credentials. No system keychain is used. Keep databases, backups, logs, exports, and `.env` private; do not commit or share them. Use the SQLite backup workflow rather than copying an active main database file without its WAL. [Storage, backup, and migration guidance](docs/DESKTOP_APPLICATION.md#舊資料遷移與備份).
+App-managed keys and login material are encrypted with AES-256-GCM in SQLite. **The encryption master key is in the same database**, so a database copy contains recoverable credentials. No system keychain is used. Keep databases, backups, logs, exports, and `.env` private; do not commit or share them. Use the SQLite backup workflow rather than copying an active main database file without its WAL.
 
 Local storage does not make inference offline: the chosen model provider receives the submitted market, position, and discussion context. Exchange reads and official-source collection also require internet access.
 
@@ -154,16 +153,3 @@ uv run ruff check src tests scripts
 `check:bilingual` checks prompt/version consistency and paired language resources using isolated fixtures. Build and automated tests do not replace live provider/account acceptance or establish trading returns. Model or data-source failures are shown explicitly; a rules-only result is not presented as successful AI analysis.
 
 Broad licensed crypto-news coverage, consensus forecasts as strategy evidence, automatic embedding/retrieval in the Agent workflow, and an actual execution-cost ledger remain future work. Cloud deployment is outside the current local-app scope.
-
-## Documentation
-
-- [Product requirements](docs/PRD.md) and [next development plan](docs/NEXT_DEVELOPMENT_PLAN.md)
-- [Four-timeframe Agent inputs](docs/AGENT_PRECOMPUTE.md) and [optional indicators](docs/OPTIONAL_INDICATORS.md)
-- [v3 support/resistance review](docs/SUPPORT_RESISTANCE_V3_SHADOW.md)
-- [Official macro actuals](docs/N4_MACRO_ACTUALS.md) and [monthly macro context](docs/MONTHLY_MACRO_CONTEXT.md)
-- [Streaming follow-up conversations](docs/DISCUSSION_STREAMING.md)
-- [Bilingual UI and prompt maintenance](docs/ENGLISH_VERSION_AND_PROMPT_PLAN.md)
-- [Desktop lifecycle and credential storage](docs/DESKTOP_APPLICATION.md)
-- [OTA, product versions, and release workflow](docs/OTA_AND_RELEASE_PLAN.md)
-- [macOS build, GitHub release setup, and update behavior](docs/DESKTOP_RELEASE.md)
-- [Binance position imports](docs/BINANCE_POSITIONS_PLAN.md)
