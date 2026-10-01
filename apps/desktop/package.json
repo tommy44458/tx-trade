@@ -65,6 +65,7 @@
     ],
     "mac": {
       "category": "public.app-category.finance",
+      "icon": "resources/icon.icns",
       "target": [
         "dir"
       ],
