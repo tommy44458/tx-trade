@@ -1,12 +1,12 @@
 {
   "extends": "./electron-builder.base.cjs",
-  "artifactName": "AI-Trade-Helper-${version}-${os}-${arch}.${ext}",
+  "artifactName": "txTrade-${version}-${os}-${arch}.${ext}",
   "forceCodeSigning": true,
   "generateUpdatesFilesForAllChannels": false,
   "publish": {
     "provider": "github",
     "owner": "tommy44458",
-    "repo": "ai-trade-helper",
+    "repo": "tx-trade",
     "channel": "latest",
     "releaseType": "draft"
   },

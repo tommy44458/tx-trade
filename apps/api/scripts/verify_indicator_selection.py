@@ -162,7 +162,7 @@ def main():
     parser.add_argument("--case", choices=(*CASE_IDS, *CAPABILITY_PROBES), action="append")
     parser.add_argument("--output-dir", type=Path)
     parser.add_argument("--settings-db", type=Path,
-                        default=Path.home() / "Library/Application Support/AI Trade Helper/data/trade_helper.sqlite3")
+                        default=Path.home() / "Library/Application Support/txTrade/data/trade_helper.sqlite3")
     args = parser.parse_args()
     output = args.output_dir or Path(tempfile.mkdtemp(prefix="ath-indicator-selection-"))
     output.mkdir(parents=True, exist_ok=True)

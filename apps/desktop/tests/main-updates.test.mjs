@@ -43,7 +43,11 @@ async function harness(options = {}) {
     isPackaged: options.packaged ?? true,
     setName: () => {}, requestSingleInstanceLock: () => true,
     getVersion: () => options.version ?? "0.2.0",
-    getPath: name => { assert.equal(name, "userData"); return "/isolated/user-data"; },
+    getPath: name => {
+      assert.ok(["userData", "appData"].includes(name));
+      return name === "appData" ? "/isolated/app-data" : "/isolated/user-data";
+    },
+    setPath: () => { throw new Error("user data stays in its isolated location"); },
     whenReady: () => ({ then(callback) { calls.boot = Promise.resolve().then(callback); return calls.boot; } }),
     quit() {
       const event = { prevented: false, preventDefault() { this.prevented = true; } };
@@ -115,6 +119,7 @@ async function harness(options = {}) {
       child.emit("exit", 0);
     },
     waitForBackend: async () => {},
+    resolveUserData: ({ current }) => ({ path: current, migrated: false }),
     delay: async ms => { calls.startupDelays ??= []; calls.startupDelays.push(ms); },
     NATIVE_STRINGS: strings, readSavedLocale: () => options.locale ?? "zh-TW",
     validateLocale: value => { assert.ok(["zh-TW", "en-US"].includes(value)); return value; },

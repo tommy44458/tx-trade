@@ -202,6 +202,7 @@ def test_backup_contains_committed_wal_and_remains_independent_of_later_writes(t
         with closing(sqlite3.connect(output)) as backed_up:
             assert backed_up.execute("SELECT value FROM backup_probe").fetchall() == [("committed in WAL",)]
             assert backed_up.execute("PRAGMA integrity_check").fetchone() == ("ok",)
+            assert backed_up.execute("PRAGMA journal_mode").fetchone() == ("delete",)
         assert writer.execute("SELECT count(*) FROM backup_probe").fetchone()[0] == 2
     assert output.stat().st_mode & 0o777 == 0o600
     assert not list(output.parent.glob(".sqlite-backup-*"))

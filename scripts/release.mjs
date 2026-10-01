@@ -103,8 +103,8 @@ function projectVersionField(source, label) {
 
 function lockVersionField(source) {
   const packages = [...source.matchAll(/^\[\[package\]\]\s*\n[\s\S]*?(?=^\[\[package\]\]|$(?![\s\S]))/gm)];
-  const matches = packages.filter(entry => /^name\s*=\s*"ai-trade-helper-api"\s*$/m.test(entry[0]));
-  if (matches.length !== 1) throw new Error("apps/api/uv.lock: expected one ai-trade-helper-api package.");
+  const matches = packages.filter(entry => /^name\s*=\s*"tx-trade-api"\s*$/m.test(entry[0]));
+  if (matches.length !== 1) throw new Error("apps/api/uv.lock: expected one tx-trade-api package.");
   const versions = [...matches[0][0].matchAll(/^version\s*=\s*"([^"]+)"\s*$/gm)];
   if (versions.length !== 1) throw new Error("apps/api/uv.lock: expected one API package version.");
   return { version: versions[0][1], start: matches[0].index + versions[0].index,

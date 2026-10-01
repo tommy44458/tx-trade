@@ -11,7 +11,11 @@ from trade_helper import worker
 from trade_helper.api import app
 from trade_helper.codex_bridge import CodexError, CodexTimeoutError
 from trade_helper.db import connect
-from trade_helper.error_locale import analysis_failure_message, model_error_message, system_error_message
+from trade_helper.error_locale import (
+    analysis_failure_message,
+    model_error_message,
+    system_error_message,
+)
 from trade_helper.model_providers import ModelProviderError
 
 from .test_analysis import sample_candles

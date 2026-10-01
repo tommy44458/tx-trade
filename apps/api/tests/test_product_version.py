@@ -14,7 +14,7 @@ from trade_helper import product_version as product_metadata
 ])
 def test_installed_product_metadata_uses_the_public_version(monkeypatch, installed, expected):
     def read_version(name):
-        assert name == "ai-trade-helper-api"
+        assert name == "tx-trade-api"
         return installed
 
     monkeypatch.setattr(product_metadata, "version", read_version)
@@ -44,4 +44,4 @@ def test_backend_version_command_does_not_require_a_desktop_session(monkeypatch,
     with pytest.raises(SystemExit) as exited:
         main(["--version"])
     assert exited.value.code == 0
-    assert capsys.readouterr().out == f"AI Trade Helper {product_metadata.product_version()}\n"
+    assert capsys.readouterr().out == f"txTrade {product_metadata.product_version()}\n"

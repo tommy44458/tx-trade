@@ -109,7 +109,7 @@ class CodexRpc:
             self.reader = threading.Thread(target=self._read, daemon=True)
             self.reader.start()
             self.request("initialize", {
-                "clientInfo": {"name": "ai_trade_helper", "title": "AI Trade Helper",
+                "clientInfo": {"name": "txtrade", "title": "txTrade",
                                "version": "0.2.0"},
                 "capabilities": {"experimentalApi": True},
             }, timeout=15)

@@ -1,9 +1,9 @@
 {
-  "name": "ai-trade-helper-desktop",
+  "name": "tx-trade-desktop",
   "version": "0.2.0",
   "description": "Local AI trading analysis application",
   "private": true,
-  "author": "AI Trade Helper",
+  "author": "txTrade",
   "type": "module",
   "main": "main.mjs",
   "scripts": {
@@ -19,8 +19,8 @@
     "electron-builder": "26.15.3"
   },
   "build": {
-    "appId": "com.aitradehelper.desktop",
-    "productName": "AI Trade Helper",
+    "appId": "com.txtrade.desktop",
+    "productName": "txTrade",
     "asar": true,
     "directories": {
       "output": "release"
@@ -32,6 +32,7 @@
       "themes.mjs",
       "release-info.mjs",
       "updater.mjs",
+      "user-data.mjs",
       "preload.cjs",
       "package.json",
       "node_modules/**/*"

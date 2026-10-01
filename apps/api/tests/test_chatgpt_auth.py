@@ -79,7 +79,7 @@ def test_registration_pkce_callback_identity_and_safe_status(vault, monkeypatch,
     attempt = auth._pending
     query = parse_qs(urlsplit(result["auth_url"]).query)
     assert query["client_id"] == ["dynamic_agent_client"]
-    assert query["agent_name_hint"] == ["AI Trade Helper"]
+    assert query["agent_name_hint"] == ["txTrade"]
     assert query["resource"] == [auth.RESOURCE]
     assert query["code_challenge"] == [base64.urlsafe_b64encode(
         hashlib.sha256(attempt.verifier.encode()).digest()).decode().rstrip("=")]

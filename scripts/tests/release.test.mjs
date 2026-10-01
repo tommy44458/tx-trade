@@ -13,8 +13,8 @@ const fixtureFiles = {
   "package.json": '{"name":"product","version":"0.2.0","private":true}\n',
   "apps/desktop/package.json": '{"name":"desktop","version":"0.2.0","build":{"files":["main.mjs"]}}\n',
   "apps/web/package.json": '{"name":"web","version":"0.2.0","scripts":{"build":"vite build"}}\n',
-  "apps/api/pyproject.toml": '[project]\nname = "ai-trade-helper-api"\nversion = "0.2.0"\ndependencies = ["fastapi"]\n\n[tool.example]\nvalue = "untouched"\n',
-  "apps/api/uv.lock": 'version = 1\n\n[[package]]\nname = "ai-trade-helper-api"\nversion = "0.2.0"\nsource = { editable = "." }\n\n[package.metadata]\nrequires-dist = [{ name = "fastapi" }]\n\n[[package]]\nname = "another-package"\nversion = "0.2.0"\nsource = { registry = "https://example.test" }\n',
+  "apps/api/pyproject.toml": '[project]\nname = "tx-trade-api"\nversion = "0.2.0"\ndependencies = ["fastapi"]\n\n[tool.example]\nvalue = "untouched"\n',
+  "apps/api/uv.lock": 'version = 1\n\n[[package]]\nname = "tx-trade-api"\nversion = "0.2.0"\nsource = { editable = "." }\n\n[package.metadata]\nrequires-dist = [{ name = "fastapi" }]\n\n[[package]]\nname = "another-package"\nversion = "0.2.0"\nsource = { registry = "https://example.test" }\n',
   "CHANGELOG.md": '# 更新紀錄\n\n版本尚未發布。\n\n## [Unreleased]\n\n### 新增\n\n- 中文產品版本機制。\n- 第二行中文更新內容。\n',
   "CHANGELOG.en.md": '# Changelog\n\nThis version has not been published.\n\n## [Unreleased]\n\n### Added\n\n- Product version tooling.\n- A second line of English release notes.\n',
 };

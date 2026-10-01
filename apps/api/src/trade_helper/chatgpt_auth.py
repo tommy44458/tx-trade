@@ -67,7 +67,7 @@ class LoginAttempt:
 
 def _lock_path() -> Path:
     root = os.environ.get("APP_DATA_DIR") or str(
-        Path.home() / "Library" / "Application Support" / "AI Trade Helper")
+        Path.home() / "Library" / "Application Support" / "txTrade")
     path = Path(root) / "locks" / "chatgpt.lock"
     path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
     return path
@@ -342,7 +342,7 @@ def _callback(query: dict[str, list[str]]) -> tuple[int, str]:
             _pending = None
             _last_error = None if _plan_enabled(tokens) else "已登入，但尚未允許使用 ChatGPT 方案額度；請重新授權。"
             _stop_listener(attempt)
-        return 200, "ChatGPT 授權完成。可以關閉此視窗並返回 AI Trade Helper。"
+        return 200, "ChatGPT 授權完成。可以關閉此視窗並返回 txTrade。"
     except (ChatGPTAuthError, CredentialStoreError) as exc:
         with _STATE_LOCK:
             if _pending is attempt:
@@ -363,7 +363,7 @@ class _CallbackHandler(BaseHTTPRequestHandler):
         code, message = _callback(parse_qs(parsed.query, keep_blank_values=True))
         document = ("<!doctype html><html lang='zh-Hant'><meta charset='utf-8'>"
                     "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-                    "<title>AI Trade Helper</title><body style='font:17px system-ui;padding:48px'>"
+                    "<title>txTrade</title><body style='font:17px system-ui;padding:48px'>"
                     f"<p>{message}</p></body></html>").encode()
         self.send_response(code)
         self.send_header("Content-Type", "text/html; charset=utf-8")
@@ -405,7 +405,7 @@ def start_login(account_id: str | None = None, add_account: bool = False) -> dic
             "code_challenge": base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).decode().rstrip("="),
         }
         if client_id == "dynamic_agent_client":
-            parameters["agent_name_hint"] = "AI Trade Helper"
+            parameters["agent_name_hint"] = "txTrade"
         elif account:
             if account.get("id_token"):
                 parameters["id_token_hint"] = account["id_token"]

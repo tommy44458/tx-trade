@@ -10,6 +10,7 @@ import { NATIVE_STRINGS, readSavedLocale, validateLocale } from "./locales.mjs";
 import { readSavedTheme, validateTheme } from "./themes.mjs";
 import { readReleaseInfo } from "./release-info.mjs";
 import { createDesktopUpdater } from "./updater.mjs";
+import { resolveUserData } from "./user-data.mjs";
 
 const repoDir = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const token = randomBytes(32).toString("hex");
@@ -29,7 +30,10 @@ let manualUpdateChecks = 0;
 let updateMenuKey;
 const updateNotices = new Set();
 
-app.setName("AI Trade Helper");
+app.setName("txTrade");
+// Must run before the single-instance lock, which creates the new profile directory.
+const userData = resolveUserData({ appData: app.getPath("appData"), current: app.getPath("userData") });
+if (userData.path !== app.getPath("userData")) app.setPath("userData", userData.path);
 if (!app.requestSingleInstanceLock()) app.quit();
 app.on("second-instance", () => {
   if (window?.isMinimized()) window.restore();
@@ -69,7 +73,7 @@ function startupPage(failed = false) {
     : `<p class="status" role="status"><span class="sr">${title}. </span>${text.preparing}</p>`;
   return `<!doctype html><html lang="${uiLocale}"><head><meta charset="UTF-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
-  <title>AI Trade Helper</title><style>
+  <title>txTrade</title><style>
   :root{color-scheme:light dark;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',system-ui,sans-serif;
     --canvas:light-dark(#f5f5f7,#151517);--text:light-dark(#1d1d1f,#f5f5f7);--muted:light-dark(#58585f,#a1a1ab);
     --accent:light-dark(#0066cc,#75b6ff);--danger:light-dark(#c13543,#ff98a3);--settle:cubic-bezier(.32,.72,0,1)}
@@ -130,14 +134,14 @@ function updateNativeMenu() {
       { label: text.about, click: () => {
         const info = releaseInfo();
         void dialog.showMessageBox(window, { type: "info", title: text.about,
-          message: `AI Trade Helper ${info.version}`, buttons: [text.close],
+          message: `txTrade ${info.version}`, buttons: [text.close],
           detail: `${text.releaseChannel}: ${info.channel === "beta" ? text.betaChannel : text.stableChannel}`
             + (info.prepared ? "" : `\n${text.unreleasedBuild}`) });
       } },
       { label: text.changelog, click: () => {
         const info = releaseInfo();
         void dialog.showMessageBox(window, { type: "info", title: text.changelog,
-          message: `AI Trade Helper ${info.version}`, buttons: [text.close],
+          message: `txTrade ${info.version}`, buttons: [text.close],
           detail: (info.prepared ? "" : `${text.unreleasedBuild}\n\n`)
             + (info.notes || text.noReleaseNotes) });
       } },
@@ -373,11 +377,12 @@ app.whenReady().then(async () => {
   nativeTheme.themeSource = readSavedTheme(join(app.getPath("userData"), "data"),
                                          process.env.APP_LOCAL_USER_ID || "local-demo");
   window = new BrowserWindow({ width: 1280, height: 900, minWidth: 840, minHeight: 640,
-    title: "AI Trade Helper", show: false,
+    title: "txTrade", show: false,
     backgroundColor: nativeTheme.shouldUseDarkColors ? "#151517" : "#f5f5f7",
     webPreferences: { preload: join(dirname(fileURLToPath(import.meta.url)), "preload.cjs"),
       additionalArguments: [`--trade-helper-version=${app.getVersion()}`],
       nodeIntegration: false, contextIsolation: true, sandbox: true, webSecurity: true,
+      // Kept from the pre-rename build so existing renderer storage stays readable.
       partition: "ai-trade-helper" },
   });
   const localSession = window.webContents.session;

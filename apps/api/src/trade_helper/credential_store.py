@@ -18,6 +18,7 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from .db import connect, database_path, init_db, utc_now
 
+# Legacy keychain service name, kept so archived pre-rename references stay identifiable.
 SERVICE = "ai-trade-helper"
 _LOCK = threading.RLock()
 _VERSION = 2

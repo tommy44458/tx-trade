@@ -21,7 +21,7 @@ from .events import (
 def sync_once(fetch=None) -> dict[str, dict]:
     if fetch is None:
         with httpx.Client(timeout=15, follow_redirects=True,
-                          headers={"User-Agent": "AITradeHelper/0.1 calendar research"}) as client:
+                          headers={"User-Agent": "txTrade/0.1 calendar research"}) as client:
             return sync_once(lambda url: client.get(url).raise_for_status().text)
     results = {}
     for source, url in SOURCES.items():

@@ -20,8 +20,8 @@ function fixture() {
     put(name, JSON.stringify({ version: "1.2.3" }));
   }
   put("version.json", JSON.stringify({ version: "1.2.3", channel: "stable" }));
-  put("apps/api/pyproject.toml", '[project]\nname = "ai-trade-helper-api"\nversion = "1.2.3"\n');
-  put("apps/api/uv.lock", '[[package]]\nname = "ai-trade-helper-api"\nversion = "1.2.3"\n');
+  put("apps/api/pyproject.toml", '[project]\nname = "tx-trade-api"\nversion = "1.2.3"\n');
+  put("apps/api/uv.lock", '[[package]]\nname = "tx-trade-api"\nversion = "1.2.3"\n');
   for (const name of ["CHANGELOG.md", "CHANGELOG.en.md"]) {
     put(name, "## [Unreleased]\n\n## [1.2.3] - 2026-10-02\n\n- Current release notes.\n");
   }
@@ -30,7 +30,7 @@ function fixture() {
     cpSync(join(sourceRoot, name), join(root, "scripts", name));
   }
   const names = [".dmg", ".zip", ".dmg.blockmap", ".zip.blockmap"]
-    .map(suffix => `AI-Trade-Helper-1.2.3-mac-arm64${suffix}`);
+    .map(suffix => `txTrade-1.2.3-mac-arm64${suffix}`);
   names.push("latest-mac.yml", "SHA256SUMS.txt");
   const assets = names.map(name => {
     const data = `test asset ${name}\n`;
@@ -40,7 +40,7 @@ function fixture() {
   const info = { version: "1.2.3", channel: "stable", tag: "v1.2.3", commit: "test-commit",
     signed: true, platform: "darwin", arch: "arm64", assets };
   put("assets/release-info.json", JSON.stringify(info));
-  put("assets/release-notes.md", "# AI Trade Helper 1.2.3\n\n## 繁體中文\n\n- Current release notes.\n\n## English\n\n- Current release notes.\n");
+  put("assets/release-notes.md", "# txTrade 1.2.3\n\n## 繁體中文\n\n- Current release notes.\n\n## English\n\n- Current release notes.\n");
   put("bin/gh", '#!/usr/bin/env node\nconst fs = require("node:fs");\n'
     + 'fs.appendFileSync(process.env.TEST_CALLS, JSON.stringify(process.argv.slice(2)) + "\\n");\n'
     + 'process.stdout.write(process.argv[2] === "api" ? process.env.TEST_RELEASES : "{}");\n');
@@ -53,7 +53,7 @@ function publish(f, releases = []) {
     cwd: f.root, encoding: "utf8", env: {
       PATH: `${join(f.root, "bin")}${delimiter}${process.env.PATH}`,
       GITHUB_REF_TYPE: "tag", GITHUB_REF_NAME: "v1.2.3", GITHUB_REF: "refs/tags/v1.2.3",
-      GITHUB_REPOSITORY: "tommy44458/ai-trade-helper", GITHUB_SHA: "test-commit",
+      GITHUB_REPOSITORY: "tommy44458/tx-trade", GITHUB_SHA: "test-commit",
       GH_TOKEN: "test-token", TEST_CALLS: join(f.root, "calls.jsonl"), TEST_RELEASES: JSON.stringify([releases]),
     },
   });

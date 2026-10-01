@@ -5,7 +5,7 @@ from importlib.metadata import PackageNotFoundError, version
 def product_version() -> str:
     """Expose the installed product version, including SemVer beta notation."""
     try:
-        installed = version("ai-trade-helper-api")
+        installed = version("tx-trade-api")
     except PackageNotFoundError:
         # A source checkout without installed metadata has no verified build version.
         return "development"

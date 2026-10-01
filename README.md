@@ -75,19 +75,19 @@ Binance integration has automated and mocked UI coverage, but **has not yet been
 pnpm desktop:build
 ```
 
-Output goes to `apps/desktop/release/`. The package includes the frontend, Python runtime, dependencies, and SQLite; the Codex provider still needs an installed CLI. The current native package retains the name **AI Trade Helper**, although the interface is branded **txTrade**.
+Output goes to `apps/desktop/release/`. The package includes the frontend, Python runtime, dependencies, and SQLite; the Codex provider still needs an installed CLI. The native package and the interface are both named **txTrade**. On first launch, data from earlier builds under `~/Library/Application Support/AI Trade Helper` moves to `~/Library/Application Support/txTrade`.
 
 For the macOS Apple Silicon build:
 
 ```bash
-open "apps/desktop/release/mac-arm64/AI Trade Helper.app"
+open "apps/desktop/release/mac-arm64/txTrade.app"
 ```
 
 macOS arm64 is the validated local target. The package uses ad-hoc signing; release signing/notarization and Windows/Linux distribution have not been validated.
 
 ### Product version and release notes
 
-`version.json` is the product version source for the desktop, web, and Python packages. Desktop startup and packaging check version consistency first. Use **Settings → About AI Trade Helper** to see the installed version, and **Settings → Changelog** for its bundled notes in the selected language.
+`version.json` is the product version source for the desktop, web, and Python packages. Desktop startup and packaging check version consistency first. Use **Settings → About txTrade** to see the installed version, and **Settings → Changelog** for its bundled notes in the selected language.
 
 ```bash
 pnpm release:check

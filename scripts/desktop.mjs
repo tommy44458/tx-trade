@@ -47,7 +47,7 @@ if (mode !== "start") {
     "--noconfirm", "--clean", "--onedir", "--name", "trade-helper-backend",
     "--paths", join(root, "apps/api/src"),
     "--collect-submodules", "trade_helper",
-    "--copy-metadata", "ai-trade-helper-api",
+    "--copy-metadata", "tx-trade-api",
     "--collect-data", "trade_helper",
     "--collect-submodules", "uvicorn", "--hidden-import", "sqlite3",
     "--exclude-module", "psycopg", "--exclude-module", "psycopg_binary",

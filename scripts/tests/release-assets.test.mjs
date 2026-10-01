@@ -4,7 +4,7 @@ import { assertReleaseEnvironment, assertReleaseTag, validateUpdateMetadata } fr
 
 const state = { version: "1.2.3", channel: "stable" };
 const tagEnvironment = { GITHUB_REF_TYPE: "tag", GITHUB_REF_NAME: "v1.2.3",
-  GITHUB_REF: "refs/tags/v1.2.3", GITHUB_REPOSITORY: "tommy44458/ai-trade-helper" };
+  GITHUB_REF: "refs/tags/v1.2.3", GITHUB_REPOSITORY: "tommy44458/tx-trade" };
 const credentials = { CSC_LINK: "test-certificate", CSC_KEY_PASSWORD: "test-password", APPLE_ID: "test@example.com",
   APPLE_APP_SPECIFIC_PASSWORD: "test-password", APPLE_TEAM_ID: "TESTTEAMID" };
 

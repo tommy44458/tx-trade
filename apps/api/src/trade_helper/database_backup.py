@@ -24,6 +24,10 @@ def backup_database(output: Path) -> Path:
         with (closing(sqlite3.connect(f"{source.as_uri()}?mode=ro", uri=True)) as original,
               closing(sqlite3.connect(temporary)) as target):
             original.backup(target)
+            # The copy inherits WAL mode; fold it into one self-contained file so
+            # no SQLite version can leave committed pages in a separate sidecar.
+            if target.execute("PRAGMA journal_mode=DELETE").fetchone()[0] != "delete":
+                raise RuntimeError("備份無法轉為單一檔案")
             if target.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
                 raise RuntimeError("備份完整性檢查失敗")
         with open(temporary, "rb") as completed:
@@ -31,7 +35,8 @@ def backup_database(output: Path) -> Path:
         os.link(temporary, output)
         return output
     finally:
-        Path(temporary).unlink(missing_ok=True)
+        for suffix in ("", "-wal", "-shm", "-journal"):
+            Path(temporary + suffix).unlink(missing_ok=True)
 
 
 def main():

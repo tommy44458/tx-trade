@@ -175,6 +175,7 @@ def test_worker_reports_expired_market_data_with_specific_error(monkeypatch, tmp
 
 def test_worker_retries_transient_market_failure_before_analysis(monkeypatch):
     import httpx
+
     from trade_helper.worker import _required_market_fetch
 
     monkeypatch.setattr("trade_helper.worker.time.sleep", lambda *_: None)

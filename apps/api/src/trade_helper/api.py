@@ -70,7 +70,7 @@ async def lifespan(_app: FastAPI):
     shutdown_codex()
 
 
-app = FastAPI(title="AI Trade Helper local API", version=product_version(), lifespan=lifespan)
+app = FastAPI(title="txTrade local API", version=product_version(), lifespan=lifespan)
 app.include_router(settings_router)
 app.include_router(credential_migration_router)
 app.include_router(chatgpt_auth_router)
