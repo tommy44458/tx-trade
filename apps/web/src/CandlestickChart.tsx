@@ -253,7 +253,8 @@ export default function CandlestickChart({
         textColor: theme.text,
         fontFamily: '-apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif',
         fontSize: 11,
-        attributionLogo: false,
+        // Required by the Lightweight Charts license: links to tradingview.com.
+        attributionLogo: true,
       },
       grid: { vertLines: { color: theme.grid }, horzLines: { color: theme.grid } },
       rightPriceScale: { borderColor: theme.grid, scaleMargins: { top: 0.08, bottom: 0.23 } },

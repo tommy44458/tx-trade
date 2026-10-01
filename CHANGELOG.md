@@ -11,6 +11,7 @@
 - API 與本地服務版本資訊跟隨產品版本，測試版使用一致的版本格式。
 - macOS Apple Silicon 新增 GitHub Actions 安裝檔建置與正式簽章發布草稿流程；正式發布需先完成 Apple 憑證設定與安裝驗收。
 - 桌面設定新增更新檢查、下載、進度及安裝選項；正式版更新會等待模型工作結束並備份本地資料，測試成品停用自動更新。
+- 以 GNU AGPL v3（僅限此版本）授權原始碼，新增貢獻者授權協議（CLA）、商標政策與第三方授權聲明；K 線圖依 Lightweight Charts 授權要求顯示 TradingView 標示。
 - AI 分析來源新增 Claude Code：綁定本機已安裝並登入的 Claude Code CLI，用於策略分析、宏觀解讀、翻譯與追問串流；本應用程式不讀取或保存 Claude 憑證，模型只能使用 txTrade 註冊的指標工具。
 
 ### 變更

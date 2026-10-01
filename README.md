@@ -153,3 +153,9 @@ uv run ruff check src tests scripts
 `check:bilingual` checks prompt/version consistency and paired language resources using isolated fixtures. Build and automated tests do not replace live provider/account acceptance or establish trading returns. Model or data-source failures are shown explicitly; a rules-only result is not presented as successful AI analysis.
 
 Broad licensed crypto-news coverage, consensus forecasts as strategy evidence, automatic embedding/retrieval in the Agent workflow, and an actual execution-cost ledger remain future work. Cloud deployment is outside the current local-app scope.
+
+## License
+
+txTrade is licensed under the [GNU Affero General Public License v3.0 only](LICENSE) (`AGPL-3.0-only`). You may use, study, modify, and share it. If you distribute a modified version, or let others use a modified version over a network, you must make its complete source code available under the same license. Commercial licenses without these obligations are available from the copyright holder.
+
+Contributions require accepting the [Contributor License Agreement](CLA.md); see [CONTRIBUTING.md](CONTRIBUTING.md). The txTrade name and logos are not covered by the AGPL; see the [trademark policy](TRADEMARKS.md). Third-party attributions are listed in [NOTICE](NOTICE).
