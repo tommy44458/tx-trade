@@ -372,6 +372,10 @@ async function startBackend() {
 }
 
 app.whenReady().then(async () => {
+  // Development runs inside the generic Electron.app; packaged builds carry icon.icns.
+  if (!app.isPackaged && process.platform === "darwin") {
+    app.dock?.setIcon(join(dirname(fileURLToPath(import.meta.url)), "resources/icon.png"));
+  }
   uiLocale = readSavedLocale(join(app.getPath("userData"), "data"),
                             process.env.APP_LOCAL_USER_ID || "local-demo");
   nativeTheme.themeSource = readSavedTheme(join(app.getPath("userData"), "data"),

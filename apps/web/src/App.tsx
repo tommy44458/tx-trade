@@ -36,6 +36,7 @@ import AnalysisFailure from "./AnalysisFailure";
 import DiscussionSidebar from "./DiscussionSidebar";
 import type { AnalysisDiscussionProps } from "./AnalysisDiscussion";
 import LeverageControl from "./LeverageControl";
+import { sessionAccount, type SessionInfo } from "./sessionIdentity";
 import { ANALYSIS_TIMEFRAMES, isAnalysisTimeframe, timeframeCode, timeframeLabel, type AnalysisTimeframe } from "./timeframes";
 import AnalysisProgress, {
   AnalysisSpinner,
@@ -429,7 +430,8 @@ function App() {
   const [eventsLoading, setEventsLoading] = useState(true);
   const [eventsError, setEventsError] = useState("");
   const macroInterpretation = useMacroInterpretation(view === "events", locale);
-  const [localUser, setLocalUser] = useState("local-demo");
+  const [session, setSession] = useState<SessionInfo | null>(null);
+  const account = sessionAccount(session);
   const [selected, setSelected] = useState<string[]>([]);
   const marketPositions = useMemo(() => positions.filter((position) => position.market_id === marketId),
     [positions, marketId]);
@@ -553,8 +555,8 @@ function App() {
       .then(setLiveEvents)
       .catch((e) => setEventsError(e.message))
       .finally(() => setEventsLoading(false));
-    api<{ user_id: string }>("/session")
-      .then((value) => setLocalUser(value.user_id))
+    api<SessionInfo>("/session")
+      .then(setSession)
       .catch(() => {});
     return () => {
       active = false;
@@ -972,11 +974,17 @@ function App() {
           ))}
         </nav>
         <div className="sidebar-foot">
-          <span className="avatar">{localUser.slice(0, 1).toUpperCase()}</span>
-          <div>
+          {account ? (
+            <>
+              <span className="avatar" aria-hidden="true">{account.initial}</span>
+              <div>
+                <strong>{account.name}</strong>
+                {account.detail && <small>{account.detail}</small>}
+              </div>
+            </>
+          ) : (
             <strong>{uiText("本地工作空間")}</strong>
-            <small>{localUser}</small>
-          </div>
+          )}
         </div>
       </aside>
       <main id="main-content" tabIndex={-1}>
