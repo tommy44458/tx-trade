@@ -13,16 +13,15 @@
 - 桌面設定新增更新檢查、下載、進度及安裝選項；正式版更新會等待模型工作結束並備份本地資料，測試成品停用自動更新。
 - 以 GNU AGPL v3（僅限此版本）授權原始碼，新增貢獻者授權協議（CLA）、商標政策與第三方授權聲明；K 線圖依 Lightweight Charts 授權要求顯示 TradingView 標示。
 - AI 分析來源新增 Claude Code：綁定本機已安裝並登入的 Claude Code CLI，用於策略分析、宏觀解讀、翻譯與追問串流；本應用程式不讀取或保存 Claude 憑證，模型只能使用 txTrade 註冊的指標工具。
+- 設定頁會偵測 Codex 與 Claude Code CLI 是否已安裝；未安裝或尚未登入時提供可複製的安裝與登入指令。從 Finder 開啟 App 時，也會檢查 Homebrew、npm、Volta、Bun 與 nvm 等常見安裝位置。
+- 新增 txTrade 字樣的 App 圖示。
 
 ### 變更
 
 - 產品名稱由暫定的 AI Trade Helper 改為 txTrade，包含應用程式、安裝檔、選單與發布倉庫 `tommy44458/tx-trade`。首次啟動時會將原 `AI Trade Helper` 資料目錄移至 `txTrade`；舊版仍在執行時暫不搬移並沿用原目錄。
 - 啟動頁改以 txTrade 字樣動畫呈現，至少顯示 3 秒並淡出後進入工作區；支援減少動態效果。
+- 側邊欄不再顯示內部工作空間 ID（`local-demo`），本地模式只顯示「本地工作空間」。
 
 ### 移除
 
 - 移除直接連結 ChatGPT 帳號（Sign in with ChatGPT）的分析來源。可連結的 AI 改為 Codex 與 Claude Code；原本選擇 ChatGPT 的設定會改用預設來源，已保存的 ChatGPT 授權 token 於資料庫升級時刪除。
-
-### 尚未發布的基線
-
-- 現有本地桌面應用打包基線為 0.2.0，尚未建立正式發布紀錄。
