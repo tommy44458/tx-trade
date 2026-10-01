@@ -36,6 +36,16 @@ def market_catalog_is_offline(monkeypatch, local_preferences_are_isolated):
         for base in ("BTC", "ETH", "SOL", "ADA", "SUI")
     ]}
     snapshot = market_catalog._parse_exchange_info(payload, time.time())
+    # Tests that point APP_DATA_DIR elsewhere miss the cache below; serve the
+    # same fixture instead of reaching Binance, which also blocks CI regions.
+    live_get = market_catalog.httpx.get
+
+    def offline_exchange_info(url, *args, **kwargs):
+        if str(url).endswith("/fapi/v1/exchangeInfo"):
+            return market_catalog.httpx.Response(200, json=payload, request=market_catalog.httpx.Request("GET", url))
+        return live_get(url, *args, **kwargs)
+
+    monkeypatch.setattr(market_catalog.httpx, "get", offline_exchange_info)
     monkeypatch.setattr(market_catalog, "_cache", snapshot)
     monkeypatch.setattr(market_catalog, "_cache_path",
                         Path(os.environ["APP_DATA_DIR"]).resolve() / "market_catalog.json")
