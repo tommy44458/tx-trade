@@ -652,7 +652,7 @@ function App() {
       if (!connection.ready) {
         setError(
           connection.error ||
-          uiText("尚未連線 AI 分析帳號，請在設定完成 ChatGPT 或 Codex 授權後再分析。"),
+          uiText("尚未連線 AI 分析帳號，請在設定完成 Codex 或 Claude Code 連線後再分析。"),
         );
         setView("settings");
         return;
@@ -1009,7 +1009,7 @@ function App() {
             modelReady === false &&
             (localSettings?.desktop || window.tradeHelper) && (
               <div className="model-connection-prompt" role="status">
-                <p>{uiText("連線 ChatGPT 或 Codex 帳號後，即可開始 AI 分析。")}</p>
+                <p>{uiText("連線 Codex 或 Claude Code 後，即可開始 AI 分析。")}</p>
                 <button type="button" onClick={() => setView("settings")}>{uiText("前往設定")}</button>
               </div>
             )}{" "}

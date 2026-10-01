@@ -137,3 +137,26 @@ def test_simultaneous_upgrade_runs_apply_migration_once(version_one_database):
     with ThreadPoolExecutor(max_workers=4) as executor:
         list(executor.map(lambda _index: storage.init_db(), range(4)))
     _assert_existing_data(version_one_database)
+
+
+def test_schema_nine_removes_retired_chatgpt_authorization_only():
+    storage.init_db()
+    preferences = {"model_provider": "chatgpt", "models": {"chatgpt": "gpt", "codex": "kept"},
+                   "ui_locale": "en-US"}
+    with storage.connect() as database:
+        database.execute("INSERT INTO credential_local_keys VALUES ('k',?,'2026-10-01')", (b"k" * 32,))
+        for name in ("chatgpt", "openai"):
+            database.execute("INSERT INTO credential_records(name,key_id,nonce,ciphertext,updated_at)"
+                             " VALUES (?,?,?,?,'2026-10-01')", (name, "k", b"n" * 12, b"c" * 16))
+        for provider in ("chatgpt", "codex"):
+            database.execute("INSERT INTO auth_metadata VALUES (?,?,'2026-10-01')", (provider, "{}"))
+        database.execute("INSERT INTO app_preferences VALUES ('owner',?,'2026-10-01')",
+                         (json.dumps(preferences),))
+        database.execute("DELETE FROM schema_migrations WHERE version=9")
+        database.execute("PRAGMA user_version=8")
+    storage.init_db()
+    with storage.connect(readonly=True) as database:
+        assert [row["name"] for row in database.execute("SELECT name FROM credential_records")] == ["openai"]
+        assert [row["provider"] for row in database.execute("SELECT provider FROM auth_metadata")] == ["codex"]
+        saved = json.loads(database.execute("SELECT value_json FROM app_preferences").fetchone()["value_json"])
+        assert saved == {"models": {"codex": "kept"}, "ui_locale": "en-US"}

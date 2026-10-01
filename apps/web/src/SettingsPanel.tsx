@@ -62,7 +62,7 @@ export default function SettingsPanel({
     initialSettings,
   );
   const [provider, setProvider] = useState<ModelProvider>(
-    initialSettings?.model_provider ?? "chatgpt",
+    initialSettings?.model_provider ?? "codex",
   );
   const [model, setModel] = useState(initialSettings?.model ?? "");
   const [auth, setAuth] = useState<ModelAuthStatus | null>(null);
@@ -158,7 +158,7 @@ export default function SettingsPanel({
     return () => {
       active = false;
     };
-  }, [provider, auth?.authenticated, auth?.active_account_id]);
+  }, [provider, auth?.authenticated]);
 
   useEffect(() => {
     if (!waiting || provider === "openai") return;
@@ -308,17 +308,14 @@ export default function SettingsPanel({
     setIndicatorsNotice(false);
   }
 
-  function login(addAccount = false) {
+  function login() {
     void perform("login", async () => {
       const result = await settingsRequest<{
         auth_url?: string;
         verification_url?: string;
         user_code?: string;
         status?: ModelAuthStatus | string;
-      }>(`/auth/${provider}/login`, {
-        method: "POST",
-        body: JSON.stringify(addAccount ? { add_account: true } : {}),
-      });
+      }>(`/auth/${provider}/login`, { method: "POST", body: "{}" });
       const url = result.auth_url || result.verification_url || "";
       setAuthUrl(url);
       setUserCode(result.user_code || "");
@@ -330,6 +327,12 @@ export default function SettingsPanel({
       ) {
         setNotice(uiText("帳號已連線。"));
         await changedRef.current();
+        return;
+      }
+      if (provider === "claude_code") {
+        // Claude Code keeps its own sign-in; this app only binds to it.
+        const status = typeof result.status === "object" ? result.status : null;
+        setError(status?.error || uiText("Claude Code 尚未登入，請先在終端機執行 claude auth login。"));
         return;
       }
       setWaiting(true);
@@ -347,7 +350,9 @@ export default function SettingsPanel({
         await settingsRequest<ModelAuthStatus>(`/auth/${provider}/status`),
       );
       await changedRef.current();
-      setNotice(action === "logout" ? uiText("已登出此帳號。") : uiText("已取消這次授權。"));
+      setNotice(action === "cancel" ? uiText("已取消這次授權。")
+        : provider === "claude_code" ? uiText("已解除 Claude Code 連線；Claude Code 本身的登入不受影響。")
+          : uiText("已登出此帳號。"));
     });
   }
 
@@ -356,9 +361,7 @@ export default function SettingsPanel({
     : model
       ? [{ id: model, name: model }, ...models]
       : models;
-  const connected =
-    !!auth?.authenticated &&
-    (provider !== "chatgpt" || auth.plan_usage_enabled !== false);
+  const connected = !!auth?.authenticated;
   const indicatorCatalog = initialIndicatorCatalog(settings?.initial_indicator_catalog);
   const indicatorsDirty = !sameInitialIndicators(initialIndicators, savedInitialIndicators);
   const indicatorsDisabled = !!busy || indicatorsLoading || !indicatorsLoaded;
@@ -469,8 +472,8 @@ export default function SettingsPanel({
                   setNotice("");
                 }}
               >
-                <option value="chatgpt">{uiText("ChatGPT 帳號")}</option>
                 <option value="codex">{uiText("Codex 授權")}</option>
+                <option value="claude_code">{uiText("Claude Code（本機登入）")}</option>
                 {settings.model_provider === "openai" && (
                   <option value="openai">{uiText("OpenAI API（既有設定）")}</option>
                 )}
@@ -481,41 +484,9 @@ export default function SettingsPanel({
                 {auth?.email && (
                   <p className="settings-account-email">{auth.email}</p>
                 )}{" "}
-                {!!auth?.accounts?.length && provider === "chatgpt" && (
-                  <label className="settings-field">{uiText("使用帳號")}<SelectControl
-                      value={auth.active_account_id ?? ""}
-                      disabled={!!busy || waiting}
-                      onChange={(event) => {
-                        const accountId = event.target.value;
-                        void perform("account", async () => {
-                          const status = await settingsRequest<ModelAuthStatus>(
-                            "/auth/chatgpt/select",
-                            {
-                              method: "POST",
-                              body: JSON.stringify({ account_id: accountId }),
-                            },
-                          );
-                          setAuth(status);
-                          await changedRef.current();
-                          setNotice(uiText("已切換分析帳號。"));
-                        });
-                      }}
-                    >
-                      {!auth.active_account_id && (
-                        <option value="">{uiText("選擇帳號")}</option>
-                      )}{" "}
-                      {auth.accounts.map((account) => (
-                        <option key={account.id} value={account.id}>
-                        {account.label || account.email || uiText("ChatGPT 帳號")}{" "}
-                          {!account.authenticated ? uiText("（需重新授權）") : ""}
-                        </option>
-                      ))}
-                    </SelectControl>
-                  </label>
-                )}
                 <p className="settings-help">
-                  {provider === "chatgpt"
-                    ? uiText("在系統瀏覽器登入 ChatGPT，並授權此應用程式使用帳號的模型額度。")
+                  {provider === "claude_code"
+                    ? uiText("使用本機 Claude Code 的登入狀態，本應用程式不會讀取或保存 Claude 憑證。尚未登入時，請先在終端機執行 claude auth login。")
                     : uiText("使用本機 Codex 的 ChatGPT 授權；尚未登入時，可從這裡完成登入。")}
                 </p>
                 {auth?.error && (
@@ -523,11 +494,6 @@ export default function SettingsPanel({
                     {auth.error}
                   </p>
                 )}{" "}
-                {auth?.authenticated &&
-                  auth.plan_usage_enabled === false &&
-                  provider === "chatgpt" && (
-                    <p className="settings-inline-error">{uiText("此帳號尚未授權模型額度，請重新連線並確認授權範圍。")}</p>
-                  )}{" "}
                 {waiting ? (
                   <>
                     <p className="settings-login-wait" role="status">
@@ -567,27 +533,17 @@ export default function SettingsPanel({
                       onClick={() => login()}
                     >
                       {busy === "login" && <AnalysisSpinner />}{" "}
-                      {connected
-                        ? uiText("重新授權")
-                        : provider === "chatgpt"
-                          ? uiText("使用 ChatGPT 登入")
-                          : uiText("連線 Codex")}
+                      {provider === "claude_code"
+                        ? connected ? uiText("重新檢查登入狀態") : uiText("連線 Claude Code")
+                        : connected ? uiText("重新授權") : uiText("連線 Codex")}
                     </button>
-                    {provider === "chatgpt" && connected && (
-                      <button
-                        type="button"
-                        className="settings-secondary"
-                        disabled={!!busy}
-                        onClick={() => login(true)}
-                      >{uiText("新增帳號")}</button>
-                    )}{" "}
                     {auth?.authenticated && (
                       <button
                         type="button"
                         className="settings-secondary"
                         disabled={!!busy}
                         onClick={() => authAction("logout")}
-                      >{uiText("登出")}</button>
+                      >{provider === "claude_code" ? uiText("解除連線") : uiText("登出")}</button>
                     )}
                   </div>
                 )}{" "}
@@ -894,7 +850,7 @@ export default function SettingsPanel({
             { name: "jblanked", title: uiText("JBlanked 經濟日曆"), key: jblankedKey, setKey: setJblankedKey,
               help: uiText("提供經濟日曆來源檢查使用。儲存金鑰不會立即呼叫供應商；檢查仍受既有請求額度限制。"), visible: true },
             { name: "openai", title: "OpenAI API", key: openaiKey, setKey: setOpenaiKey,
-              help: uiText("供既有 API 模式使用；ChatGPT 或 Codex 帳號分析不需要此金鑰。"), visible: provider === "openai" || settings.integrations.openai?.configured },
+              help: uiText("供既有 API 模式使用；Codex 或 Claude Code 分析不需要此金鑰。"), visible: provider === "openai" || settings.integrations.openai?.configured },
           ] as const).filter((item) => item.visible).map((item) => {
             const state = settings.integrations[item.name];
             return (

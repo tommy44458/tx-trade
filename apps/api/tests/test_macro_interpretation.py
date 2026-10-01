@@ -223,7 +223,7 @@ def test_no_usable_evidence_is_insufficient_and_does_not_create_model_job(macro_
     assert calls == []
 
 
-@pytest.mark.parametrize("provider", ["codex", "chatgpt", "openai"])
+@pytest.mark.parametrize("provider", ["codex", "claude_code", "openai"])
 def test_generation_uses_existing_provider_adapter_without_tools(macro_data, monkeypatch, provider):
     snapshot, _calls = macro_data
     response = SimpleNamespace(output_text=json.dumps(result()),
@@ -236,7 +236,8 @@ def test_generation_uses_existing_provider_adapter_without_tools(macro_data, mon
         return response
 
     session = SimpleNamespace(provider=provider, model="fixture-provider-model",
-                              analyze_codex=create, client=SimpleNamespace(responses=SimpleNamespace(create=create)),
+                              uses_local_agent=provider != "openai",
+                              analyze_local_agent=create, client=SimpleNamespace(responses=SimpleNamespace(create=create)),
                               close=lambda: closes.append(1))
     monkeypatch.setattr(macro, "ModelSession", lambda **_kwargs: session)
     # Fixture replaced _generate for integration; call the real function saved
@@ -245,7 +246,7 @@ def test_generation_uses_existing_provider_adapter_without_tools(macro_data, mon
     assert generated["outlook"]["stance"] == "neutral"
     assert execution["provider"] == provider and execution["input_tokens"] == 123
     assert closes == [1] and len(requests) == 1
-    if provider == "codex":
+    if provider != "openai":
         assert "context" in requests[0] and requests[0]["tool_handler"]("anything") == {}
     else:
         assert requests[0]["tool_choice"] == "none"

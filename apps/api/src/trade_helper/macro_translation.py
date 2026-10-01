@@ -230,8 +230,8 @@ def _generate_translation(job: dict, instructions: str, *, timeout: float) -> tu
         if remaining <= 0:
             raise TimeoutError("Translation setup exceeded its budget")
         context = json.dumps(supplied, ensure_ascii=False, separators=(",", ":"))
-        if session.provider == "codex":
-            response = session.analyze_codex(instructions=instructions, context=context, tools=[],
+        if session.uses_local_agent:
+            response = session.analyze_local_agent(instructions=instructions, context=context, tools=[],
                                              tool_handler=None, timeout=remaining)
         else:
             response = session.client.responses.create(

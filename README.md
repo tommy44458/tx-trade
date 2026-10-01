@@ -45,10 +45,10 @@ The launcher installs app dependencies, builds the interface, and starts Electro
 In **Settings**, choose a model provider and connect your account:
 
 - **Codex:** uses an installed Codex CLI through its app-server and authorized account. Connect through the app if an existing usable CLI authorization is unavailable.
-- **ChatGPT:** uses an app-specific OAuth/PKCE sign-in flow. Access depends on provider support, account eligibility, consent, and usage limits. Direct sign-in is implemented but has not yet completed real-user consent and inference testing.
-- Existing **OpenAI API compatibility mode** is retained, but an API key is not required for Codex/ChatGPT desktop analysis.
+- **Claude Code:** uses an installed Claude Code CLI and its existing sign-in. Sign in with `claude auth login` in a terminal, then choose **Connect Claude Code**. The app only checks `claude auth status` and never reads or stores Claude credentials; **Disconnect** unbinds the app without signing Claude Code out. Built-in Claude Code tools, user settings, hooks, plugins, and MCP servers are disabled for analysis runs.
+- Existing **OpenAI API compatibility mode** is retained, but an API key is not required for Codex/Claude Code desktop analysis.
 
-Use the provider's sign-in flow; do not paste browser cookies or extracted ChatGPT session tokens. The app does not read ChatGPT chat history or copy shared Codex token files. Model requests still require internet access and send the analysis context to the selected provider. This implementation is not a promise of unrestricted subscription access or approval for a hosted/commercial integration.
+Use each provider's own sign-in flow; do not paste browser cookies or extracted session tokens. The app does not copy shared Codex token files or Claude Code credentials. Model requests still require internet access and send the analysis context to the selected provider. This implementation is not a promise of unrestricted subscription access or approval for a hosted/commercial integration.
 
 Keep the app open while work is running: closing it stops its local API and workers.
 
@@ -75,7 +75,7 @@ Binance integration has automated and mocked UI coverage, but **has not yet been
 pnpm desktop:build
 ```
 
-Output goes to `apps/desktop/release/`. The package includes the frontend, Python runtime, dependencies, and SQLite; the Codex provider still needs an installed CLI. The native package and the interface are both named **txTrade**. On first launch, data from earlier builds under `~/Library/Application Support/AI Trade Helper` moves to `~/Library/Application Support/txTrade`.
+Output goes to `apps/desktop/release/`. The package includes the frontend, Python runtime, dependencies, and SQLite; the Codex and Claude Code providers still need their installed CLIs. The native package and the interface are both named **txTrade**. On first launch, data from earlier builds under `~/Library/Application Support/AI Trade Helper` moves to `~/Library/Application Support/txTrade`.
 
 For the macOS Apple Silicon build:
 

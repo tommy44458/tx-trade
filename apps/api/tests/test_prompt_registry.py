@@ -261,7 +261,7 @@ def test_registry_qa_command_reports_every_complete_task():
     assert result["policy_count"] >= 40
 
 
-@pytest.mark.parametrize("provider", ["openai", "chatgpt", "codex"])
+@pytest.mark.parametrize("provider", ["openai", "claude_code", "codex"])
 @pytest.mark.parametrize("locale", ["en-US", "zh-TW"])
 def test_all_strategy_providers_use_the_frozen_bundle_and_same_original_evidence(
     monkeypatch, provider, locale,
@@ -282,7 +282,8 @@ def test_all_strategy_providers_use_the_frozen_bundle_and_same_original_evidence
     session = SimpleNamespace(
         provider=provider, model="model-test",
         client=SimpleNamespace(responses=SimpleNamespace(create=capture)),
-        analyze_codex=capture, close=lambda: closed.append(True),
+        analyze_local_agent=capture, uses_local_agent=provider != "openai",
+        close=lambda: closed.append(True),
     )
     monkeypatch.setattr("trade_helper.agent.ModelSession", lambda **kwargs: session)
     monkeypatch.setattr("trade_helper.agent.resolve_prompt", lambda *args, **kwargs: (
@@ -290,7 +291,7 @@ def test_all_strategy_providers_use_the_frozen_bundle_and_same_original_evidence
     result = analyze_with_tools(request, candles, quote, context, prompt_bundle=bundle)
     assert len(calls) == 1 and closed == [True]
     assert calls[0]["instructions"] == bundle.instructions
-    serialized = calls[0]["context"] if provider == "codex" else calls[0]["input"][0]["content"]
+    serialized = calls[0]["context"] if provider != "openai" else calls[0]["input"][0]["content"]
     supplied = json.loads(serialized)
     assert supplied["current_candle"]["quote_price"] == quote["price"]
     assert result["analysis_execution"]["prompt_bundle"] == bundle.metadata()

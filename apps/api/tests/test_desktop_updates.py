@@ -75,7 +75,7 @@ def test_preparation_preserves_wal_database_and_reuses_private_backup(desktop_cl
     with sqlite3.connect(output) as backup:
         assert backup.execute("PRAGMA integrity_check").fetchone() == ("ok",)
         assert backup.execute("SELECT status FROM analyses").fetchone() == ("queued",)
-        assert backup.execute("PRAGMA user_version").fetchone() == (8,)
+        assert backup.execute("PRAGMA user_version").fetchone() == (9,)
     if os.name == "posix":
         assert output.stat().st_mode & 0o777 == 0o600
         assert output.parent.stat().st_mode & 0o777 == 0o700

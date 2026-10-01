@@ -7,7 +7,7 @@ from time import monotonic
 from openai import OpenAI
 
 from .analysis import calculate
-from .chatgpt_auth import ChatGPTAuthError
+from .claude_code_bridge import ClaudeCodeError
 from .codex_bridge import CodexError
 from .credential_store import CredentialStoreError
 from .current_candle import current_candle_context
@@ -154,7 +154,7 @@ _VALIDATION_ERRORS = frozenset({
 
 def model_failure_reason(exc: Exception) -> str:
     """Only expose known application validation messages, never provider payloads."""
-    if isinstance(exc, (ModelProviderError, CodexError, ChatGPTAuthError, CredentialStoreError)):
+    if isinstance(exc, (ModelProviderError, CodexError, ClaudeCodeError, CredentialStoreError)):
         return str(exc)
     if isinstance(exc, RuntimeError) and str(exc) == "OPENAI_API_KEY and OPENAI_MODEL are required for Agent analysis":
         return "尚未設定 OPENAI_API_KEY 或 OPENAI_MODEL，無法產生 Agent 策略分析"
@@ -453,7 +453,7 @@ def _analyze_with_session(request: dict, candles: list[dict], quote: dict,
         remaining = deadline - monotonic()
         if remaining <= 0:
             raise TimeoutError("AI analysis time budget exceeded")
-        if session.provider == "codex":
+        if session.uses_local_agent:
             def run_indicator(name, arguments):
                 nonlocal additional_calls
                 additional_calls += 1
@@ -465,12 +465,12 @@ def _analyze_with_session(request: dict, candles: list[dict], quote: dict,
                 trace.append(execution)
                 return compact_indicator_values(_model_tool_result(execution))
 
-            response = session.analyze_codex(instructions=instructions,
+            response = session.analyze_local_agent(instructions=instructions,
                 context=inputs[0]["content"], tools=additional_tool_schemas(snapshot),
                 tool_handler=run_indicator, timeout=remaining)
         else:
             response = client.responses.create(
-                timeout=remaining if session.provider == "chatgpt" else min(90, remaining),
+                timeout=min(90, remaining),
                 model=model, instructions=instructions, input=inputs,
                 tools=additional_tool_schemas(snapshot),
                 tool_choice="auto" if additional_calls < 4 else "none", parallel_tool_calls=False,

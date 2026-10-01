@@ -64,14 +64,13 @@ class BlockingClient:
         self.closed.set()
 
 
-@pytest.mark.parametrize("provider", ["openai", "chatgpt"])
 @pytest.mark.parametrize("swallowed_heartbeats", [False, True])
 @pytest.mark.parametrize("block_close", [False, True])
 def test_blocking_sse_iterator_has_hard_deadline_and_no_late_callbacks(
-        monkeypatch, provider, swallowed_heartbeats, block_close):
+        monkeypatch, swallowed_heartbeats, block_close):
     stream = BlockingStream(swallowed_heartbeats=swallowed_heartbeats, block_close=block_close)
     client = BlockingClient(stream, block_close=block_close)
-    tokens, requests, prefixes, readers = [], [], [], []
+    prefixes, readers = [], []
     original_reader = model_providers._BoundedResponseReader
 
     def reader(*args):
@@ -80,17 +79,9 @@ def test_blocking_sse_iterator_has_hard_deadline_and_no_late_callbacks(
         return result
 
     monkeypatch.setattr(model_providers, "_BoundedResponseReader", reader)
-    monkeypatch.setattr(model_providers.chatgpt_auth, "get_access_token", lambda **kwargs:
-                        (tokens.append(kwargs["force_refresh"]), "fixture-token")[1])
-
-    def factory(**_kwargs):
-        requests.append(True)
-        return client
-
     session = model_providers.ModelSession.__new__(model_providers.ModelSession)
-    session.provider, session.model = provider, "fixture"
-    session.client = client if provider == "openai" else NS(
-        responses=model_providers.ChatGPTResponses(factory))
+    session.provider, session.model = "openai", "fixture"
+    session.client = client
     started = monotonic()
     try:
         with pytest.raises(TimeoutError):
@@ -107,8 +98,6 @@ def test_blocking_sse_iterator_has_hard_deadline_and_no_late_callbacks(
         assert readers[0].events.maxsize == model_providers.STREAM_QUEUE_SIZE
         if swallowed_heartbeats:
             assert stream.heartbeats > 0
-        if provider == "chatgpt":
-            assert tokens == [False] and requests == [True]
     finally:
         stream.release_all()
         client.allow_close.set()

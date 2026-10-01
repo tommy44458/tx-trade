@@ -82,7 +82,7 @@ def test_theme_get_and_save_do_not_decrypt_credentials_or_contact_model_auth(mon
         monkeypatch.setattr(local_settings, name, forbidden)
     monkeypatch.setattr(local_settings, "credential_status", lambda name: name in {"bingx", "jev"})
     monkeypatch.setattr("trade_helper.codex_bridge.require_authorized", forbidden)
-    monkeypatch.setattr("trade_helper.chatgpt_auth.get_access_token", forbidden)
+    monkeypatch.setattr("trade_helper.claude_code_bridge.require_authorized", forbidden)
     monkeypatch.setattr("trade_helper.model_providers.ModelSession", forbidden)
     with TestClient(app, headers={"Authorization": "Bearer theme-test-session"}) as client:
         initial = client.get("/api/v1/settings").json()

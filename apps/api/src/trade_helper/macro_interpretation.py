@@ -13,7 +13,7 @@ from fastapi import APIRouter, BackgroundTasks, Query
 from openai import AuthenticationError, OpenAI
 from pydantic import BaseModel, ConfigDict
 
-from .chatgpt_auth import ChatGPTAuthError
+from .claude_code_bridge import ClaudeCodeError
 from .codex_bridge import CodexError
 from .config import local_user_id
 from .credential_store import CredentialStoreError
@@ -246,14 +246,14 @@ def _generate(evidence: dict, *, instructions: str | None = None,
     instructions = instructions or resolve_prompt("macro_interpretation", response_locale=output_locale).instructions
     try:
         session = ModelSession(openai_factory=OpenAI)
-    except (CodexError, ChatGPTAuthError, CredentialStoreError, ModelProviderError) as exc:
+    except (CodexError, ClaudeCodeError, CredentialStoreError, ModelProviderError) as exc:
         if isinstance(exc, TimeoutError):
             raise
         raise _ModelSetupUnavailable() from None
     try:
         context = json.dumps(evidence, ensure_ascii=False, separators=(",", ":"))
-        if session.provider == "codex":
-            response = session.analyze_codex(instructions=instructions, context=context,
+        if session.uses_local_agent:
+            response = session.analyze_local_agent(instructions=instructions, context=context,
                                              tools=[], tool_handler=lambda *_: {}, timeout=_timeout())
         else:
             response = session.client.responses.create(
@@ -274,13 +274,13 @@ def _generate(evidence: dict, *, instructions: str | None = None,
 def _failure(exc: Exception) -> tuple[str, str, str]:
     if isinstance(exc, AuthenticationError):
         return "unconfigured", "MACRO_MODEL_UNAUTHORIZED", "模型授權已失效，請在設定重新連接帳號後重試。"
-    if isinstance(exc, (_ModelSetupUnavailable, ChatGPTAuthError, CredentialStoreError)) or (
+    if isinstance(exc, (_ModelSetupUnavailable, CredentialStoreError)) or (
             isinstance(exc, RuntimeError) and str(exc) ==
             "OPENAI_API_KEY and OPENAI_MODEL are required for Agent analysis"):
         return "unconfigured", "MACRO_MODEL_UNCONFIGURED", "尚未連接可用的 AI 模型；請完成模型設定後重試宏觀解讀。"
     if isinstance(exc, TimeoutError):
         return "failed", "MACRO_MODEL_TIMEOUT", "AI 宏觀解讀逾時，可稍後重試；不會以規則代替 AI 解讀。"
-    if isinstance(exc, (CodexError, ModelProviderError)):
+    if isinstance(exc, (CodexError, ClaudeCodeError, ModelProviderError)):
         return "failed", "MACRO_MODEL_UNAVAILABLE", "AI 模型暫時不可用，請檢查授權與額度後重試。"
     if isinstance(exc, (ValueError, json.JSONDecodeError)):
         return "failed", "MACRO_RESPONSE_FORMAT", "AI 未回傳完整宏觀解讀，可按重試重新產生。"

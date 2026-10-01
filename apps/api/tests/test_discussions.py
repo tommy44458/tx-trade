@@ -322,7 +322,7 @@ def test_deleted_analysis_cascades_discussion_without_retaining_personal_snapsho
         assert db.execute("SELECT count(*) AS n FROM discussion_sessions").fetchone()["n"] == 0
 
 
-@pytest.mark.parametrize("provider", ["openai", "chatgpt", "codex"])
+@pytest.mark.parametrize("provider", ["openai", "claude_code", "codex"])
 def test_plain_text_model_transport_uses_existing_session_without_tools(monkeypatch, provider):
     calls, closed = [], []
     response = SimpleNamespace(output=[], output_text="繁體中文的自由對話", status="completed")
@@ -385,7 +385,7 @@ def test_schema_upgrade_preserves_old_report_and_initializes_empty_discussion_ta
         db.execute("PRAGMA user_version=3")
     init_db()
     with connect(readonly=True) as db:
-        assert db.execute("PRAGMA user_version").fetchone()["user_version"] == SCHEMA_VERSION == 8
+        assert db.execute("PRAGMA user_version").fetchone()["user_version"] == SCHEMA_VERSION == 9
         assert db.execute("SELECT report_json FROM analyses").fetchone()["report_json"]
         assert db.execute("SELECT count(*) AS n FROM discussion_sessions").fetchone()["n"] == 0
 

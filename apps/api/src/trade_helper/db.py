@@ -14,7 +14,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
 
-SCHEMA_VERSION = 8
+SCHEMA_VERSION = 9
 BUSY_TIMEOUT_MS = 15_000
 
 
@@ -498,6 +498,19 @@ def _migration_8(db: Database) -> None:
             CHECK(live_market_json IS NULL OR json_valid(live_market_json))""")
 
 
+def _migration_9(db: Database) -> None:
+    # The direct ChatGPT provider was removed. Delete its app-managed OAuth
+    # tokens and display cache; retired legacy ciphertext stays untouched.
+    db.executescript("""
+    DELETE FROM credential_records WHERE name='chatgpt';
+    DELETE FROM auth_metadata WHERE provider='chatgpt';
+    UPDATE app_preferences SET value_json=json_remove(value_json,'$.model_provider','$.models.chatgpt')
+        WHERE json_extract(value_json,'$.model_provider')='chatgpt';
+    UPDATE app_preferences SET value_json=json_remove(value_json,'$.models.chatgpt')
+        WHERE json_type(value_json,'$.models.chatgpt') IS NOT NULL;
+    """)
+
+
 def init_db() -> None:
     connection = _open_connection()
     try:
@@ -513,6 +526,7 @@ def init_db() -> None:
         for migration_version, migration in (
             (1, _migration_1), (2, _migration_2), (3, _migration_3), (4, _migration_4),
             (5, _migration_5), (6, _migration_6), (7, _migration_7), (8, _migration_8),
+            (9, _migration_9),
         ):
             if version < migration_version:
                 migration(db)

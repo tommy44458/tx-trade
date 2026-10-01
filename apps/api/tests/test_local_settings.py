@@ -69,9 +69,18 @@ def test_validation_response_does_not_echo_secret_even_for_pair_error(credential
 def test_settings_models_are_separate_for_each_provider(credentials):
     client = TestClient(app)
     assert client.put("/api/v1/settings", json={"model_provider": "codex", "model": "codex-model"}).json()["model"] == "codex-model"
-    assert client.put("/api/v1/settings", json={"model_provider": "chatgpt"}).json()["model"] == ""
+    assert client.put("/api/v1/settings", json={"model_provider": "claude_code"}).json()["model"] == ""
+    assert client.put("/api/v1/settings", json={"model": "sonnet"}).json()["model"] == "sonnet"
     assert client.put("/api/v1/settings", json={"model_provider": "codex"}).json()["model"] == "codex-model"
     assert client.put("/api/v1/settings", json={"model": ""}).json()["model"] == ""
+    assert client.put("/api/v1/settings", json={"model_provider": "claude_code"}).json()["model"] == "sonnet"
+
+
+def test_retired_chatgpt_provider_is_rejected_and_falls_back(credentials):
+    client = TestClient(app)
+    assert client.put("/api/v1/settings", json={"model_provider": "chatgpt"}).status_code == 422
+    local_settings.patch_preferences({"model_provider": "chatgpt"})
+    assert client.get("/api/v1/settings").json()["model_provider"] in {"codex", "openai"}
 
 
 def test_favorites_survive_reload_and_other_settings_updates(credentials):

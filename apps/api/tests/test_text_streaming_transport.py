@@ -1,9 +1,7 @@
 import threading
 from types import SimpleNamespace as NS
 
-import httpx
 import pytest
-from openai import AuthenticationError
 
 from trade_helper import codex_bridge, model_providers
 
@@ -40,13 +38,11 @@ def text_events(completed):
     yield NS(type="response.completed", response=completed)
 
 
-@pytest.mark.parametrize("provider", ["openai", "chatgpt"])
-def test_authorized_transport_emits_real_unicode_prefix_before_completion(monkeypatch, provider):
+def test_authorized_transport_emits_real_unicode_prefix_before_completion():
     completed = NS(status="completed", output=[message("private progress", "commentary"),
                                               message("先看支撐。")], usage=None)
     prefixes, calls, closed = [], [], []
     stream = Stream(text_events(completed))
-    monkeypatch.setattr(model_providers.chatgpt_auth, "get_access_token", lambda **_: "oauth")
 
     def create(**options):
         calls.append(options)
@@ -54,9 +50,8 @@ def test_authorized_transport_emits_real_unicode_prefix_before_completion(monkey
 
     factory = lambda **_: NS(responses=NS(create=create), close=lambda: closed.append(True))
     session = model_providers.ModelSession.__new__(model_providers.ModelSession)
-    session.provider, session.model = provider, "chosen-model"
-    session.client = (factory() if provider == "openai" else
-                      NS(responses=model_providers.ChatGPTResponses(factory)))
+    session.provider, session.model = "openai", "chosen-model"
+    session.client = factory()
     try:
         result = session.stream_text(instructions="Frozen discussion", context="Input",
                                      timeout=120, on_text=prefixes.append)
@@ -94,28 +89,6 @@ def test_incomplete_response_keeps_partial_but_never_claims_completion(terminal)
         model_providers._read_response_stream(Stream(events), deadline=float("inf"),
                                               on_text=prefixes.append)
     assert prefixes == ["partial"]
-
-
-def test_chatgpt_does_not_restart_generation_after_visible_prefix(monkeypatch):
-    response = httpx.Response(401, request=httpx.Request("POST", "https://api.openai.com"))
-    prefixes, tokens, clients = [], [], []
-
-    def events():
-        yield NS(type="response.output_text.delta", item_id="a", delta="partial")
-        raise AuthenticationError("sensitive upstream", response=response, body={})
-
-    stream = Stream(events())
-    monkeypatch.setattr(model_providers.chatgpt_auth, "get_access_token",
-                        lambda **kw: (tokens.append(kw["force_refresh"]), "token")[1])
-
-    def factory(**_):
-        clients.append(True)
-        return NS(responses=NS(create=lambda **_: stream), close=lambda: None)
-
-    with pytest.raises(model_providers.ModelProviderError, match="重新登入"):
-        model_providers.ChatGPTResponses(factory).create(timeout=120, on_text=prefixes.append)
-    assert prefixes == ["partial"] and tokens == [False] and clients == [True]
-    assert stream.closed
 
 
 def test_openai_closes_stream_if_callback_rejects_stale_worker():
