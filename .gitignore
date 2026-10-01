@@ -1,0 +1,72 @@
+# Local configuration and authentication
+.env
+.env.*
+!.env.example
+.codex/
+.chatgpt/
+.auth/
+auth.json
+auth.json.*
+/settings.json
+/local-settings.json
+
+# Private keys and certificate bundles
+*.key
+*.pem
+*.p12
+*.pfx
+id_rsa
+id_ecdsa
+id_ed25519
+
+# Local databases, account data and backups (including SQLite WAL files)
+data/
+backups/
+exports/
+# Generated evaluations can contain real model responses and usage metadata.
+/docs/evaluations/
+*.sqlite
+*.sqlite3
+*.db
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite-journal
+*.sqlite3-wal
+*.sqlite3-shm
+*.sqlite3-journal
+*.db-wal
+*.db-shm
+*.db-journal
+
+# Installed dependencies and generated artifacts
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.egg-info/
+node_modules/
+dist/
+*.tsbuildinfo
+apps/desktop/build/
+apps/desktop/release/
+*.app/
+*.dmg
+*.msi
+*.exe
+
+# Test caches and runtime logs
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage/
+logs/
+*.log
+
+# Editor and operating-system files
+.DS_Store
+.idea/
+*.swp
+*.swo

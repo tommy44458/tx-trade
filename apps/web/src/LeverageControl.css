@@ -1,0 +1,117 @@
+.leverage-control {
+  display: grid;
+  align-content: start;
+  gap: var(--space-2);
+  min-width: 0;
+  width: 100%;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.leverage-control .leverage-control-label {
+  margin: 0;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.leverage-control-fields {
+  display: grid;
+  grid-template-columns: minmax(96px, 1fr) minmax(58px, 72px);
+  min-width: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface);
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.leverage-control-fields:hover {
+  border-color: var(--text-secondary);
+}
+
+.leverage-control-fields:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.leverage-control .select-control > select {
+  min-width: 0;
+  min-height: 44px;
+  padding-inline: 11px 28px;
+  border: 0;
+  border-inline-end: 1px solid var(--border);
+  border-radius: 9px 0 0 9px;
+  background: transparent;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.leverage-control .select-control > .select-chevron {
+  inset-inline-end: 8px;
+  width: 14px;
+  height: 14px;
+}
+
+.leverage-control-number {
+  position: relative;
+  min-width: 0;
+}
+
+.leverage-control .leverage-control-input {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  margin: 0;
+  padding: 10px 25px 10px 8px;
+  border: 0;
+  border-radius: 0 9px 9px 0;
+  background: transparent;
+  color: var(--text);
+  text-align: right;
+  font-size: 14px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.leverage-control-unit {
+  position: absolute;
+  top: 50%;
+  inset-inline-end: 10px;
+  transform: translateY(-50%);
+  color: var(--text-tertiary);
+  pointer-events: none;
+  font-size: 14px;
+}
+
+.controls .leverage-control .leverage-control-input,
+.controls .leverage-control .select-control > select {
+  min-height: 48px;
+}
+
+.leverage-control .leverage-control-hint {
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.leverage-control-invalid .leverage-control-fields {
+  border-color: var(--negative);
+}
+
+.leverage-control-invalid .leverage-control-hint {
+  color: var(--negative);
+}
+
+.leverage-control:has(input:disabled) {
+  opacity: 0.55;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .leverage-control-fields {
+    transition: none;
+  }
+}

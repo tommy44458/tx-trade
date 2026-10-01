@@ -1,0 +1,54 @@
+{
+  "market_relevance": {
+    "type": "noul",
+    "instructions": "Does the supplied article describe a concrete event that could be relevant to Bitcoin or Ethereum perpetual-futures risk over a one-hour or four-hour decision horizon? A mere keyword mention without a relevant event is no."
+  },
+  "topic": {
+    "type": "choice",
+    "instructions": "Which single topic best describes the concrete subject of this article?",
+    "criteria": {
+      "macro_policy": "Central bank, interest rate, inflation or broad monetary-policy change",
+      "economic_data": "Published economic statistic, such as CPI, jobs, PCE or GDP",
+      "regulation_etf": "Crypto regulation, legal action, ETF approval or fund-flow rule",
+      "exchange": "Trading venue, custody, settlement, liquidity or exchange outage",
+      "security": "Exploit, hack, asset theft or protocol security incident",
+      "onchain": "Blockchain protocol, network or on-chain activity",
+      "other": "None of these topics is supported by the supplied text"
+    }
+  },
+  "asset_scope": {
+    "type": "choice",
+    "instructions": "Which asset scope is explicitly supported by this article?",
+    "criteria": {
+      "btc": "Specifically Bitcoin or BTC",
+      "eth": "Specifically Ethereum or ETH",
+      "both_or_marketwide": "Both assets or a broad market event",
+      "other_or_unclear": "Another asset or the supplied text does not establish a scope"
+    }
+  },
+  "event_nature": {
+    "type": "choice",
+    "instructions": "How does this article itself present the event? Do not independently verify the claim.",
+    "criteria": {
+      "new_fact": "The text reports a newly announced or observed event",
+      "scheduled_preview": "The text previews a future scheduled event but gives no outcome",
+      "opinion_analysis": "The text is mainly commentary, forecast or opinion",
+      "rumor": "The text explicitly presents an unconfirmed claim or rumor",
+      "unclear": "The text does not make its nature clear"
+    }
+  },
+  "potential_impact": {
+    "type": "score",
+    "instructions": "Rate whether the described event merits follow-up for short-horizon crypto futures risk. Do not predict price direction or calculate numeric market impact.",
+    "criteria": [
+      "No supported relevance",
+      "Background context only",
+      "Potentially material; review context",
+      "Major event candidate; urgent independent verification"
+    ]
+  },
+  "followup_needed": {
+    "type": "noul",
+    "instructions": "Would the described event need independent source or numerical verification before a trading strategy refers to it?"
+  }
+}

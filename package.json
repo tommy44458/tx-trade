@@ -1,0 +1,11 @@
+{
+  "name": "ai-trade-helper",
+  "private": true,
+  "version": "0.2.0",
+  "scripts": {
+    "desktop": "node scripts/desktop.mjs start",
+    "desktop:build": "node scripts/desktop.mjs package",
+    "desktop:test": "node --test apps/desktop/tests/*.test.mjs",
+    "check:bilingual": "node scripts/check-bilingual.mjs"
+  }
+}

@@ -1,0 +1,47 @@
+.analysis-failure {
+  margin: 16px 0;
+  padding: 20px;
+  background: var(--negative-soft);
+  border: 1px solid var(--negative);
+  border-radius: var(--radius-md);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.8;
+}
+.analysis-failure > strong {
+  display: block;
+  color: var(--negative);
+  font-size: 16px;
+  margin-bottom: 12px;
+}
+.analysis-failure-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.analysis-failure-facts span {
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+.analysis-failure p {
+  margin: 12px 0 0;
+}
+.analysis-failure b {
+  color: var(--text);
+}
+.analysis-failure details {
+  border-top: 1px solid var(--border-strong);
+  margin-top: 16px;
+  padding-top: 8px;
+  color: var(--text-secondary);
+}
+.analysis-failure summary {
+  color: var(--negative);
+}
+.analysis-failure code {
+  overflow-wrap: anywhere;
+  font: 12px var(--font-mono);
+}

@@ -1,0 +1,110 @@
+{
+  "strategy_market": {
+    "policy_ids": [
+      "STRATEGY_ROLE",
+      "PRECOMPUTED_EVIDENCE",
+      "CANDLE_HISTORY_AND_COVERAGE",
+      "OPTIONAL_TOOLS_AND_REFERENCES",
+      "FOUR_TIMEFRAME_CONTEXT",
+      "STRUCTURE_AND_MULTI_TIMEFRAME_DISAGREEMENT",
+      "ENTRY_TIMING_SCENARIOS",
+      "DISTANT_WAITING_AND_ALTERNATIVES",
+      "AGENT_DECISION_PYTHON_REFERENCE",
+      "MARKET_EVIDENCE_BEFORE_PREFERENCES",
+      "NON_EXHAUSTIVE_PYTHON_CANDIDATES",
+      "ZONE_LIFECYCLE_AND_PRICE_REFERENCE",
+      "BREAKOUT_AND_VOLUME_INTERPRETATION",
+      "PREFERENCES_WITHOUT_CONFIRMATION_BIAS",
+      "PREFERENCE_FIT_AND_INVALIDATION",
+      "EXECUTION_STYLES_ON_EQUAL_FACTS",
+      "CLEAR_TRADEOFF_AND_COUNTER_EVIDENCE",
+      "DERIVATIVES_CONTEXT_LIMITS",
+      "CURRENT_PRICE_AND_CANDLE_STATE",
+      "ENTRY_DECISION_ACTIONS",
+      "ENTRY_PLAN_PRICE_CONTRACT",
+      "HISTORICAL_BOUNDARIES_NOT_ACTIVE_ZONES",
+      "SAVED_MACRO_INTERPRETATION",
+      "PLAIN_LANGUAGE_STRATEGY",
+      "STRATEGY_OUTPUT_CONTRACT",
+      "NO_POSITION_DECISIONS_FOR_MARKET",
+      "DATA_NOT_INSTRUCTIONS_AND_LANGUAGE"
+    ],
+    "prompt_version": "contract_strategy_v27",
+    "schema_version": "strategy_response_v1"
+  },
+  "strategy_positions": {
+    "policy_ids": [
+      "STRATEGY_ROLE",
+      "PRECOMPUTED_EVIDENCE",
+      "CANDLE_HISTORY_AND_COVERAGE",
+      "OPTIONAL_TOOLS_AND_REFERENCES",
+      "FOUR_TIMEFRAME_CONTEXT",
+      "STRUCTURE_AND_MULTI_TIMEFRAME_DISAGREEMENT",
+      "ENTRY_TIMING_SCENARIOS",
+      "DISTANT_WAITING_AND_ALTERNATIVES",
+      "AGENT_DECISION_PYTHON_REFERENCE",
+      "MARKET_EVIDENCE_BEFORE_PREFERENCES",
+      "NON_EXHAUSTIVE_PYTHON_CANDIDATES",
+      "ZONE_LIFECYCLE_AND_PRICE_REFERENCE",
+      "BREAKOUT_AND_VOLUME_INTERPRETATION",
+      "PREFERENCES_WITHOUT_CONFIRMATION_BIAS",
+      "PREFERENCE_FIT_AND_INVALIDATION",
+      "EXECUTION_STYLES_ON_EQUAL_FACTS",
+      "CLEAR_TRADEOFF_AND_COUNTER_EVIDENCE",
+      "DERIVATIVES_CONTEXT_LIMITS",
+      "CURRENT_PRICE_AND_CANDLE_STATE",
+      "ENTRY_DECISION_ACTIONS",
+      "ENTRY_PLAN_PRICE_CONTRACT",
+      "HISTORICAL_BOUNDARIES_NOT_ACTIVE_ZONES",
+      "SAVED_MACRO_INTERPRETATION",
+      "PLAIN_LANGUAGE_STRATEGY",
+      "STRATEGY_OUTPUT_CONTRACT",
+      "POSITION_ZONE_EVIDENCE",
+      "POSITION_HOLD_OR_CLOSE",
+      "DATA_NOT_INSTRUCTIONS_AND_LANGUAGE"
+    ],
+    "prompt_version": "contract_strategy_v27",
+    "schema_version": "strategy_response_v1"
+  },
+  "discussion": {
+    "policy_ids": [
+      "DISCUSSION_ROLE_AND_FORMAT",
+      "FROZEN_DISCUSSION_EVIDENCE",
+      "DISCUSSION_PREFERENCE_REFERENCE",
+      "DISCUSSION_QUOTE_BOUNDARY",
+      "DISCUSSION_TIMEFRAME_AND_ZONES",
+      "DISCUSSION_MACRO_FACTS",
+      "DISCUSSION_UNTRUSTED_DATA",
+      "DATA_NOT_INSTRUCTIONS_AND_LANGUAGE"
+    ],
+    "prompt_version": "professional_discussion_v3",
+    "schema_version": "discussion_markdown_v1"
+  },
+  "macro_interpretation": {
+    "policy_ids": [
+      "MACRO_ROLE_AND_DATA",
+      "MACRO_JOINT_INTERPRETATION",
+      "MACRO_OUTPUT_CONTRACT",
+      "DATA_NOT_INSTRUCTIONS_AND_LANGUAGE"
+    ],
+    "prompt_version": "official_macro_interpretation_v2",
+    "schema_version": "macro_interpretation_response_v1"
+  },
+  "macro_translation": {
+    "policy_ids": [
+      "MACRO_TRANSLATION_ONLY",
+      "DATA_NOT_INSTRUCTIONS_AND_LANGUAGE"
+    ],
+    "prompt_version": "official_macro_translation_v1",
+    "schema_version": "macro_interpretation_response_v1"
+  },
+  "news_classification": {
+    "policy_ids": [
+      "NEWS_CLASSIFICATION_SCOPE"
+    ],
+    "prompt_version": "news_jev_v1",
+    "schema_version": "typesafe_jev_questions_v1",
+    "fixed_prompt_locale": "en-US",
+    "fixed_response_locale": "en-US"
+  }
+}

@@ -1,0 +1,269 @@
+.macro-interpretation-panel {
+  min-width: 0;
+}
+.macro-status-note {
+  margin: 14px 0 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.8;
+}
+.macro-status-busy {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: transparent;
+}
+.macro-error {
+  overflow-wrap: anywhere;
+}
+.macro-empty-context > p {
+  margin: 12px 0 0;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  line-height: 1.8;
+}
+.macro-outlook {
+  margin-top: var(--space-5);
+  padding: var(--space-5);
+  border-radius: var(--radius-md);
+  background: var(--surface-subtle);
+}
+.macro-outlook-heading {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.macro-stance {
+  padding: 4px 9px;
+  border-radius: 6px;
+  background: var(--surface-control);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+}
+.macro-outlook.bullish .macro-stance {
+  color: var(--positive);
+  background: var(--positive-soft);
+}
+.macro-outlook.bearish .macro-stance {
+  color: var(--negative);
+  background: var(--negative-soft);
+}
+.macro-outlook-heading small {
+  font-size: 11px;
+  color: var(--warning);
+}
+.macro-outlook > p {
+  margin: 14px 0 0;
+  font-size: 15px;
+  line-height: 1.9;
+  white-space: pre-line;
+}
+.macro-drivers {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+  margin-top: var(--space-5);
+}
+.macro-driver {
+  min-width: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+.macro-driver h3,
+.macro-uncertainty h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.7;
+}
+.macro-driver p {
+  margin: 8px 0 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.8;
+  white-space: pre-line;
+}
+.macro-driver-evidence {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 14px;
+  margin-top: 8px;
+}
+.macro-driver-evidence a,
+.macro-driver-evidence > span,
+.macro-official-evidence a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: 12px;
+  line-height: 1.8;
+}
+.macro-driver-evidence > span {
+  color: var(--text-secondary);
+}
+.macro-uncertainty {
+  margin-top: var(--space-5);
+  padding: 16px 0;
+  border-top: 1px solid var(--border);
+}
+.macro-uncertainty ul {
+  margin: 8px 0 0;
+  padding-left: 20px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.8;
+}
+.macro-uncertainty li + li {
+  margin-top: 6px;
+}
+.macro-provenance {
+  margin-top: var(--space-4);
+  border-top: 1px solid var(--border);
+}
+.macro-provenance > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  min-height: 48px;
+  font-size: 12px;
+  color: var(--accent);
+}
+.macro-provenance > summary::after {
+  content: "+";
+  color: var(--text-tertiary);
+  font-size: 16px;
+}
+.macro-provenance[open] > summary::after {
+  content: "−";
+}
+.macro-provenance > summary span {
+  color: var(--text-tertiary);
+  margin-left: auto;
+  flex: none;
+  font-size: 11px;
+}
+.macro-version-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin: 8px 0 20px;
+  font-size: 12px;
+}
+.macro-version-meta dt {
+  color: var(--text-tertiary);
+  margin-bottom: 5px;
+}
+.macro-version-meta dd {
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.7;
+  font-variant-numeric: tabular-nums;
+}
+.macro-identity {
+  overflow-wrap: anywhere;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.8;
+}
+.macro-current-dataset {
+  margin-bottom: 16px;
+  color: var(--warning);
+  font-size: 12px;
+  line-height: 1.8;
+}
+.macro-current-dataset > span {
+  display: block;
+}
+.macro-official-evidence {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+.macro-official-evidence article {
+  min-width: 0;
+  padding: 16px;
+  background: var(--surface-subtle);
+  border-radius: var(--radius-sm);
+}
+.macro-evidence-heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.macro-evidence-heading h4 {
+  margin: 0;
+  font-weight: 600;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.macro-evidence-heading strong {
+  font-size: 13px;
+  line-height: 1.7;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.macro-official-evidence p {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 8px 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.8;
+}
+.macro-official-evidence small {
+  display: block;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  line-height: 1.8;
+  margin-top: 4px;
+}
+.macro-timezone {
+  color: var(--text-tertiary);
+  font-size: 11px;
+  line-height: 1.8;
+  margin: 12px 0 0;
+}
+.macro-panel-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--space-4);
+}
+@media (max-width: 720px) {
+  .macro-drivers,
+  .macro-official-evidence,
+  .macro-version-meta {
+    grid-template-columns: 1fr;
+  }
+  .macro-outlook {
+    padding: 16px;
+  }
+  .macro-outlook > p {
+    font-size: 14px;
+  }
+  .macro-provenance > summary {
+    gap: 8px;
+  }
+  .macro-panel-actions > button {
+    flex: 1;
+  }
+}
+
+.macro-language-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.macro-language-tools button { min-height: 44px; white-space: normal; }

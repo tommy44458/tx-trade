@@ -1,0 +1,41 @@
+{
+  "schema_version": "trading_terminology_v1",
+  "terms": {
+    "left": {
+      "en-US": "left-side trading (participation before full confirmation)",
+      "zh-TW": "左側交易（完整確認前參與）"
+    },
+    "right": {
+      "en-US": "right-side trading (participation after evidenced confirmation)",
+      "zh-TW": "右側交易（確認後參與）"
+    },
+    "support": {
+      "en-US": "support",
+      "zh-TW": "支撐"
+    },
+    "resistance": {
+      "en-US": "resistance",
+      "zh-TW": "壓力"
+    },
+    "hold": {
+      "en-US": "continue holding",
+      "zh-TW": "繼續持倉"
+    },
+    "close_now": {
+      "en-US": "close now",
+      "zh-TW": "現在平倉"
+    },
+    "open_now": {
+      "en-US": "consider entering now",
+      "zh-TW": "現在評估開單"
+    },
+    "wait_for_entry": {
+      "en-US": "wait for entry conditions",
+      "zh-TW": "等待進場條件"
+    },
+    "stand_aside": {
+      "en-US": "stand aside",
+      "zh-TW": "觀望"
+    }
+  }
+}

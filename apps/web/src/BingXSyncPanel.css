@@ -1,0 +1,56 @@
+.bingx-sync {
+  padding: 12px 16px;
+  margin: 0 0 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+.bingx-sync-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.bingx-sync-info {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.bingx-sync-info h2 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+.bingx-sync-info > span,
+.bingx-sync-note {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.bingx-sync-action {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  min-height: 34px;
+  padding: 6px 12px;
+  font-size: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-control);
+  color: var(--text);
+}
+.bingx-sync-action .analysis-spinner { width: 14px; height: 14px; }
+.bingx-sync .compact-details { margin-top: 6px; }
+.bingx-sync .compact-details > summary { min-height: 24px; font-size: 11px; }
+.bingx-sync .compact-details p { margin: 8px 0 0; font-size: 12px; line-height: 1.7; }
+.bingx-sync-note { margin: 8px 0 0; line-height: 1.6; }
+@media (pointer: coarse) {
+  .bingx-sync-action { min-height: 44px; }
+  .bingx-sync .compact-details > summary { min-height: 44px; }
+}
+@media (max-width: 480px) {
+  .bingx-sync { padding: 10px 12px; }
+  .bingx-sync-info { gap: 4px; flex-direction: column; }
+}

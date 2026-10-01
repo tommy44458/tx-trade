@@ -1,0 +1,63 @@
+.analysis-spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  flex: none;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: analysis-spin 0.9s linear infinite;
+}
+
+.analysis-progress {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  margin-bottom: var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.analysis-progress > .analysis-spinner {
+  width: 24px;
+  height: 24px;
+  color: var(--accent);
+}
+
+.analysis-progress > div {
+  min-width: 0;
+}
+
+.analysis-progress strong {
+  font-size: 14px;
+}
+
+.analysis-progress p {
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.7;
+  margin: var(--space-2) 0 0;
+}
+
+.position-analysis-progress {
+  margin-top: var(--space-4);
+}
+
+.action[aria-busy="true"] {
+  opacity: 1;
+  cursor: progress;
+}
+
+@keyframes analysis-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .analysis-spinner {
+    animation: none;
+  }
+}

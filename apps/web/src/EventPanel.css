@@ -1,0 +1,232 @@
+.economics-workspace {
+  display: grid;
+  gap: var(--space-6);
+}
+.economics-workspace > .panel { box-shadow: none; }
+.economics-workspace .panel-copy { margin-bottom: 16px; }
+.event-sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: 20px 0;
+}
+.event-sources span {
+  font-size: 12px;
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.event-sources i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--positive);
+}
+.event-sources .source-offline {
+  color: var(--warning);
+}
+.event-sources .source-offline i {
+  background: var(--warning);
+}
+.economic-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+.economic-metric {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-5);
+  min-width: 0;
+}
+.metric-label {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.metric-label h3 {
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 0;
+  font-weight: 600;
+}
+.metric-label > span {
+  color: var(--text-tertiary);
+  font-size: 10px;
+  padding-top: 3px;
+  flex: none;
+}
+.metric-value {
+  font-size: 34px;
+  letter-spacing: normal;
+  font-weight: 600;
+  margin-top: 20px;
+  font-variant-numeric: tabular-nums;
+}
+@container main-pane (max-width: 920px) {
+  .economic-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@container main-pane (max-width: 560px) {
+  .economic-metrics { grid-template-columns: minmax(0, 1fr); }
+}
+.metric-value span {
+  font-size: 16px;
+  font-weight: 400;
+  color: var(--text-secondary);
+  margin-left: 5px;
+}
+.metric-period {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 6px 0 20px;
+}
+.metric-comparison {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+  color: var(--text-secondary);
+}
+.metric-comparison strong {
+  font-weight: 500;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.metric-provenance {
+  margin-top: 8px;
+}
+.metric-provenance summary {
+  color: var(--accent);
+  font-size: 12px;
+}
+.metric-provenance small {
+  display: block;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.8;
+  margin-bottom: 6px;
+}
+.metric-provenance a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: 12px;
+}
+.event-list {
+  margin-top: 12px;
+}
+.event-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  padding: var(--space-5) 0;
+  border-top: 1px solid var(--border);
+}
+.event-date {
+  width: 66px;
+  text-align: center;
+  padding: 10px 5px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-subtle);
+  flex: none;
+}
+.event-date strong {
+  font-size: 16px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.event-date small {
+  display: block;
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+.event-description {
+  min-width: 0;
+  flex: 1;
+}
+.event-description h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 6px;
+  line-height: 1.6;
+}
+.event-description > small {
+  font-size: 12px;
+  line-height: 1.8;
+  color: var(--text-secondary);
+}
+.event-source-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  white-space: nowrap;
+  font-size: 12px;
+  text-decoration: none;
+}
+.event-result {
+  padding: 12px 14px;
+  background: var(--accent-soft);
+  border-radius: var(--radius-sm);
+  margin-top: 12px;
+}
+.event-result strong {
+  display: block;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.event-result small {
+  display: block;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.8;
+  margin-top: 6px;
+}
+.event-result a {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  font-size: 12px;
+}
+.event-note {
+  font-size: 12px;
+  line-height: 1.8;
+  color: var(--text-secondary);
+  margin: 20px 0 0;
+}
+@media (max-width: 1240px) {
+  .economic-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 720px) {
+  .economic-metrics {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .economic-metric {
+    padding: 20px;
+  }
+  .metric-value {
+    font-size: 32px;
+    margin-top: 16px;
+  }
+  .event-item {
+    flex-wrap: wrap;
+    align-items: start;
+    gap: 12px;
+  }
+  .event-date {
+    width: 56px;
+  }
+  .event-source-link {
+    margin-left: 68px;
+  }
+  .event-description {
+    flex-basis: calc(100% - 68px);
+  }
+}

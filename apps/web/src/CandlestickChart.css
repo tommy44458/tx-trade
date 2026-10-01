@@ -1,0 +1,219 @@
+.candlestick-chart {
+  min-width: 0;
+  width: 100%;
+  margin-top: 16px;
+  font-variant-numeric: tabular-nums;
+}
+.candlestick-toolbar {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.candlestick-toggles,
+.candlestick-view-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.candlestick-toolbar button {
+  min-height: 34px;
+  min-width: 34px;
+  padding: 5px 9px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.3;
+  white-space: nowrap;
+  color: var(--text-secondary);
+  box-shadow: none;
+}
+.candlestick-toolbar button[aria-pressed="true"] {
+  color: var(--text);
+  background: var(--surface-control);
+}
+.candlestick-toolbar .candlestick-support[aria-pressed="true"] {
+  color: var(--positive);
+  background: var(--positive-soft);
+}
+.candlestick-toolbar .candlestick-resistance[aria-pressed="true"] {
+  color: var(--negative);
+  background: var(--negative-soft);
+}
+.candlestick-toolbar button:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  transform: none;
+}
+.candlestick-toolbar button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.candlestick-toolbar button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.candlestick-readout {
+  height: 62px;
+  display: grid;
+  grid-template-columns: 1.6fr repeat(5, minmax(0, 1fr));
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.candlestick-readout > span {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.candlestick-readout small {
+  color: var(--text-tertiary);
+  font-size: 10px;
+}
+.candlestick-readout strong {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.candlestick-readout .candlestick-time {
+  color: var(--text);
+  font-size: 11px;
+}
+.candlestick-canvas-shell {
+  position: relative;
+  width: 100%;
+  height: 320px;
+  overflow: hidden;
+  border-radius: 4px;
+  overscroll-behavior: contain;
+  outline: none;
+}
+.candlestick-canvas-shell:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.candlestick-canvas {
+  width: 100%;
+  height: 100%;
+}
+.candlestick-empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  background: var(--surface);
+  color: var(--text-tertiary);
+  font-size: 13px;
+}
+.candlestick-updating {
+  position: absolute;
+  top: 8px;
+  right: 85px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  background: var(--surface-control);
+  color: var(--text-secondary);
+  pointer-events: none;
+  font-size: 11px;
+}
+.candlestick-location {
+  height: 43px;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: center;
+  gap: 3px 14px;
+  overflow: auto;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.candlestick-location-support { color: var(--positive); }
+.candlestick-location-resistance { color: var(--negative); }
+.candlestick-location-invalidated { color: var(--text-tertiary); }
+.candlestick-help {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  height: 32px;
+  overflow: hidden;
+  border-top: 1px solid var(--border);
+  padding-top: 7px;
+  color: var(--text-tertiary);
+  font-size: 10px;
+  line-height: 1.4;
+}
+.candlestick-help > span:last-child { white-space: nowrap; }
+.candlestick-attribution {
+  display: block;
+  min-height: 20px;
+  color: var(--text-tertiary);
+  font-size: 9px;
+  line-height: 20px;
+  text-decoration: none;
+}
+.candlestick-attribution:hover { color: var(--accent); }
+@media (max-width: 600px) {
+  .candlestick-toolbar { gap: 5px; }
+  .candlestick-toolbar button {
+    min-height: 36px;
+    min-width: 30px;
+    padding: 5px 6px;
+    font-size: 11px;
+  }
+  .candlestick-toggles,
+  .candlestick-view-controls { gap: 3px; }
+  .candlestick-readout {
+    grid-template-columns: 1.2fr repeat(2, minmax(0, 1fr));
+    height: 82px;
+    gap: 4px 8px;
+  }
+  .candlestick-readout > span { flex-direction: row; align-items: baseline; gap: 5px; }
+  .candlestick-readout .candlestick-time { flex-direction: column; gap: 1px; }
+  .candlestick-readout strong { font-size: 11px; }
+  .candlestick-canvas-shell { height: 280px; }
+  .candlestick-location { font-size: 11px; }
+  .candlestick-help { font-size: 9px; }
+}
+@media (max-width: 420px) {
+  .candlestick-toolbar {
+    display: grid;
+    grid-template-columns: 1fr;
+    height: 80px;
+    gap: 4px;
+  }
+  .candlestick-view-controls { justify-content: flex-end; }
+}
+@media (pointer: coarse) {
+  .candlestick-toolbar {
+    display: grid;
+    grid-template-columns: 1fr;
+    min-height: 98px;
+    height: 98px;
+    gap: 4px;
+  }
+  .candlestick-toolbar button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  .candlestick-view-controls { justify-content: flex-end; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .candlestick-chart *, .candlestick-chart *::before, .candlestick-chart *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}

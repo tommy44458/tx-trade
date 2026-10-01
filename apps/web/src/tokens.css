@@ -1,0 +1,96 @@
+:root {
+  color-scheme: light;
+  --font-system:
+    -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'Segoe UI', system-ui,
+    sans-serif;
+  --font-mono: 'SF Mono', Menlo, Consolas, monospace;
+  --canvas: #f5f5f7;
+  --surface: #ffffff;
+  --surface-subtle: #f5f5f7;
+  --surface-control: #eeeef0;
+  --material: rgba(250, 250, 252, 0.88);
+  --text: #1d1d1f;
+  --text-secondary: #58585f;
+  --text-tertiary: #696971;
+  --border: #e5e5ea;
+  --border-strong: #c6c6ce;
+  --accent: #0066cc;
+  --accent-hover: #0055ad;
+  --accent-soft: #edf5ff;
+  --on-accent: #ffffff;
+  --positive: #14774a;
+  --positive-soft: #eef8f2;
+  --negative: #c13543;
+  --negative-soft: #fff0f2;
+  --warning: #875200;
+  --warning-soft: #fff6e5;
+  --shadow: 0 2px 8px rgba(25, 25, 35, 0.025);
+  --shadow-control: 0 1px 4px rgba(0, 0, 0, 0.07);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --canvas: #151517;
+    --surface: #202023;
+    --surface-subtle: #29292d;
+    --surface-control: #333338;
+    --material: rgba(27, 27, 30, 0.9);
+    --text: #f5f5f7;
+    --text-secondary: #c0c0c8;
+    --text-tertiary: #a1a1ab;
+    --border: #38383d;
+    --border-strong: #5b5b64;
+    --accent: #75b6ff;
+    --accent-hover: #98c9ff;
+    --accent-soft: #24374c;
+    --on-accent: #122033;
+    --positive: #74d8a3;
+    --positive-soft: #233a2e;
+    --negative: #ff98a3;
+    --negative-soft: #452b31;
+    --warning: #edc17a;
+    --warning-soft: #403322;
+    --shadow: none;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --canvas: #151517;
+  --surface: #202023;
+  --surface-subtle: #29292d;
+  --surface-control: #333338;
+  --material: rgba(27, 27, 30, 0.9);
+  --text: #f5f5f7;
+  --text-secondary: #c0c0c8;
+  --text-tertiary: #a1a1ab;
+  --border: #38383d;
+  --border-strong: #5b5b64;
+  --accent: #75b6ff;
+  --accent-hover: #98c9ff;
+  --accent-soft: #24374c;
+  --on-accent: #122033;
+  --positive: #74d8a3;
+  --positive-soft: #233a2e;
+  --negative: #ff98a3;
+  --negative-soft: #452b31;
+  --warning: #edc17a;
+  --warning-soft: #403322;
+  --shadow: none;
+}
+@media (prefers-contrast: more) {
+  :root {
+    --border: var(--text-secondary);
+    --border-strong: var(--text);
+  }
+}

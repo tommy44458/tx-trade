@@ -1,0 +1,47 @@
+.select-control {
+  position: relative;
+  display: block;
+  min-width: 0;
+  color: var(--text-secondary);
+}
+
+.select-control > select {
+  appearance: none;
+  -webkit-appearance: none;
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding-inline: var(--space-3) var(--space-10);
+  cursor: pointer;
+}
+
+.select-control > select:hover:not(:disabled) {
+  border-color: var(--text-secondary);
+}
+
+.select-control > select:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.select-control > .select-chevron {
+  position: absolute;
+  inset-inline-end: var(--space-3);
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
+}
+
+@media (forced-colors: active) {
+  .select-control > select {
+    appearance: auto;
+    -webkit-appearance: auto;
+    padding-inline-end: var(--space-3);
+  }
+
+  .select-control > .select-chevron {
+    display: none;
+  }
+}
