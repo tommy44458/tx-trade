@@ -11,7 +11,8 @@
     "package": "electron-builder --dir"
   },
   "dependencies": {
-    "dotenv": "^17.2.3"
+    "dotenv": "^17.2.3",
+    "electron-updater": "6.8.10"
   },
   "devDependencies": {
     "electron": "44.5.1",
@@ -21,14 +22,63 @@
     "appId": "com.aitradehelper.desktop",
     "productName": "AI Trade Helper",
     "asar": true,
-    "directories": { "output": "release" },
-    "files": ["main.mjs", "runtime.mjs", "locales.mjs", "themes.mjs", "preload.cjs", "package.json", "node_modules/dotenv/**/*"],
-    "extraResources": [
-      { "from": "../web/dist", "to": "web" },
-      { "from": "build/backend", "to": "backend" }
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "main.mjs",
+      "runtime.mjs",
+      "locales.mjs",
+      "themes.mjs",
+      "release-info.mjs",
+      "updater.mjs",
+      "preload.cjs",
+      "package.json",
+      "node_modules/**/*"
     ],
-    "mac": { "category": "public.app-category.finance", "target": ["dir"], "identity": "-" },
-    "linux": { "target": ["dir"], "category": "Finance" },
-    "win": { "target": ["dir"] }
+    "extraResources": [
+      {
+        "from": "../web/dist",
+        "to": "web"
+      },
+      {
+        "from": "build/backend",
+        "to": "backend"
+      },
+      {
+        "from": "build/update-policy.json",
+        "to": "update-policy.json"
+      },
+      {
+        "from": "../../version.json",
+        "to": "version.json"
+      },
+      {
+        "from": "../../CHANGELOG.md",
+        "to": "CHANGELOG.md"
+      },
+      {
+        "from": "../../CHANGELOG.en.md",
+        "to": "CHANGELOG.en.md"
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.finance",
+      "target": [
+        "dir"
+      ],
+      "identity": "-"
+    },
+    "linux": {
+      "target": [
+        "dir"
+      ],
+      "category": "Finance"
+    },
+    "win": {
+      "target": [
+        "dir"
+      ]
+    }
   }
 }

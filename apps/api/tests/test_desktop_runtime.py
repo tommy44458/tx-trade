@@ -2,9 +2,11 @@ import threading
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from trade_helper import desktop_runtime
 from trade_helper.desktop_runtime import monitor_services, mount_web, service_command
 
 
@@ -42,3 +44,36 @@ def test_normal_shutdown_does_not_become_a_worker_failure():
     monitor_services([SimpleNamespace(poll=lambda: 0)], server, stopped, failed)
     assert not failed.is_set()
     assert not server.should_exit
+
+
+def test_offline_runtime_smoke_starts_only_private_api_without_workers(monkeypatch, tmp_path):
+    monkeypatch.setenv("APP_DESKTOP", "1")
+    monkeypatch.setenv("APP_DESKTOP_TOKEN", "isolated-offline-package-token")
+    (tmp_path / "assets").mkdir()
+    (tmp_path / "index.html").write_text("<title>Offline verification</title>")
+    runs = []
+    mounts = []
+    monkeypatch.setattr(desktop_runtime, "mount_web", lambda _app, path: mounts.append(path))
+    monkeypatch.setattr(desktop_runtime.subprocess, "Popen",
+                        lambda *_args, **_kwargs: pytest.fail("Offline smoke must not launch workers"))
+    monkeypatch.setattr(desktop_runtime, "monitor_services",
+                        lambda *_args: pytest.fail("There are no worker processes to monitor"))
+    monkeypatch.setattr(desktop_runtime.signal, "signal", lambda *_args: None)
+
+    def server(config):
+        assert config.host == "127.0.0.1"
+        assert config.port == 18741
+        return SimpleNamespace(run=lambda: runs.append(config.app), should_exit=False)
+
+    monkeypatch.setattr(desktop_runtime.uvicorn, "Server", server)
+    desktop_runtime.main(["--port", "18741", "--web-dir", str(tmp_path), "--no-workers"])
+    assert len(runs) == 1
+    assert mounts == [tmp_path]
+
+
+def test_offline_smoke_cannot_be_combined_with_a_background_service(monkeypatch):
+    monkeypatch.setenv("APP_DESKTOP", "1")
+    monkeypatch.setenv("APP_DESKTOP_TOKEN", "isolated-offline-package-token")
+    with pytest.raises(SystemExit) as error:
+        desktop_runtime.main(["--service", "worker", "--no-workers"])
+    assert error.value.code == 2

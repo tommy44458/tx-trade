@@ -92,6 +92,9 @@ def request_macro_translation(interpretation_id: str, user_id: str, output_local
     if output_locale not in {"zh-TW", "en-US"}:
         raise HTTPException(422, {"code": "UNSUPPORTED_LOCALE", "message": "Unsupported language."})
     with connect() as db:
+        from .desktop_updates import require_task_start_allowed
+
+        require_task_start_allowed(db)
         _expire_jobs(db)
         row = db.execute("SELECT * FROM macro_interpretations WHERE id=? AND user_id=?",
                          (interpretation_id, user_id)).fetchone()
@@ -130,6 +133,10 @@ def request_macro_translation(interpretation_id: str, user_id: str, output_local
 
 def claim_macro_translation(*, timeout: float) -> dict | None:
     with connect() as db:
+        from .desktop_updates import register_desktop_execution, update_is_draining
+
+        if update_is_draining(db):
+            return None
         _expire_jobs(db)
         job = db.execute("SELECT * FROM macro_translation_jobs WHERE status='queued' ORDER BY created_at,id LIMIT 1").fetchone()
         if not job:
@@ -139,7 +146,8 @@ def claim_macro_translation(*, timeout: float) -> dict | None:
         db.execute("UPDATE macro_translation_jobs SET status='running',claim_token=?,lease_until=?,"
                    "attempts=attempts+1,updated_at=? WHERE id=? AND status='queued'",
                    (token, until, utc_now(), job["id"]))
-        return job | {"status": "running", "claim_token": token, "lease_until": until}
+        return job | {"status": "running", "claim_token": token, "lease_until": until,
+                      "update_execution_id": register_desktop_execution(db, "macro_translations", job["id"])}
 
 
 def _text_fields(source: dict) -> dict[str, str]:
@@ -292,4 +300,8 @@ def run_macro_translation_once() -> bool:
         if isinstance(exc, ValueError):
             code = "MACRO_TRANSLATION_FORMAT"
         _finish_translation(job, error=(code, localized_task_error(code, job["response_locale"], "")))
+    finally:
+        from .desktop_updates import finish_desktop_execution
+
+        finish_desktop_execution(job.get("update_execution_id"))
     return True

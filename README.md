@@ -11,7 +11,8 @@ txTrade provides analysis and read-only position imports. It does not place orde
 - Read clear AI recommendations: enter or wait; hold or close an existing position; supporting prices, reasons, and conditions that would change the assessment. Calculations inform the Agent rather than decide its strategy.
 - Explore interactive candlestick charts with current quotes and **v3** support/resistance zones. Forming candles are distinguished from closed candles; historical reports retain their original evidence and chart snapshots.
 - Review official CPI, employment, PCE, GDP, and FOMC evidence with a shared AI macro interpretation. New or revised indicator evidence invalidates the cached interpretation; unchanged evidence reuses it.
-- Ask follow-up questions in a streaming AI sidebar tied to that analysis or macro interpretation. Conversations retain the original snapshot and language; a follow-up does not refresh market data or rewrite the report.
+- Ask follow-up questions in a streaming AI sidebar tied to that analysis or macro interpretation. Conversations retain the original report and language. Each market or position follow-up fetches the same pair’s latest public price and recent primary-timeframe candles, with the quote and retrieval time shown alongside that reply. Original zones, indicators, positions, and macro evidence stay unchanged; unavailable live data is marked explicitly.
+- Selecting a pair in My positions restores its latest completed position analysis, saved timeframe, chart, and conversation. Viewing a saved result does not run a new analysis; changed positions remain marked as stale.
 - Save preferences, favorites, positions, history, conversations, and app-managed credentials locally. Choose system/light/dark appearance and Traditional Chinese/English; both prompt languages share versioned policies.
 
 ### Timeframes and indicators
@@ -84,6 +85,20 @@ open "apps/desktop/release/mac-arm64/AI Trade Helper.app"
 
 macOS arm64 is the validated local target. The package uses ad-hoc signing; release signing/notarization and Windows/Linux distribution have not been validated.
 
+### Product version and release notes
+
+`version.json` is the product version source for the desktop, web, and Python packages. Desktop startup and packaging check version consistency first. Use **Settings → About AI Trade Helper** to see the installed version, and **Settings → Changelog** for its bundled notes in the selected language.
+
+```bash
+pnpm release:check
+pnpm release:version
+pnpm release:test
+```
+
+`release:version` without arguments synchronizes package metadata with the current product version. To prepare a new version, first write matching entries under `Unreleased` in [CHANGELOG.md](CHANGELOG.md) and [CHANGELOG.en.md](CHANGELOG.en.md), then run `pnpm release:prepare <version>`; stable versions use `x.y.z`, beta versions use `x.y.z-beta.N`. This prepares dated notes and package versions locally. It does not create tags, publish releases, or enable automatic updates. `pnpm release:check --require-release` checks that the current version has dated notes.
+
+The existing `0.2.0` baseline remains unreleased. GitHub Actions now builds macOS arm64 test DMG/ZIP artifacts for PRs and manual runs. Matching version tags require Developer ID signing and notarization and produce a **draft** GitHub Release. The native update menu waits for active model work and backs up local data before installation; updates are disabled in development and test packages. Run `pnpm desktop:test-release` for local test installers. See [desktop release setup](docs/DESKTOP_RELEASE.md) for required secrets and the first signed installation/upgrade acceptance steps.
+
 ## Architecture and local data
 
 | Location | Responsibility |
@@ -128,6 +143,8 @@ node --test apps/web/tests/*.test.mjs
 pnpm --dir apps/web lint
 pnpm --dir apps/web build
 pnpm desktop:test
+pnpm release:test
+pnpm release:check
 pnpm check:bilingual
 cd apps/api
 uv run pytest
@@ -147,4 +164,6 @@ Broad licensed crypto-news coverage, consensus forecasts as strategy evidence, a
 - [Streaming follow-up conversations](docs/DISCUSSION_STREAMING.md)
 - [Bilingual UI and prompt maintenance](docs/ENGLISH_VERSION_AND_PROMPT_PLAN.md)
 - [Desktop lifecycle and credential storage](docs/DESKTOP_APPLICATION.md)
+- [OTA, product versions, and release workflow](docs/OTA_AND_RELEASE_PLAN.md)
+- [macOS build, GitHub release setup, and update behavior](docs/DESKTOP_RELEASE.md)
 - [Binance position imports](docs/BINANCE_POSITIONS_PLAN.md)

@@ -1,12 +1,15 @@
-import { app, BrowserWindow, ipcMain, Menu, nativeTheme, shell } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, shell } from "electron";
 import { randomBytes } from "node:crypto";
-import { createWriteStream, mkdirSync } from "node:fs";
+import { createWriteStream, mkdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { availablePort, backendCommand, backendEnvironment, developmentConfig, externalUrl,
   spawnBackend, stopBackend, waitForBackend } from "./runtime.mjs";
 import { NATIVE_STRINGS, readSavedLocale, validateLocale } from "./locales.mjs";
 import { readSavedTheme, validateTheme } from "./themes.mjs";
+import { readReleaseInfo } from "./release-info.mjs";
+import { createDesktopUpdater } from "./updater.mjs";
 
 const repoDir = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const token = randomBytes(32).toString("hex");
@@ -14,10 +17,17 @@ let window;
 let backend;
 let origin;
 let closing = false;
+let quitting = false;
+let cleanupComplete = false;
 let starting = false;
 let startupFailed = false;
 let backendLog;
 let uiLocale = "zh-TW";
+let updater;
+let updateDialogOpen = false;
+let manualUpdateChecks = 0;
+let updateMenuKey;
+const updateNotices = new Set();
 
 app.setName("AI Trade Helper");
 if (!app.requestSingleInstanceLock()) app.quit();
@@ -31,25 +41,67 @@ function trustedSender(event) {
       || event.senderFrame !== window.webContents.mainFrame) throw new Error("Invalid window");
 }
 
+function runUpdateAction(action) {
+  // Closing a native dialog during shutdown may reject its promise.
+  void Promise.resolve().then(action).catch(() => {});
+}
+
+// The startup page stays visible long enough for its one-time introduction to settle.
+const STARTUP_MINIMUM_MS = 3000;
+const STARTUP_EXIT_MS = 240;
+const STARTUP_LETTERS = [..."tx"].map(letter => [letter, false])
+  .concat([..."Trade"].map(letter => [letter, true]));
+
+function startupWordmark() {
+  const letters = STARTUP_LETTERS.map(([letter, strong], index) =>
+    `<span class="${strong ? "strong" : ""}" style="--i:${index}">${letter}</span>`).join("");
+  // The shine layer repeats the same glyph boxes so one gradient travels across the whole word.
+  return `<div class="wordmark" role="img" aria-label="txTrade"><div class="letters">${letters}</div>
+    <div class="shine" aria-hidden="true">${letters}</div></div>`;
+}
+
 function startupPage(failed = false) {
   const text = NATIVE_STRINGS[uiLocale];
   const title = failed ? text.failed : text.starting;
   const body = failed
-    ? `<p>${text.failureBody}</p><p class="hint">${text.failureHint}</p>
-       <button id="retry">${text.retry}</button><p id="error" role="alert"></p>`
-    : `<span class="spinner" aria-hidden="true"></span><p role="status">${text.preparing}</p>`;
+    ? `<section class="failure"><h1>${title}</h1><p>${text.failureBody}</p><p class="hint">${text.failureHint}</p>
+       <button id="retry">${text.retry}</button><p id="error" role="alert"></p></section>`
+    : `<p class="status" role="status"><span class="sr">${title}. </span>${text.preparing}</p>`;
   return `<!doctype html><html lang="${uiLocale}"><head><meta charset="UTF-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
   <title>AI Trade Helper</title><style>
-  :root{color-scheme:light dark;font-family:-apple-system,BlinkMacSystemFont,sans-serif}
-  body{margin:0;display:grid;place-items:center;min-height:100vh;background:light-dark(#f5f5f7,#171719);color:light-dark(#202124,#ededf0)}
-  main{width:min(440px,calc(100vw - 64px));padding:32px}h1{font-size:24px;font-weight:600;margin:0 0 18px}
-  p{font-size:14px;line-height:1.7;color:light-dark(#65656e,#a6a6af)}
-  button{font:inherit;background:#007aff;color:white;border:0;border-radius:9px;padding:11px 18px;cursor:pointer;margin-top:12px}
-  button:disabled{opacity:.6}.hint{font-size:12px}#error{color:#e35b53}
-  .spinner{display:block;width:24px;height:24px;border:2px solid #8884;border-top-color:#007aff;border-radius:50%;animation:spin .8s linear infinite}
-  @keyframes spin{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){.spinner{animation:none}}
-  </style></head><body><main><h1>${title}</h1>${body}</main>
+  :root{color-scheme:light dark;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',system-ui,sans-serif;
+    --canvas:light-dark(#f5f5f7,#151517);--text:light-dark(#1d1d1f,#f5f5f7);--muted:light-dark(#58585f,#a1a1ab);
+    --accent:light-dark(#0066cc,#75b6ff);--danger:light-dark(#c13543,#ff98a3);--settle:cubic-bezier(.32,.72,0,1)}
+  body{margin:0;display:grid;place-items:center;min-height:100vh;background:var(--canvas);color:var(--text);
+    -webkit-font-smoothing:antialiased;transition:opacity ${STARTUP_EXIT_MS}ms ease}
+  body.leaving{opacity:0}
+  main{width:min(440px,calc(100vw - 64px));padding:32px;display:flex;flex-direction:column;align-items:center}
+  .wordmark{position:relative;font-size:${failed ? "32px" : "52px"};line-height:1.15;font-weight:400;letter-spacing:-.035em;white-space:nowrap}
+  .letters,.shine{display:flex}
+  .letters span{display:inline-block;animation:letter .8s var(--settle) both;animation-delay:calc(var(--i) * 70ms)}
+  .shine{position:absolute;inset:0;color:transparent;pointer-events:none;
+    background:linear-gradient(100deg,transparent 40%,var(--accent) 50%,transparent 60%) 100% 0/300% 100% no-repeat;
+    -webkit-background-clip:text;background-clip:text;opacity:0;
+    animation:fade .4s 1.1s ease forwards,sweep 2.4s 1.1s cubic-bezier(.45,0,.25,1) infinite}
+  .shine span{display:inline-block}
+  .wordmark .strong{font-weight:700}
+  .status{margin:22px 0 0;font-size:13px;line-height:1.5;color:var(--muted);text-align:center;animation:fade .5s .7s ease both}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+  .failure{align-self:stretch;margin-top:32px}
+  h1{font-size:22px;font-weight:600;letter-spacing:-.01em;margin:0 0 12px}
+  .failure p{font-size:14px;line-height:1.6;color:var(--muted);margin:0 0 10px}
+  button{font:inherit;font-weight:500;background:var(--accent);color:light-dark(#fff,#122033);border:0;border-radius:10px;
+    min-height:44px;padding:0 20px;cursor:pointer;margin-top:12px}
+  button:focus-visible{outline:3px solid color-mix(in srgb,var(--accent) 45%,transparent);outline-offset:2px}
+  button:disabled{opacity:.6}.hint{font-size:12px!important}#error{color:var(--danger)}
+  @keyframes letter{from{opacity:0;filter:blur(10px);transform:translateY(12px)}}
+  @keyframes sweep{0%{background-position:100% 0}65%,100%{background-position:0 0}}
+  @keyframes fade{from{opacity:0}to{opacity:1}}
+  ${failed ? ".letters span{animation:none}.shine{display:none}" : ""}
+  @media(prefers-reduced-motion:reduce){.letters span{animation:fade .4s ease both}.shine{display:none}}
+  </style></head><body><main>${startupWordmark()}
+  ${body}</main>
   <script>document.querySelector('#retry')?.addEventListener('click',async()=>{
     const button=document.querySelector('#retry');button.disabled=true;
     try{await window.tradeHelper.retryStartup()}
@@ -57,11 +109,50 @@ function startupPage(failed = false) {
   });</script></body></html>`;
 }
 
+// Hold the startup page for its minimum duration, then fade it before the workspace loads.
+async function finishStartupPage(shownAt) {
+  const remaining = STARTUP_MINIMUM_MS - (Date.now() - shownAt);
+  if (remaining > 0) await delay(remaining);
+  try {
+    await window.webContents.executeJavaScript("document.body.classList.add('leaving')");
+    await delay(STARTUP_EXIT_MS);
+  } catch { /* The fade is cosmetic; loading the workspace continues without it. */ }
+}
+
 function updateNativeMenu() {
   const text = NATIVE_STRINGS[uiLocale];
+  const update = updater?.state;
+  const releaseInfo = () => readReleaseInfo({ packaged: app.isPackaged,
+    resourcesDir: process.resourcesPath, repoDir, version: app.getVersion(), locale: uiLocale });
   Menu.setApplicationMenu(Menu.buildFromTemplate([
     ...(process.platform === "darwin" ? [{ role: "appMenu" }] : []),
     { label: text.settings, submenu: [
+      { label: text.about, click: () => {
+        const info = releaseInfo();
+        void dialog.showMessageBox(window, { type: "info", title: text.about,
+          message: `AI Trade Helper ${info.version}`, buttons: [text.close],
+          detail: `${text.releaseChannel}: ${info.channel === "beta" ? text.betaChannel : text.stableChannel}`
+            + (info.prepared ? "" : `\n${text.unreleasedBuild}`) });
+      } },
+      { label: text.changelog, click: () => {
+        const info = releaseInfo();
+        void dialog.showMessageBox(window, { type: "info", title: text.changelog,
+          message: `AI Trade Helper ${info.version}`, buttons: [text.close],
+          detail: (info.prepared ? "" : `${text.unreleasedBuild}\n\n`)
+            + (info.notes || text.noReleaseNotes) });
+      } },
+      { type: "separator" },
+      { label: text.checkUpdates, enabled: Boolean(update?.enabled)
+          && !["checking", "downloading", "waiting-for-idle", "installing"].includes(update.status),
+        click: () => { runUpdateAction(checkForUpdates); } },
+      { label: update?.status === "downloading"
+          ? `${text.updateDownloading} ${Math.floor(update.percent)}%` : text.updateStatus,
+        click: () => { runUpdateAction(showUpdateDialog); } },
+      ...(update?.canInstall && !["waiting-for-idle", "installing"].includes(update.status)
+        ? [{ label: text.installUpdate, click: () => { installUpdate(); } }] : []),
+      ...(update?.status === "waiting-for-idle"
+        ? [{ label: text.cancelUpdateWait, click: () => { runUpdateAction(cancelUpdateWait); } }] : []),
+      { type: "separator" },
       { label: text.openData, click: () => {
         void shell.openPath(join(app.getPath("userData"), "data"));
       } },
@@ -74,6 +165,152 @@ function updateNativeMenu() {
   ]));
 }
 
+function updateMessage(state, text) {
+  if (!state?.enabled) return text.updateDisabled;
+  if (state.errorCode === "UPDATE_BACKUP_FAILED") return text.updateBackupError;
+  if (state.errorCode === "UPDATE_CANCEL_FAILED") return text.updateCancelError;
+  return ({ idle: text.updateIdle, checking: text.updateChecking,
+    available: text.updateAvailable, downloading: text.updateDownloading,
+    downloaded: text.updateDownloaded, "waiting-for-idle": text.updateWaiting,
+    installing: text.updateInstalling, error: text.updateError })[state.status] || text.updateError;
+}
+
+async function showUpdateDialog() {
+  if (updateDialogOpen || closing || !window || window.isDestroyed()) return;
+  updateDialogOpen = true;
+  const state = updater?.state;
+  const text = NATIVE_STRINGS[uiLocale];
+  const details = [`${text.updateInstalledVersion}: ${app.getVersion()}`];
+  if (state?.version) details.push(`${text.updateNewVersion}: ${state.version}`);
+  if (state?.status === "downloading") details.push(`${Math.floor(state.percent)}%`);
+  if (state?.status === "waiting-for-idle") {
+    details.push(`${text.updateActiveTasks}: ${state.activeTasks}`, text.updateWaitingDetail);
+  } else if (state?.canInstall) details.push(text.updateDownloadedDetail);
+  else if (state?.enabled && state.status === "idle") details.push(text.updateIdleDetail);
+  if (state?.releaseNotes) details.push(state.releaseNotes);
+  let action;
+  if (state?.status === "waiting-for-idle") action = "cancel";
+  else if (state?.canInstall && state.status !== "installing") action = "install";
+  else if (state?.status === "available") action = "download";
+  else if (state?.enabled && ["idle", "error"].includes(state.status)) action = "check";
+  const label = { cancel: text.cancelUpdateWait, install: text.restartNow,
+    download: text.downloadUpdate, check: text.checkUpdates }[action];
+  let response;
+  try {
+    ({ response } = await dialog.showMessageBox(window, { type: state?.status === "error" ? "warning" : "info",
+      title: text.updateStatus, message: updateMessage(state, text), detail: details.join("\n\n"),
+      buttons: action ? [label, text.later] : [text.close],
+      defaultId: 0, cancelId: action ? 1 : 0, noLink: true }));
+  } finally { updateDialogOpen = false; }
+  if (response !== 0 || closing) return;
+  if (action === "check") runUpdateAction(checkForUpdates);
+  else if (action === "download" && updater?.state.status === "available") {
+    runUpdateAction(async () => {
+      const state = await updater.download();
+      if (state.status === "error") await showUpdateDialog();
+    });
+  } else if (action === "install" && updater?.state.canInstall) installUpdate();
+  else if (action === "cancel" && updater?.state.status === "waiting-for-idle") runUpdateAction(cancelUpdateWait);
+}
+
+async function checkForUpdates() {
+  if (!updater || closing) return;
+  manualUpdateChecks += 1;
+  try {
+    await updater.check({ userInitiated: true });
+    await showUpdateDialog();
+  } finally { manualUpdateChecks -= 1; }
+}
+
+function installUpdate() {
+  if (!updater?.state.canInstall || closing) return;
+  runUpdateAction(async () => {
+    try { await updater.install(); }
+    catch {
+      if (quitting || !updater.state.enabled) return;
+      // If handing control to the native installer failed after stopping Python,
+      // restore a usable local service before showing the retry option.
+      if (closing) {
+        closing = false;
+        cleanupComplete = false;
+        await startBackend();
+      }
+      await showUpdateDialog();
+    }
+  });
+}
+
+async function cancelUpdateWait() {
+  try { await updater?.cancel(); }
+  catch { await showUpdateDialog(); }
+}
+
+function updateStateChanged(state) {
+  // Keep download progress visible without rebuilding the entire menu for each byte event.
+  const key = `${state.status}:${state.canInstall}:${Math.floor(state.percent / 5)}`;
+  if (key !== updateMenuKey) { updateMenuKey = key; updateNativeMenu(); }
+  if (closing || manualUpdateChecks || updateDialogOpen
+      || !["available", "downloaded"].includes(state.status)) return;
+  const notice = `${state.status}:${state.version}`;
+  if (updateNotices.has(notice)) return;
+  updateNotices.add(notice);
+  runUpdateAction(showUpdateDialog);
+}
+
+async function updateBackendRequest(action) {
+  if (!origin || startupFailed || starting || !backend || backend.exitCode !== null
+      || backend.signalCode !== null) throw new Error("UPDATE_PREPARE_FAILED");
+  const response = await fetch(`${origin}/api/v1/desktop-updates/${action}`, {
+    method: "POST", headers: { Authorization: `Bearer ${token}` },
+    signal: AbortSignal.timeout(30_000),
+  });
+  const result = await response.json();
+  if (!response.ok) {
+    const code = result?.detail?.code === "UPDATE_BACKUP_FAILED"
+      ? "UPDATE_BACKUP_FAILED" : "UPDATE_PREPARE_FAILED";
+    throw Object.assign(new Error(code), { code });
+  }
+  return result;
+}
+
+async function initializeUpdater() {
+  let distributionPolicy = {};
+  if (app.isPackaged) {
+    try {
+      const policy = JSON.parse(readFileSync(join(process.resourcesPath, "update-policy.json"), "utf8"));
+      if (policy && typeof policy === "object" && !Array.isArray(policy)) distributionPolicy = policy;
+    } catch { /* Packages without a verified-release policy keep updates disabled. */ }
+  }
+  let autoUpdater;
+  const version = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-beta\.(0|[1-9]\d*))?$/.exec(app.getVersion());
+  const validVersion = version && version.slice(1).filter(part => part !== undefined)
+    .every(part => Number.isSafeInteger(Number(part)));
+  const channel = version?.[4] === undefined ? "stable" : "beta";
+  if (app.isPackaged && distributionPolicy.enabled === true && distributionPolicy.signed === true
+      && process.platform === "darwin" && process.arch === "arm64"
+      && distributionPolicy.platform === "darwin" && distributionPolicy.arch === "arm64"
+      && validVersion && distributionPolicy.channel === channel) {
+    try {
+      const engine = await import("electron-updater");
+      autoUpdater = engine.default.autoUpdater;
+    } catch { /* A missing update engine keeps this App usable with updates disabled. */ }
+  }
+  updater = createDesktopUpdater({ app, autoUpdater, distributionPolicy,
+    prepareUpdate: () => updateBackendRequest("prepare"),
+    cancelUpdate: () => updateBackendRequest("cancel"),
+    stopBackend: async () => {
+      closing = true;
+      await stopBackend(backend);
+      backendLog?.end();
+      backendLog = undefined;
+      cleanupComplete = true;
+    },
+    onState: updateStateChanged,
+  });
+  updateNativeMenu();
+  await updater.start();
+}
+
 async function showStartup(failed = false) {
   startupFailed = failed;
   await window.loadURL(`data:text/html;charset=UTF-8,${encodeURIComponent(startupPage(failed))}`);
@@ -82,10 +319,16 @@ async function showStartup(failed = false) {
 
 async function startBackend() {
   if (starting) return;
+  if (updater?.state.status === "waiting-for-idle") {
+    try { await updater.cancel(); }
+    catch { await showUpdateDialog(); return; }
+  }
+  if (closing) return;
   starting = true;
   try {
     await stopBackend(backend);
     await showStartup();
+    const startupShownAt = Date.now();
     const port = await availablePort();
     origin = `http://127.0.0.1:${port}`;
     const resourcesDir = process.resourcesPath;
@@ -113,6 +356,8 @@ async function startBackend() {
         stopBackend(activeBackend).then(() => showStartup(true)).catch(() => {});
       }
     });
+    await finishStartupPage(startupShownAt);
+    if (closing) return;
     await window.loadURL(origin);
     startupFailed = false;
     window.show();
@@ -131,6 +376,7 @@ app.whenReady().then(async () => {
     title: "AI Trade Helper", show: false,
     backgroundColor: nativeTheme.shouldUseDarkColors ? "#151517" : "#f5f5f7",
     webPreferences: { preload: join(dirname(fileURLToPath(import.meta.url)), "preload.cjs"),
+      additionalArguments: [`--trade-helper-version=${app.getVersion()}`],
       nodeIntegration: false, contextIsolation: true, sandbox: true, webSecurity: true,
       partition: "ai-trade-helper" },
   });
@@ -186,15 +432,23 @@ app.whenReady().then(async () => {
   });
   updateNativeMenu();
   await startBackend();
+  await initializeUpdater();
 });
 
 app.on("window-all-closed", () => app.quit());
 app.on("before-quit", event => {
-  if (closing) return;
+  if (closing) {
+    if (!cleanupComplete) event.preventDefault();
+    else quitting = true;
+    return;
+  }
   event.preventDefault();
+  quitting = true;
   closing = true;
-  stopBackend(backend).finally(() => {
+  // Release a pending update drain before stopping the private backend on normal quit.
+  Promise.resolve(updater?.dispose()).catch(() => {}).then(() => stopBackend(backend)).finally(() => {
     backendLog?.end();
+    cleanupComplete = true;
     app.quit();
   });
 });

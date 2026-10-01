@@ -11,7 +11,7 @@ from trade_helper import worker
 from trade_helper.api import app
 from trade_helper.codex_bridge import CodexError, CodexTimeoutError
 from trade_helper.db import connect
-from trade_helper.error_locale import model_error_message, system_error_message
+from trade_helper.error_locale import analysis_failure_message, model_error_message, system_error_message
 from trade_helper.model_providers import ModelProviderError
 
 from .test_analysis import sample_candles
@@ -161,5 +161,5 @@ def test_worker_does_not_save_unknown_feed_payload(monkeypatch):
         assert worker.run_once()
         result = client.get("/api/v1/analyses/" + created["id"]).json()
         assert result["error"] == {"code": "ANALYSIS_FAILED",
-                                    "message": system_error_message("ANALYSIS_FAILED", "en-US")}
+                                    "message": analysis_failure_message("candles", RuntimeError(SECRET), "en-US")}
         assert SECRET not in json.dumps(result)

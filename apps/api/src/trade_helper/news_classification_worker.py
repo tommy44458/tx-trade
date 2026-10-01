@@ -10,6 +10,11 @@ import httpx
 from .config import assert_local_mode
 from .credential_store import CredentialStoreError
 from .db import connect, init_db, new_id
+from .desktop_updates import (
+    finish_desktop_execution,
+    register_desktop_execution,
+    update_is_draining,
+)
 from .local_settings import integration_credentials
 from .news_classification_store import save_classification
 from .news_jev import MODEL_ALIAS, QUESTION_VERSION, classify_article
@@ -58,6 +63,8 @@ def _daily_limit() -> int:
 
 def _claim(now: datetime) -> tuple[dict | None, str | None]:
     with connect() as db:
+        if update_is_draining(db):
+            return None, "update_preparing"
         db.execute(
             "UPDATE news_classification_jobs SET status='blocked',"
             "error_code='SUPERSEDED_OR_EXPIRED',lease_until=NULL,updated_at=? "
@@ -111,8 +118,10 @@ def _claim(now: datetime) -> tuple[dict | None, str | None]:
             "INSERT INTO news_jev_calls(id,document_id,started_at,status) "
             "VALUES(?,?,?,'started')", (call_id, row["document_id"], now),
         )
+        update_execution = register_desktop_execution(db, "news_model_calls", call_id)
         db.commit()
     result = dict(row)
+    result["update_execution_id"] = update_execution
     result["metadata"] = load_json(result["metadata"])
     return result, call_id
 
@@ -134,6 +143,7 @@ def _finish(row: dict, call_id: str, now: datetime, status: str,
             (status, error_code, now, (usage or {}).get("input_tokens"),
              (usage or {}).get("output_tokens"), call_id),
         )
+        finish_desktop_execution(row.get("update_execution_id"), db=db)
         db.commit()
 
 

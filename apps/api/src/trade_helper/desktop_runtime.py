@@ -15,6 +15,8 @@ from fastapi import HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from .product_version import product_version
+
 SERVICES = (
     "worker", "shadow_v4", "event_sync", "macro_actual_sync", "news_sync",
     "sec_news_sync", "news_classification_worker",
@@ -71,22 +73,29 @@ def monitor_services(children, server, stopped: threading.Event, failed: threadi
 
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser()
+    parser.add_argument("--version", action="version", version=f"AI Trade Helper {product_version()}")
     parser.add_argument("--port", type=int, default=0)
     parser.add_argument("--web-dir", type=Path)
     parser.add_argument("--service", choices=SERVICES)
+    parser.add_argument("--no-workers", action="store_true",
+                        help="Run only the private API and web UI for offline package verification")
     args = parser.parse_args(argv)
     if os.environ.get("APP_DESKTOP") != "1" or not os.environ.get("APP_DESKTOP_TOKEN"):
         raise RuntimeError("Desktop runtime requires a private session token")
     if args.service:
+        if args.no_workers:
+            parser.error("--service cannot be combined with --no-workers")
         importlib.import_module(f"trade_helper.{args.service}").main()
         return
     if not args.web_dir or not 1 <= args.port <= 65535:
         parser.error("--web-dir and a valid --port are required")
     from .api import app
     from .db import init_db
+    from .desktop_updates import reset_desktop_update_gate
 
     # Apply embedded-database migrations before workers begin sharing the WAL file.
     init_db()
+    reset_desktop_update_gate()
     mount_web(app, args.web_dir)
     children: list[subprocess.Popen] = []
     server = uvicorn.Server(uvicorn.Config(
@@ -104,9 +113,10 @@ def main(argv: list[str] | None = None) -> None:
     signal.signal(signal.SIGTERM, shutdown)
     signal.signal(signal.SIGINT, shutdown)
     try:
-        children.extend(subprocess.Popen(service_command(service)) for service in SERVICES)
-        threading.Thread(target=monitor_services, args=(children, server, stopped, failed),
-                         daemon=True).start()
+        if not args.no_workers:
+            children.extend(subprocess.Popen(service_command(service)) for service in SERVICES)
+            threading.Thread(target=monitor_services, args=(children, server, stopped, failed),
+                             daemon=True).start()
         server.run()
     finally:
         stopped.set()

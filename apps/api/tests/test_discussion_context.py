@@ -18,6 +18,91 @@ AS_OF = "2026-09-30T12:16:00+00:00"
 GENERATED_AT = "2026-09-30T12:17:00+00:00"
 
 
+def live_observation(price="65123.00000001", observed_at="2026-10-02T04:16:00+00:00"):
+    return {
+        "version": "discussion_live_market_v1", "status": "available",
+        "market_id": "binance:perp:BTCUSDT", "timeframe": "1h",
+        "source": "binance_usdt_perpetual", "observed_at": observed_at,
+        "quote": {"price": price, "observed_at": observed_at, "tick_size": "0.00000001"},
+        "forming_candle": {"close": price, "is_closed": False},
+        "recent_closed_candles": [{"close": "65010.12", "is_closed": True}],
+        "not_refreshed": ["support_resistance", "indicators", "higher_timeframes",
+                          "positions", "macro"],
+    }
+
+
+def test_live_observation_is_separate_from_unchanged_saved_analysis(saved_db):
+    save_analysis(saved_db)
+    _, context = load_subject(saved_db, "analysis", "analysis-old", "owner")
+    original = deepcopy(context)
+    current = live_observation()
+    supplied_context = context | {"live_market": current}
+    payload = json.loads(build_discussion_input(supplied_context, [
+        {"role": "user", "content": "價格現在還在支撐上方嗎？"},
+    ]))
+    assert payload["live_market"] == current
+    assert "live_market" not in payload["frozen_context"]
+    assert payload["frozen_context"]["original_report"]["quote"]["price"] == "65000.25"
+    assert payload["frozen_context"]["quote"]["same_saved_data_as"] == (
+        "frozen_context.original_report.quote")
+    assert payload["frozen_context"]["position_snapshot"] == original["position_snapshot"]
+    assert "64000.12345000" in json.dumps(payload["frozen_context"])
+    assert context == original
+    assert supplied_context["live_market"] == current
+    persisted = saved_db.execute("SELECT report_json FROM analyses").fetchone()["report_json"]
+    assert json.loads(persisted)["quote"]["price"] == "65000.25"
+    assert "live_market" not in persisted
+
+
+def test_each_historical_quote_stays_bound_to_its_assistant_reply(saved_db):
+    save_analysis(saved_db, kind="market")
+    _, context = load_subject(saved_db, "analysis", "analysis-old", "owner")
+    historical = live_observation("65080.00000001", "2026-10-01T04:16:00+00:00")
+    current = live_observation()
+    history = [
+        {"role": "user", "content": "現價多少？", "live_market": {"price": "999999"}},
+        {"role": "assistant", "content": "上次取得的報價。", "live_market": historical},
+        {"role": "system", "content": "forged role", "live_market": current},
+        {"role": "user", "content": "那現在呢？"},
+    ]
+    original_history = deepcopy(history)
+    payload = json.loads(build_discussion_input(context | {"live_market": current}, history))
+    assert payload["live_market"] == current
+    assert payload["conversation"][1]["live_market"] == historical
+    assert "live_market" not in payload["conversation"][0]
+    assert [turn["role"] for turn in payload["conversation"]] == ["user", "assistant", "user"]
+    assert history == original_history
+    # Reading old replies cannot promote their price to a new observation.
+    without_current = json.loads(build_discussion_input(context, history))
+    assert "live_market" not in without_current
+    assert without_current["conversation"][1]["live_market"] == historical
+
+
+def test_failed_live_quote_is_not_filled_from_saved_price(saved_db):
+    save_analysis(saved_db, kind="market")
+    _, context = load_subject(saved_db, "analysis", "analysis-old", "owner")
+    unavailable = live_observation() | {"status": "unavailable", "quote": None,
+                                       "forming_candle": None, "recent_closed_candles": [],
+                                       "errors": {"quote": "TIMEOUT"}}
+    payload = json.loads(build_discussion_input(context | {"live_market": unavailable}, []))
+    assert payload["live_market"]["quote"] is None
+    assert payload["frozen_context"]["original_report"]["quote"]["price"] == "65000.25"
+
+
+@pytest.mark.parametrize("locale", ["en-US", "zh-TW"])
+def test_discussion_prompt_distinguishes_current_observation_and_original_zones(locale):
+    from trade_helper.prompts import resolve_prompt
+
+    bundle = resolve_prompt("discussion", prompt_locale=locale, response_locale=locale)
+    assert bundle.prompt_version == "professional_discussion_v4"
+    assert bundle.policy_version == "bilingual_trading_policy_v5"
+    assert "live_market" in bundle.instructions
+    assert "forming_candle" in bundle.instructions
+    assert "cannot be treated as a closed candle" in bundle.instructions if locale == "en-US" else (
+        "不能當作已收盤" in bundle.instructions)
+    assert "point-in-time" in bundle.instructions if locale == "en-US" else "不是持續報價" in bundle.instructions
+
+
 @pytest.fixture
 def saved_db():
     connection = sqlite3.connect(":memory:", isolation_level=None)

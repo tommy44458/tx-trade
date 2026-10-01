@@ -14,7 +14,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
 
-SCHEMA_VERSION = 7
+SCHEMA_VERSION = 8
 BUSY_TIMEOUT_MS = 15_000
 
 
@@ -491,6 +491,13 @@ def _migration_7(db: Database) -> None:
     """)
 
 
+def _migration_8(db: Database) -> None:
+    existing = {row["name"] for row in db.execute("PRAGMA table_info(discussion_messages)")}
+    if "live_market_json" not in existing:
+        db.execute("""ALTER TABLE discussion_messages ADD COLUMN live_market_json TEXT
+            CHECK(live_market_json IS NULL OR json_valid(live_market_json))""")
+
+
 def init_db() -> None:
     connection = _open_connection()
     try:
@@ -505,7 +512,7 @@ def init_db() -> None:
         )""")
         for migration_version, migration in (
             (1, _migration_1), (2, _migration_2), (3, _migration_3), (4, _migration_4),
-            (5, _migration_5), (6, _migration_6), (7, _migration_7),
+            (5, _migration_5), (6, _migration_6), (7, _migration_7), (8, _migration_8),
         ):
             if version < migration_version:
                 migration(db)

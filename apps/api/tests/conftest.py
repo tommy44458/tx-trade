@@ -71,3 +71,14 @@ def no_live_macro_model_from_existing_worker_tests(monkeypatch):
         'dataset_version': 'test-empty-macro', 'as_of': cutoff.isoformat(),
         'evidence_count': 0, 'coverage': {}, 'needs_update': False, 'cached': False, 'error': None,
     })
+
+
+@pytest.fixture(autouse=True)
+def no_live_discussion_market_from_existing_unit_tests(monkeypatch):
+    # New worker-side quote refreshes must not open public HTTP in older tests.
+    # Dedicated tests replace this stub with explicit isolated market fixtures.
+    from trade_helper import discussions
+
+    monkeypatch.setattr(discussions, "fetch_discussion_market",
+                        lambda context, **_kwargs: discussions._live_market_unavailable(
+                            context, discussions.utc_now()))

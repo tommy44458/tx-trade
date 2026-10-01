@@ -1,0 +1,26 @@
+{
+  "extends": "./electron-builder.base.cjs",
+  "artifactName": "AI-Trade-Helper-${version}-${os}-${arch}.${ext}",
+  "forceCodeSigning": true,
+  "generateUpdatesFilesForAllChannels": false,
+  "publish": {
+    "provider": "github",
+    "owner": "tommy44458",
+    "repo": "ai-trade-helper",
+    "channel": "latest",
+    "releaseType": "draft"
+  },
+  "mac": {
+    "target": [
+      { "target": "dmg", "arch": ["arm64"] },
+      { "target": "zip", "arch": ["arm64"] }
+    ],
+    "identity": "Developer ID Application",
+    "type": "distribution",
+    "hardenedRuntime": true,
+    "strictVerify": true,
+    "notarize": true,
+    "binaries": ["Contents/Resources/backend/trade-helper-backend"]
+  },
+  "dmg": { "sign": true }
+}

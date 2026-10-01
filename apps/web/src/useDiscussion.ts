@@ -1,5 +1,6 @@
 import { uiText, type UiLocale } from "./i18n/index.ts";
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { DiscussionLiveMarket } from "./discussionLiveMarket.ts";
 
 export type DiscussionSubjectType = "analysis" | "macro";
 export type DiscussionMessage = {
@@ -14,6 +15,7 @@ export type DiscussionMessage = {
   provider?: string | null;
   model?: string | null;
   error: { code: string; message: string; retryable: boolean } | null;
+  live_market?: DiscussionLiveMarket | null;
 };
 export type DiscussionState = {
   subject: {

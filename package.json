@@ -5,7 +5,13 @@
   "scripts": {
     "desktop": "node scripts/desktop.mjs start",
     "desktop:build": "node scripts/desktop.mjs package",
+    "desktop:test-release": "node scripts/desktop.mjs test-release",
+    "desktop:release": "node scripts/desktop.mjs release",
     "desktop:test": "node --test apps/desktop/tests/*.test.mjs",
-    "check:bilingual": "node scripts/check-bilingual.mjs"
+    "check:bilingual": "node scripts/check-bilingual.mjs",
+    "release:check": "node scripts/release.mjs check",
+    "release:version": "node scripts/release.mjs version",
+    "release:prepare": "node scripts/release.mjs prepare",
+    "release:test": "node --test scripts/tests/*.test.mjs"
   }
 }

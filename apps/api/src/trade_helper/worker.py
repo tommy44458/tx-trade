@@ -1,17 +1,25 @@
 import json
+import logging
 import sys
 import time
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from hashlib import sha256
 
+import httpx
+
 from .agent import analyze_with_tools
 from .analysis import StaleMarketDataError, build_report, validate_market_freshness
 from .config import assert_local_mode
 from .db import connect, init_db, utc_now
 from .derivatives_context import fetch_derivatives_context
+from .desktop_updates import (
+    finish_desktop_execution,
+    register_desktop_execution,
+    update_is_draining,
+)
 from .discussions import run_once as run_discussion_once
-from .error_locale import model_error_message, system_error_message
+from .error_locale import analysis_failure_message, model_error_message, system_error_message
 from .events import event_snapshot
 from .macro_interpretation import analysis_macro_interpretation, ensure_macro_interpretation
 from .market import (
@@ -42,6 +50,23 @@ class ModelAnalysisError(RuntimeError):
         self.code = code
 
 
+_LOG = logging.getLogger(__name__)
+
+
+def _required_market_fetch(fetch):
+    """Retry a brief exchange outage before failing the analysis without a stale quote."""
+    for attempt in range(3):
+        try:
+            return fetch()
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code not in {408, 429, 500, 502, 503, 504} or attempt == 2:
+                raise
+        except httpx.TransportError:
+            if attempt == 2:
+                raise
+        time.sleep(0.4 * (attempt + 1))
+
+
 def _macro_at(cutoff: datetime, user_id: str, output_locale: str = "zh-TW") -> dict:
     try:
         return analysis_macro_interpretation(ensure_macro_interpretation(
@@ -59,6 +84,8 @@ def _macro_at(cutoff: datetime, user_id: str, output_locale: str = "zh-TW") -> d
 
 def run_once() -> bool:
     with connect() as db:
+        if update_is_draining(db):
+            return False
         now = utc_now()
         db.execute("UPDATE analyses SET status='queued', phase='retrying' WHERE status='running' AND lease_until < ? AND phase IN ('macro','fetching','calculating')", (now,))
         db.execute("""UPDATE analyses SET status='failed', phase='done',
@@ -74,9 +101,11 @@ def run_once() -> bool:
             return False
         lease_until = (datetime.now(UTC) + timedelta(seconds=analysis_timeout_seconds() * 2 + 120)).isoformat()
         db.execute("UPDATE analyses SET status='running', phase='macro', started_at=?, lease_until=? WHERE id=?", (utc_now(), lease_until, row["id"]))
+        update_execution = register_desktop_execution(db, "analyses", row["id"])
         db.commit()
     job_id = row["id"]
     response_locale = "zh-TW"
+    stage = "prompt"
     try:
         request = json.loads(row["request_json"])
         response_locale = request.get("output_locale", "zh-TW")
@@ -100,31 +129,41 @@ def run_once() -> bool:
         request["output_locale"] = response_locale
         # Generate shared macro interpretation before fetching current prices,
         # so a first-time macro request cannot age the market quote snapshot.
+        stage = "macro"
         _macro_at(datetime.now(UTC), row["user_id"], bundle.response_locale)
         with connect() as db:
             db.execute("UPDATE analyses SET phase='fetching' WHERE id=?", (job_id,))
-        candles = fetch_candles(request["market_id"], request["timeframe"],
-                                limit=MAIN_HISTORY_LIMIT)
-        context_candles = fetch_candles(request["market_id"], other_timeframe(request["timeframe"]),
-                                        limit=MAIN_HISTORY_LIMIT)
+        stage = "candles"
+        candles = _required_market_fetch(lambda: fetch_candles(
+            request["market_id"], request["timeframe"], limit=MAIN_HISTORY_LIMIT))
+        stage = "context_candles"
+        context_candles = _required_market_fetch(lambda: fetch_candles(
+            request["market_id"], other_timeframe(request["timeframe"]), limit=MAIN_HISTORY_LIMIT))
+        stage = "higher_candles"
         higher_candles = fetch_higher_timeframe_candles(
             request["market_id"], request["timeframe"], context_candles=context_candles)
         try:
             forming_candle = fetch_forming_candle(request["market_id"], request["timeframe"])
         except Exception:  # noqa: BLE001 - quote still provides current price if candle feed fails
             forming_candle = None
-        quote = fetch_quote(request["market_id"])
+        stage = "quote"
+        quote = _required_market_fetch(lambda: fetch_quote(request["market_id"]))
         quote["higher_timeframe_candles"] = higher_candles
         quote["forming_candle"] = forming_candle
-        quote["tick_size"] = str(fetch_tick_size(request["market_id"]))
+        stage = "tick_size"
+        quote["tick_size"] = str(_required_market_fetch(
+            lambda: fetch_tick_size(request["market_id"])))
         quote["cost_scenario"] = configured_cost_scenario()
+        stage = "events"
         events = event_snapshot(datetime.fromisoformat(quote["observed_at"]))
         quote["event_risk"] = events["risk"]
         quote["events_status"] = events["status"]
         quote["event_context"] = events
         cutoff = datetime.fromisoformat(quote["observed_at"])
+        stage = "derivatives"
         quote["derivatives_context"] = fetch_derivatives_context(
             request["market_id"], cutoff, request["timeframe"])
+        stage = "news"
         news = news_snapshot(cutoff, request["market_id"])
         news["evidence_pack"] = build_news_evidence_pack(cutoff, request["market_id"])
         quote["news_context"] = news
@@ -136,6 +175,7 @@ def run_once() -> bool:
             book = fetch_order_book(request["market_id"])
         except Exception:  # noqa: BLE001 - order-book context is optional, never fabricated
             book = None
+        stage = "snapshot"
         positions = json.loads(row["positions_json"])
         snapshot_json = json.dumps({"candles": candles, "context_candles": context_candles,
                                     "quote": quote, "order_book": book, "events": events,
@@ -147,11 +187,13 @@ def run_once() -> bool:
             db.execute("UPDATE analyses SET phase='calculating', snapshot_json=? WHERE id=?",
                        (snapshot_json, job_id))
             db.commit()
+        stage = "preparation"
         validate_market_freshness(request, candles, quote, context_candles)
         prepared = prepare_analysis_evidence(request, candles, quote, context_candles, positions)
         with connect() as db:
             db.execute("UPDATE analyses SET phase='model' WHERE id=?", (job_id,))
             db.commit()
+        stage = "model"
         try:
             decision = analyze_with_tools(request, candles, quote, context_candles, positions,
                                           prepared_trace=prepared, prompt_bundle=bundle)
@@ -159,6 +201,7 @@ def run_once() -> bool:
             safe_reason = model_error_message(model_exc, response_locale)
             code = "MODEL_CALL_FAILED"
             raise ModelAnalysisError(code, safe_reason) from None
+        stage = "report"
         report = build_report(request, candles, quote, positions, decision, context_candles, events, news)
         report["output_locale"] = bundle.response_locale
         report["analysis_execution"] = {
@@ -181,6 +224,7 @@ def run_once() -> bool:
                   "trade_evidence": {"status": "unavailable",
                                      "reason": "no price-level executed-trade history"},
                   "book_evidence": quote["order_book_evidence"]}
+        stage = "save_report"
         with connect() as db:
             completed_at = datetime.now(UTC)
             # The separate v4 experiment only supports its original 1H/4H
@@ -196,10 +240,19 @@ def run_once() -> bool:
         with connect() as db:
             db.execute("UPDATE analyses SET status='failed', phase='done', error_code=?, error_message=?, completed_at=?, lease_until=NULL WHERE id=? AND status='running'", (exc.code, system_error_message(exc.code, response_locale), utc_now(), job_id))
             db.commit()
-    except Exception:  # noqa: BLE001 - never persist an unknown upstream exception payload
+    except Exception as exc:  # noqa: BLE001 - never persist an unknown upstream exception payload
+        # Log only application-controlled stage and exception class. Provider
+        # messages can contain request data or credentials.
+        _LOG.error("analysis_failed id=%s stage=%s exception=%s", job_id, stage,
+                   type(exc).__name__)
+        code = "MARKET_DATA_UNAVAILABLE" if isinstance(exc, httpx.HTTPError) else "ANALYSIS_FAILED"
+        message = (system_error_message(code, response_locale) if code == "MARKET_DATA_UNAVAILABLE"
+                   else analysis_failure_message(stage, exc, response_locale))
         with connect() as db:
-            db.execute("UPDATE analyses SET status='failed', phase='done', error_code='ANALYSIS_FAILED', error_message=?, completed_at=?, lease_until=NULL WHERE id=? AND status='running'", (system_error_message("ANALYSIS_FAILED", response_locale), utc_now(), job_id))
+            db.execute("UPDATE analyses SET status='failed', phase='done', error_code=?, error_message=?, completed_at=?, lease_until=NULL WHERE id=? AND status='running'", (code, message, utc_now(), job_id))
             db.commit()
+    finally:
+        finish_desktop_execution(update_execution)
     return True
 
 

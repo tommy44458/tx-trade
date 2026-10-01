@@ -1,7 +1,8 @@
-"""Read only the saved result and evidence for a professional trader discussion.
+"""Read the saved result and serialize evidence for a trader discussion.
 
 This module intentionally has no market, macro, model or indicator dependencies:
-asking about an old result must never refresh or recalculate its facts.
+asking about an old result must never rewrite or recalculate its saved facts.
+A separately supplied public observation belongs to the current reply only.
 """
 
 import json
@@ -11,7 +12,7 @@ from typing import Literal
 
 from fastapi import HTTPException
 
-VERSION = "professional_discussion_context_v2"
+VERSION = "professional_discussion_context_v3"
 RECENT_CANDLE_LIMIT = 8
 SUBMITTED_FIELDS = (
     "kind", "market_id", "timeframe", "directional_bias", "risk_tolerance",
@@ -42,6 +43,8 @@ FACT_FIELDS = {
     "lower_pct", "upper_pct", "decision", "source_url", "published_at",
 }
 
+# Legacy jobs without an immutable prompt artifact retain their original
+# frozen-only behavior. New jobs use the bilingual discussion prompt registry.
 DISCUSSION_INSTRUCTIONS = """你是一位有實務經驗、能獨立判斷的專業交易員，與使用者討論一份已產生的市場、持倉或宏觀分析。
 用自然、白話的繁體中文回答，輸出一般 Markdown 純文字，勿輸出報告 JSON。先直接回答這次問題，再按需要說明具體價格、區間、多空論據、假設，以及哪些條件會讓你改變看法。不要每次機械地重述整份報告。
 
@@ -416,17 +419,22 @@ def _deduplicated_context(context: dict) -> dict:
 
 
 def build_discussion_input(context: dict, messages: list[dict]) -> str:
-    """Serialize one copy of saved evidence and bounded, ordered conversation.
+    """Keep the original evidence separate from each reply's fresh observation.
 
-The persisted context remains complete and unchanged. Model input factors out
-duplicate facts and omits operations metadata rather than cutting at a budget.
-"""
-    conversation = [
-        {"role": message["role"], "content": message["content"]}
-        for message in messages if message.get("role") in {"user", "assistant"}
-    ]
-    projected = _prompt_projection(context, conversation)
-    return json.dumps(
-        {"frozen_context": _deduplicated_context(projected), "conversation": conversation},
-        ensure_ascii=False, allow_nan=False, separators=(",", ":"),
-    )
+    Projection never mutates saved context or historical observations. The
+    current live observation is supplied once, outside the frozen evidence.
+    """
+    conversation = []
+    for message in messages:
+        if message.get("role") not in {"user", "assistant"}:
+            continue
+        turn = {"role": message["role"], "content": message["content"]}
+        if message["role"] == "assistant" and isinstance(message.get("live_market"), dict):
+            turn["live_market"] = message["live_market"]
+        conversation.append(turn)
+    frozen = {key: value for key, value in context.items() if key != "live_market"}
+    projected = _prompt_projection(frozen, conversation)
+    supplied = {"frozen_context": _deduplicated_context(projected), "conversation": conversation}
+    if isinstance(context.get("live_market"), dict):
+        supplied["live_market"] = context["live_market"]
+    return json.dumps(supplied, ensure_ascii=False, allow_nan=False, separators=(",", ":"))

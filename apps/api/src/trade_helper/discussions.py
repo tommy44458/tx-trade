@@ -7,6 +7,7 @@ usage cannot safely be inferred from a missing response.
 
 import asyncio
 import json
+import re
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from threading import Lock, Timer
@@ -23,6 +24,7 @@ from starlette.concurrency import run_in_threadpool
 from .config import local_user_id
 from .db import connect, new_id, utc_now
 from .discussion_context import DISCUSSION_INSTRUCTIONS, build_discussion_input, load_subject
+from .discussion_market import NOT_REFRESHED, SOURCE, VERSION, fetch_discussion_market
 from .model_providers import ModelSession, analysis_timeout_seconds
 from .prompts.registry import resolve_prompt
 from .prompts_artifacts import load_prompt_artifact, save_prompt_artifact
@@ -36,6 +38,7 @@ STREAM_POLL_SECONDS = 0.3
 STREAM_HEARTBEAT_SECONDS = 10
 PREFIX_FLUSH_SECONDS = 0.2
 PREFIX_FLUSH_CHARS = 128
+LIVE_MARKET_MAX_SECONDS = 8.0
 INTERRUPTED_ERROR = (
     "DISCUSSION_RESULT_UNKNOWN",
     "模型回覆中斷，無法確認這次呼叫的用量；請檢查後手動重試。",
@@ -78,6 +81,7 @@ def _public_message(row: dict) -> dict:
         "output_locale": row.get("output_locale") or "zh-TW",
         "prompt_artifact_id": row.get("prompt_artifact_id"),
         "prompt_bundle": json.loads(row.get("prompt_bundle_json") or "null"),
+        "live_market": json.loads(row.get("live_market_json") or "null"),
         "request_id": row.get("turn_request_id") or row["request_id"],
         "error": {"code": row["error_code"], "message": localized_task_error(
             row["error_code"], row.get("output_locale") or "zh-TW", row["error_message"]),
@@ -181,6 +185,9 @@ def stream_discussion(request: Request, subject_type: SubjectType, subject_id: s
 def send_message(subject_type: SubjectType, subject_id: str, body: DiscussionMessageInput):
     user_id, request_id = local_user_id(), str(body.request_id)
     with connect() as db:
+        from .desktop_updates import require_task_start_allowed
+
+        require_task_start_allowed(db)
         _expire_claims(db, utc_now())
         subject, context = load_subject(db, subject_type, subject_id, user_id,
                                         output_locale=body.output_locale if subject_type == "macro" else None)
@@ -245,6 +252,9 @@ def send_message(subject_type: SubjectType, subject_id: str, body: DiscussionMes
 def retry_message(subject_type: SubjectType, subject_id: str, message_id: str):
     user_id = local_user_id()
     with connect() as db:
+        from .desktop_updates import require_task_start_allowed
+
+        require_task_start_allowed(db)
         _expire_claims(db, utc_now())
         subject, _ = load_subject(db, subject_type, subject_id, user_id)
         session = _session(db, subject_type, subject_id, user_id)
@@ -267,7 +277,7 @@ def retry_message(subject_type: SubjectType, subject_id: str, message_id: str):
         db.execute(
             """UPDATE discussion_messages SET status='queued',content='',completed_at=NULL,
                error_code=NULL,error_message=NULL,error_retryable=NULL,claim_token=NULL,
-               lease_until=NULL,provider=NULL,model=NULL WHERE id=?""", (message_id,),
+               lease_until=NULL,provider=NULL,model=NULL,live_market_json=NULL WHERE id=?""", (message_id,),
         )
         db.execute("UPDATE discussion_sessions SET updated_at=? WHERE id=?", (now, session["id"]))
         return _state(db, subject, _session(db, subject_type, subject_id, user_id))
@@ -295,6 +305,10 @@ def _expire_claims(db, now: str) -> None:
 def claim_next(*, timeout: float) -> dict | None:
     """Claim at most one job atomically, without initializing a model transport."""
     with connect() as db:
+        from .desktop_updates import register_desktop_execution, update_is_draining
+
+        if update_is_draining(db):
+            return None
         now = utc_now()
         _expire_claims(db, now)
         row = db.execute(
@@ -310,7 +324,8 @@ def claim_next(*, timeout: float) -> dict | None:
             (token, lease_until, row["id"]),
         )
         db.execute("UPDATE discussion_sessions SET updated_at=? WHERE id=?", (now, row["session_id"]))
-        return dict(row, status="running", claim_token=token)
+        return dict(row, status="running", claim_token=token,
+                    update_execution_id=register_desktop_execution(db, "discussions", row["id"]))
 
 
 def _model_input(job: dict) -> tuple[dict, list[dict]]:
@@ -340,11 +355,17 @@ def _model_input(job: dict) -> tuple[dict, list[dict]]:
         truncated = len(ids) < len(turns)
         placeholders = ",".join("?" for _ in ids)
         messages = db.execute(
-            f"""SELECT role,content,sequence FROM discussion_messages WHERE session_id=?
+            f"""SELECT role,content,sequence,live_market_json FROM discussion_messages WHERE session_id=?
                 AND (id IN ({placeholders}) OR
                     (reply_to_id IN ({placeholders}) AND status='completed'))
                 ORDER BY sequence""", (session["id"], *ids, *ids),
         ).fetchall() if ids else []
+        messages = [
+            {"role": row["role"], "content": row["content"], "sequence": row["sequence"]}
+            | ({"live_market": json.loads(row["live_market_json"])}
+               if row["live_market_json"] is not None else {})
+            for row in messages
+        ]
         context = json.loads(session["context_json"])
         context["output_locale"] = session.get("output_locale") or "zh-TW"
         english = context["output_locale"] == "en-US"
@@ -418,6 +439,47 @@ def _persist_prefix(job: dict, content: str) -> bool:
             db.execute("UPDATE discussion_sessions SET updated_at=? WHERE id=?",
                        (now, job["session_id"]))
         return bool(result.rowcount)
+
+
+def _persist_live_market(job: dict, market: dict | None) -> bool:
+    """Save this attempt's evidence only while its claim is still active."""
+    with connect() as db:
+        now = utc_now()
+        result = db.execute(
+            """UPDATE discussion_messages SET live_market_json=?
+               WHERE id=? AND status='running' AND claim_token=? AND lease_until>=?""",
+            (json.dumps(market, ensure_ascii=False, allow_nan=False) if market is not None else None,
+             job["id"], job["claim_token"], now),
+        )
+        if result.rowcount:
+            db.execute("UPDATE discussion_sessions SET updated_at=? WHERE id=?",
+                       (now, job["session_id"]))
+        return bool(result.rowcount)
+
+
+def _supports_live_market(artifact) -> bool:
+    version = re.fullmatch(r"professional_discussion_v(\d+)", artifact.prompt_version) if artifact else None
+    return bool(version and int(version.group(1)) >= 4)
+
+
+def _live_market_unavailable(context: dict, requested_at: str) -> dict:
+    subject = context.get("subject") or {}
+    return {
+        "version": VERSION, "status": "unavailable",
+        "market_id": subject.get("market_id"), "timeframe": subject.get("timeframe"),
+        "source": SOURCE, "requested_at": requested_at,
+        "observed_at": None, "quote": None, "forming_candle": None,
+        "recent_closed_candles": [], "comparison": None,
+        "errors": {"market": "LIVE_MARKET_UNAVAILABLE"},
+        "not_refreshed": list(NOT_REFRESHED),
+    }
+
+
+def _claim_is_current(job: dict) -> bool:
+    with connect(readonly=True) as db:
+        return db.execute("""SELECT 1 FROM discussion_messages WHERE id=?
+            AND status='running' AND claim_token=? AND lease_until>=?""",
+                          (job["id"], job["claim_token"], utc_now())).fetchone() is not None
 
 
 class _ReplyPrefix:
@@ -498,6 +560,7 @@ def _finish(job: dict, *, content: str | None = None, provider: str | None = Non
 
 def run_once() -> bool:
     timeout = analysis_timeout_seconds()
+    deadline = monotonic() + timeout
     job = claim_next(timeout=timeout)
     if not job:
         return False
@@ -506,8 +569,29 @@ def run_once() -> bool:
         context, messages = _model_input(job)
         with connect(readonly=True) as db:
             artifact = load_prompt_artifact(db, job["prompt_artifact_id"]) if job.get("prompt_artifact_id") else None
+        # Network activity starts only for a new claimed analysis turn. Older
+        # queued prompts retain their original rules and do not receive new data.
+        if context.get("subject", {}).get("type") == "analysis" and _supports_live_market(artifact):
+            remaining = deadline - monotonic()
+            if remaining <= 0:
+                raise TimeoutError("Discussion setup exceeded its budget")
+            requested_at = utc_now()
+            try:
+                market = fetch_discussion_market(
+                    context, timeout=min(LIVE_MARKET_MAX_SECONDS, remaining))
+            except Exception:  # noqa: BLE001 -- never publish upstream payloads
+                market = _live_market_unavailable(context, requested_at)
+            if not _persist_live_market(job, market):
+                return True
+            if market is not None:
+                context["live_market"] = market
+        if not _claim_is_current(job):
+            return True
+        remaining = deadline - monotonic()
+        if remaining <= 0:
+            raise TimeoutError("Discussion setup exceeded its budget")
         content, provider, model = generate_reply(
-            context, messages, timeout=timeout,
+            context, messages, timeout=remaining,
             instructions=artifact.instructions if artifact else DISCUSSION_INSTRUCTIONS,
             on_text=prefix,
         )
@@ -517,4 +601,9 @@ def run_once() -> bool:
         partial = prefix.close()
         _finish(job, content=partial or None,
                 error=_safe_failure(exc, job.get("output_locale") or "zh-TW"))
+    finally:
+        prefix.close()
+        from .desktop_updates import finish_desktop_execution
+
+        finish_desktop_execution(job.get("update_execution_id"))
     return True

@@ -26,6 +26,11 @@ function explanation(error: Failure) {
     detail: message,
     next: uiText("確認本地後端與行情來源可用，再重新分析。"),
   }
+  if (error.code === 'MARKET_DATA_UNAVAILABLE') return {
+    stage: uiText("行情來源未確認"), field: null,
+    detail: message,
+    next: uiText("確認本地後端與行情來源可用，再重新分析。"),
+  }
   if (error.code === 'MODEL_VALIDATION_FAILED' || message.startsWith('報告或工具驗證未通過：')) return {
     stage: uiText("Agent 報告驗證"), field: null,
     detail: uiText("模型的報告或工具結果未符合系統檢核要求，沒有產生可用報告。具體驗證訊息見下方技術資訊。"),
@@ -38,7 +43,7 @@ function explanation(error: Failure) {
   }
   return {
     stage: uiText("分析流程"), field: null,
-    detail: uiText("分析未完成。原始錯誤訊息與任務編號保留在下方，方便排查。"),
+    detail: message || uiText("分析未完成。原始錯誤訊息與任務編號保留在下方，方便排查。"),
     next: uiText("重新分析；若仍失敗，請提供任務編號與技術訊息。"),
   }
 }

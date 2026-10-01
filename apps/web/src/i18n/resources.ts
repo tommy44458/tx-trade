@@ -2,6 +2,10 @@
 // Model reports and source content never pass through these resources.
 export const zhTW = {
   "common": {
+    "最新持倉分析讀取失敗（{{p0}}）": "最新持倉分析讀取失敗（{{p0}}）",
+    "最新持倉分析資料不完整，請重試。": "最新持倉分析資料不完整，請重試。",
+    "正在載入此交易對的最新持倉分析…": "正在載入此交易對的最新持倉分析…",
+    "此交易對尚無已完成的持倉分析。選擇持倉後開始分析。": "此交易對尚無已完成的持倉分析。選擇持倉後開始分析。",
     "未提供": "未提供",
     "EMA 趨勢": "EMA 趨勢",
     "RSI 動能": "RSI 動能",
@@ -729,6 +733,15 @@ export const zhTW = {
     "實質 GDP 年化季增率": "實質 GDP 年化季增率"
   },
   "discussion": {
+    "行情來源未確認": "行情來源未確認",
+    "本次未取得現價；原分析價格不是即時報價。": "本次未取得現價；原分析價格不是即時報價。",
+    "部分行情未取得。": "部分行情未取得。",
+    "本次追問行情": "本次追問行情",
+    "現價未取得": "現價未取得",
+    "行情不完整": "行情不完整",
+    "報價時間": "報價時間",
+    "讀取時間": "讀取時間",
+    "每次追問會讀取這個交易對的現價；支撐、壓力與指標沿用原分析。": "每次追問會讀取這個交易對的現價；支撐、壓力與指標沿用原分析。",
     "時間未提供": "時間未提供",
     "正在送出…": "正在送出…",
     "AI 正在回覆…": "AI 正在回覆…",
@@ -997,6 +1010,10 @@ export const zhTW = {
 
 export const enUS = {
   "common": {
+    "最新持倉分析讀取失敗（{{p0}}）": "Could not load the latest position analysis ({{p0}}).",
+    "最新持倉分析資料不完整，請重試。": "The latest position analysis is incomplete. Please retry.",
+    "正在載入此交易對的最新持倉分析…": "Loading the latest position analysis for this pair…",
+    "此交易對尚無已完成的持倉分析。選擇持倉後開始分析。": "No completed position analysis for this pair yet. Select positions to start an analysis.",
     "未提供": "Not provided",
     "EMA 趨勢": "EMA trend",
     "RSI 動能": "RSI momentum",
@@ -1724,6 +1741,15 @@ export const enUS = {
     "實質 GDP 年化季增率": "Real GDP annualized quarter-over-quarter"
   },
   "discussion": {
+    "行情來源未確認": "Market source unconfirmed",
+    "本次未取得現價；原分析價格不是即時報價。": "No current quote was obtained. The original analysis price is not a live quote.",
+    "部分行情未取得。": "Some market data could not be obtained.",
+    "本次追問行情": "Market data for this reply",
+    "現價未取得": "Current quote unavailable",
+    "行情不完整": "Partial market data",
+    "報價時間": "Quote time",
+    "讀取時間": "Read time",
+    "每次追問會讀取這個交易對的現價；支撐、壓力與指標沿用原分析。": "Each question reads this pair’s current quote. Support, resistance, and indicators remain from the original analysis.",
     "時間未提供": "Time unavailable",
     "正在送出…": "Sending…",
     "AI 正在回覆…": "AI is replying…",
@@ -1991,6 +2017,15 @@ export const enUS = {
 } satisfies { [N in keyof typeof zhTW]: { [K in keyof typeof zhTW[N]]: string } };
 
 export const textNamespace = {
+  "行情來源未確認": "discussion",
+  "本次未取得現價；原分析價格不是即時報價。": "discussion",
+  "部分行情未取得。": "discussion",
+  "本次追問行情": "discussion",
+  "現價未取得": "discussion",
+  "行情不完整": "discussion",
+  "報價時間": "discussion",
+  "讀取時間": "discussion",
+  "每次追問會讀取這個交易對的現價；支撐、壓力與指標沿用原分析。": "discussion",
   "較新的同步已完成，本次較舊資料未套用；請重新整理持倉清單。": "settings",
   "無法確認幣安帳戶模式，原有持倉未更新。請稍後再測試讀取。": "settings",
   "目前僅支援已啟用合約的普通 USDⓈ-M 帳戶，不支援 Portfolio Margin；原有持倉未更新。": "settings",
@@ -2141,6 +2176,10 @@ export const textNamespace = {
   "追問這份分析…": "discussion",
   "Enter 送出 · Shift + Enter 換行": "discussion",
   "送出追問": "discussion",
+  "最新持倉分析讀取失敗（{{p0}}）": "common",
+  "最新持倉分析資料不完整，請重試。": "common",
+  "正在載入此交易對的最新持倉分析…": "common",
+  "此交易對尚無已完成的持倉分析。選擇持倉後開始分析。": "common",
   "未提供": "common",
   "EMA 趨勢": "common",
   "RSI 動能": "common",

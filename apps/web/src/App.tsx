@@ -1,6 +1,6 @@
 import { pythonReferenceText } from "./pythonReferenceText";
 import { uiText, uiLocale, useUiLocale, setUiLocale, isUiLocale, type UiLocale } from "./i18n/index.ts";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import CandlestickChart from "./CandlestickChart";
 import "./App.css";
 import "./Workspace.css";
@@ -20,6 +20,8 @@ import SelectControl from "./SelectControl";
 import MarketPicker, { type Market } from "./MarketPicker";
 import useMarketFavorites from "./useMarketFavorites";
 import useTradingPreferences from "./useTradingPreferences";
+import useLatestPositionAnalysis from "./useLatestPositionAnalysis";
+import { applyPendingAnalysisUpdate } from "./latestPositionAnalysis";
 import PositionOptionalFields, {
   type OptionalPositionFields,
 } from "./PositionOptionalFields";
@@ -413,7 +415,15 @@ function App() {
     (formingCandle ? [...candles, { ...formingCandle, closed: false }] : candles),
     [currentMarketData?.chart_candles, candles, formingCandle]);
   const quote = currentMarketData?.quote ?? null;
-  const [job, setJob] = useState<Job | null>(null);
+  const [analysisJob, setJob] = useState<Job | null>(null);
+  // Polling belongs to the submitted task, independently of the report being viewed.
+  const [pendingJob, setPendingJob] = useState<Job | null>(null);
+  const [manualPositionAnalysisId, setManualPositionAnalysisId] = useState<string | null>(null);
+  const synchronizeLatestTimeframe = useRef(true);
+  useEffect(() => {
+    // Closing or synchronizing positions may select a different pair without using the picker.
+    synchronizeLatestTimeframe.current = true;
+  }, [marketId]);
   const [history, setHistory] = useState<Job[]>([]);
   const [liveEvents, setLiveEvents] = useState<EventContext | null>(null);
   const [eventsLoading, setEventsLoading] = useState(true);
@@ -454,12 +464,35 @@ function App() {
   const [submittingKind, setSubmittingKind] = useState<AnalysisKind | null>(
     null,
   );
+  const manualPositionJob = manualPositionAnalysisId === analysisJob?.id &&
+    analysisJob?.submitted_input.kind === "positions" && analysisJob.submitted_input.market_id === marketId
+    ? analysisJob : null;
+  const pendingPositionJob = pendingJob?.submitted_input.kind === "positions" &&
+    pendingJob.submitted_input.market_id === marketId ? pendingJob : null;
+  const latestPositionAnalysis = useLatestPositionAnalysis<Job>(
+    view === "positions" && !viewingHistoricalPosition && !manualPositionJob &&
+      !pendingPositionJob && submittingKind !== "positions",
+    marketId,
+    (latest) => {
+      if (synchronizeLatestTimeframe.current && isAnalysisTimeframe(latest.submitted_input.timeframe)) {
+        // This selects the saved report's visible timeframe, without changing saved defaults.
+        tradingPreferences.touched.current.add("timeframe");
+        setTimeframe(latest.submitted_input.timeframe);
+      }
+    },
+  );
+  const job = view === "positions" && !viewingHistoricalPosition
+    ? pendingPositionJob ?? manualPositionJob ?? latestPositionAnalysis.data
+    : view === "market"
+      ? analysisJob?.submitted_input.kind !== "positions" && analysisJob?.submitted_input.market_id === marketId
+        ? analysisJob : null
+      : analysisJob;
   const report =
-    job?.report?.market_id === marketId && job.report.timeframe === timeframe
+    submittingKind !== "positions" && job?.report?.market_id === marketId && job.report.timeframe === timeframe
       ? job.report
       : null;
-  const jobId = job?.id;
-  const jobStatus = job?.status;
+  const jobId = pendingJob?.id;
+  const jobStatus = pendingJob?.status;
   const positionChartId = view === "positions" && job?.submitted_input.kind === "positions" &&
     job.status === "completed" && report ? job.id : null;
   const [positionChartRefresh, setPositionChartRefresh] = useState(0);
@@ -561,14 +594,22 @@ function App() {
   useEffect(() => {
     if (!jobId || !jobStatus || !["queued", "running"].includes(jobStatus))
       return;
+    let active = true;
+    const controller = new AbortController();
     const timer = window.setInterval(
       () =>
-        api<Job>(`/analyses/${jobId}`)
-          .then(setJob)
-          .catch((e) => setError(e.message)),
+        api<Job>(`/analyses/${jobId}`, { signal: controller.signal })
+          .then((updated) => {
+            if (!active) return;
+            setPendingJob((current) => current?.id === updated.id
+              ? ["queued", "running"].includes(updated.status) ? updated : null
+              : current);
+            setJob((current) => applyPendingAnalysisUpdate(current, updated));
+          })
+          .catch((e) => { if (active && !controller.signal.aborted) setError(e.message); }),
       1500,
     );
-    return () => clearInterval(timer);
+    return () => { active = false; controller.abort(); clearInterval(timer); };
   }, [jobId, jobStatus]);
 
   useEffect(() => {
@@ -601,6 +642,7 @@ function App() {
   async function analyze(kind: "market" | "positions") {
     if (!analysisLeverageValid) return;
     if (kind === "positions" && (!marketId || !selectedPositionIds.length)) return;
+    latestPositionAnalysis.invalidate();
     setSubmittingKind(kind);
     setError("");
     try {
@@ -633,6 +675,8 @@ function App() {
         }),
       });
       setJob(result);
+      setPendingJob(["queued", "running"].includes(result.status) ? result : null);
+      setManualPositionAnalysisId(kind === "positions" ? result.id : null);
       setView(kind === "positions" ? "positions" : "market");
     } catch (e) {
       setError((e as Error).message);
@@ -644,7 +688,11 @@ function App() {
     const latest = await api<Position[]>("/positions");
     setPositions(latest);
     setSelected((items) => items.filter((id) => latest.some((position) => position.id === id)));
-    if (job) setJob(await api<Job>(`/analyses/${job.id}`));
+    latestPositionAnalysis.refresh();
+    if (analysisJob) {
+      const updated = await api<Job>(`/analyses/${analysisJob.id}`);
+      setJob((current) => current?.id === updated.id ? updated : current);
+    }
   }
   async function addPosition(e: React.FormEvent) {
     e.preventDefault();
@@ -663,6 +711,8 @@ function App() {
       setPositions((items) => [position, ...items]);
       setMarketId(position.market_id);
       setViewingHistoricalPosition(false);
+      setManualPositionAnalysisId(null);
+      synchronizeLatestTimeframe.current = true;
       setSelected([]);
       tradingPreferences.save({ market_id: position.market_id });
       setForm({
@@ -686,7 +736,11 @@ function App() {
       await api(`/positions/${id}/close`, { method: "POST" });
       setPositions((items) => items.filter((p) => p.id !== id));
       setSelected((items) => items.filter((x) => x !== id));
-      if (job) setJob(await api<Job>(`/analyses/${job.id}`));
+      latestPositionAnalysis.refresh();
+      if (analysisJob) {
+        const updated = await api<Job>(`/analyses/${analysisJob.id}`);
+        setJob((current) => current?.id === updated.id ? updated : current);
+      }
     } catch (e) {
       setError((e as Error).message);
     }
@@ -699,6 +753,9 @@ function App() {
       setPositions((items) => items.filter((p) => p.id !== id));
       setSelected((items) => items.filter((x) => x !== id));
       setJob(null);
+      setPendingJob(null);
+      setManualPositionAnalysisId(null);
+      latestPositionAnalysis.refresh();
       setHistory(await api<Job[]>("/analyses"));
     } catch (e) {
       setError((e as Error).message);
@@ -724,7 +781,11 @@ function App() {
         items.map((p) => (p.id === updated.id ? updated : p)),
       );
       setEditingId(null);
-      if (job) setJob(await api<Job>(`/analyses/${job.id}`));
+      latestPositionAnalysis.refresh();
+      if (analysisJob) {
+        const updated = await api<Job>(`/analyses/${analysisJob.id}`);
+        setJob((current) => current?.id === updated.id ? updated : current);
+      }
     } catch (e) {
       setError((e as Error).message);
     }
@@ -749,19 +810,19 @@ function App() {
     { id: "history", label: uiText("分析紀錄"), icon: "history" },
     { id: "settings", label: uiText("設定"), icon: "settings" },
   ];
-  const running = job?.status === "queued" || job?.status === "running";
+  const running = pendingJob?.status === "queued" || pendingJob?.status === "running";
   const busy = submittingKind !== null || running;
   const activeAnalysisKind =
-    submittingKind ?? (running ? job.submitted_input.kind : null);
+    submittingKind ?? (running ? pendingJob.submitted_input.kind : null);
   const marketBusy = busy && activeAnalysisKind === "market";
   const positionsBusy = busy && activeAnalysisKind === "positions";
   const analysisPhase = submittingKind
     ? "submitting"
-    : job?.phase === "retrying"
+    : pendingJob?.phase === "retrying"
       ? "retrying"
-      : job?.status === "queued"
+      : pendingJob?.status === "queued"
         ? "queued"
-        : (job?.phase ?? "");
+        : (pendingJob?.phase ?? "");
   const busyLabel = positionsBusy ? uiText("正在分析持倉…") : uiText("正在分析中…");
   const macroResult = macroInterpretation.data?.interpretation;
   const analysisMatchesView = (view === "positions" && job?.submitted_input.kind === "positions") ||
@@ -789,8 +850,11 @@ function App() {
         label={view === "positions" ? uiText("持倉交易對") : uiText("交易對")}
         emptyLabel={uiText("尚無持倉交易對")}
         onChange={(id) => {
+          if (id !== marketId || viewingHistoricalPosition) latestPositionAnalysis.invalidate();
           setMarketId(id);
           setViewingHistoricalPosition(false);
+          setManualPositionAnalysisId(null);
+          synchronizeLatestTimeframe.current = true;
           setBias("");
           tradingPreferences.save({ market_id: id, directional_bias: null });
           setSelected([]);
@@ -817,6 +881,7 @@ function App() {
               aria-pressed={timeframe === value}
               className={timeframe === value ? "chosen" : ""}
               onClick={() => {
+                synchronizeLatestTimeframe.current = false;
                 setTimeframe(value);
                 setBias("");
                 tradingPreferences.save({ timeframe: value, directional_bias: null });
@@ -860,6 +925,8 @@ function App() {
           href="#"
           onClick={(e) => {
             e.preventDefault();
+            latestPositionAnalysis.invalidate();
+            setManualPositionAnalysisId(null);
             setView("market");
           }}
           aria-label={`txTrade · ${uiText("市場分析")}`}
@@ -874,6 +941,11 @@ function App() {
               className={view === page.id ? "nav active" : "nav"}
               aria-current={view === page.id ? "page" : undefined}
               onClick={() => {
+                if (page.id !== view || viewingHistoricalPosition) latestPositionAnalysis.invalidate();
+                if (page.id === "positions" && view === "positions" && !viewingHistoricalPosition)
+                  latestPositionAnalysis.refresh();
+                setManualPositionAnalysisId(null);
+                synchronizeLatestTimeframe.current = true;
                 setView(page.id);
                 setViewingHistoricalPosition(false);
                 if (page.id === "positions") setSelected([]);
@@ -1470,6 +1542,21 @@ function App() {
                 className="position-analysis-results"
                 id="position-analysis-report"
               >
+                {!viewingHistoricalPosition && latestPositionAnalysis.status === "loading" && (
+                  <div className="market-context-status" role="status" aria-busy="true">
+                    <AnalysisSpinner />
+                    <span>{uiText("正在載入此交易對的最新持倉分析…")}</span>
+                  </div>
+                )}
+                {!viewingHistoricalPosition && latestPositionAnalysis.status === "empty" && (
+                  <p className="note" role="status">{uiText("此交易對尚無已完成的持倉分析。選擇持倉後開始分析。")}</p>
+                )}
+                {!viewingHistoricalPosition && latestPositionAnalysis.status === "error" && (
+                  <div className="market-context-status" role="alert" data-error="true">
+                    <span>{latestPositionAnalysis.error}</span>
+                    <button type="button" className="settings-link" onClick={latestPositionAnalysis.refresh}>{uiText("重試")}</button>
+                  </div>
+                )}
                 {report && job?.submitted_input.kind === "positions" && (
                   <div className="position-result-heading">
                     <h2>{uiText("AI 持倉建議")}</h2>
@@ -1582,6 +1669,8 @@ function App() {
                     className="history-row"
                     key={item.id}
                     onClick={() => {
+                      latestPositionAnalysis.invalidate();
+                      setManualPositionAnalysisId(null);
                       // A delayed preference load must not replace a report being viewed.
                       for (const key of ["market_id", "timeframe", "directional_bias", "risk_tolerance", "trading_style", "leverage"] as const)
                         tradingPreferences.touched.current.add(key);
@@ -1596,6 +1685,8 @@ function App() {
                         item.submitted_input.account_equity_usdt ?? "",
                       );
                       setJob(item);
+                      if (["queued", "running"].includes(item.status))
+                        setPendingJob((current) => current ?? item);
                       setViewingHistoricalPosition(item.submitted_input.kind === "positions");
                       setView(
                         item.submitted_input.kind === "positions"

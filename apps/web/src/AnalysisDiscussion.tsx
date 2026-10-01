@@ -3,6 +3,7 @@ import { useId, useLayoutEffect, useRef } from "react";
 import DiscussionContent from "./DiscussionContent";
 import { AnalysisSpinner } from "./AnalysisProgress";
 import useDiscussion, { type DiscussionSubjectType } from "./useDiscussion";
+import { discussionLiveMarketView, type DiscussionLiveMarket } from "./discussionLiveMarket";
 import "./AnalysisDiscussion.css";
 
 export type AnalysisDiscussionProps = {
@@ -19,6 +20,25 @@ function stamp(value: string) {
   return Number.isFinite(date.getTime()) ? date.toLocaleString(uiLocale(), {
     timeZone: "Asia/Taipei", hour12: false,
   }) : uiText("時間未提供");
+}
+
+function LiveMarketNote({ evidence, subjectMarketId }: {
+  evidence?: DiscussionLiveMarket | null; subjectMarketId?: string;
+}) {
+  const view = discussionLiveMarketView(evidence, subjectMarketId);
+  if (!view) return null;
+  return <div className="discussion-live-market" data-status={view.status} role="note" aria-label={uiText("本次追問行情")}>
+    <p className="discussion-live-quote">
+      <strong>{view.pair}{view.price ? ` $${view.price}` : " · " + uiText("現價未取得")}</strong>
+      {view.price && view.status === "partial" && <span className="discussion-live-status">{uiText("行情不完整")}</span>}
+    </p>
+    <p className="discussion-live-meta">
+      <span>{uiText("本次追問行情")} · {view.source} · {view.timeframe}</span>
+      <span>{view.timeBasis === "quote" ? uiText("報價時間") : uiText("讀取時間")} · {view.observedAt
+        ? <time dateTime={view.observedAt}>{stamp(view.observedAt)}</time> : uiText("時間未提供")}</span>
+    </p>
+    {view.note && <p className="discussion-live-note">{view.note}</p>}
+  </div>;
 }
 
 export default function AnalysisDiscussion(props: AnalysisDiscussionProps) {
@@ -39,7 +59,7 @@ function DiscussionSession({
   const anchor = useRef<{ oldestId?: string; height: number; top: number } | null>(null);
   const composing = useRef(false);
   const messages = discussion.data?.messages ?? [];
-  const signature = messages.map((message) => `${message.id}:${message.status}:${message.content}:${message.error?.message ?? ""}`).join("\n");
+  const signature = messages.map((message) => `${message.id}:${message.status}:${message.content}:${message.error?.message ?? ""}:${JSON.stringify(message.live_market ?? null)}`).join("\n");
   const oldestId = messages[0]?.id;
   const replyLocale = discussion.data?.session?.response_locale ?? discussion.data?.session?.output_locale ?? discussion.data?.subject.response_locale ?? discussion.data?.subject.output_locale ?? outputLocale;
   const busy = discussion.data?.busy ?? false;
@@ -77,6 +97,7 @@ function DiscussionSession({
       </div>
       <p className="discussion-context"><span className="discussion-visually-hidden">{contextLabel} · </span>{uiText("分析快照 ·") + " "}<time dateTime={resultAt}>{stamp(resultAt)}</time></p>
       <p className="discussion-language">{uiText("回覆跟隨本次分析的語言：{{p0}}。", { p0: languageName(replyLocale) })}</p>
+      {subjectType === "analysis" && <p className="discussion-live-hint">{uiText("每次追問會讀取這個交易對的現價；支撐、壓力與指標沿用原分析。")}</p>}
       {stale && <p className="discussion-stale" role="note">{uiText("正在討論前一版資料的解讀；更新解讀後會使用另一段對話。")}</p>}
 
       <div className="discussion-history-tools">
@@ -106,6 +127,7 @@ function DiscussionSession({
               <strong>{message.role === "user" ? uiText("你") : uiText("交易員 AI")}</strong>
               <time dateTime={message.created_at}>{stamp(message.created_at)}</time>
             </div>
+            {message.role === "assistant" && subjectType === "analysis" && <LiveMarketNote evidence={message.live_market} subjectMarketId={discussion.data?.subject.market_id} />}
             {message.role === "assistant" && message.status === "failed" && message.content &&
               <p className="discussion-incomplete-note" role="note">{uiText("回覆未完成；以下僅為已收到的部分內容。")}</p>}
             {message.content && (message.role === "assistant"

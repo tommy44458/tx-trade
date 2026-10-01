@@ -179,6 +179,10 @@ def _claim(evidence: dict, user_id: str, *, retry: bool,
     now = _now()
     until = utc_text(now + timedelta(seconds=MAX_TIMEOUT_SECONDS + 60))
     with connect() as db:
+        from .desktop_updates import register_desktop_execution, update_is_draining
+
+        if update_is_draining(db):
+            return None
         row = _current_row(db, evidence, user_id)
         if row:
             if row["status"] == "succeeded":
@@ -193,7 +197,8 @@ def _claim(evidence: dict, user_id: str, *, retry: bool,
                 "lease_until=?,evidence_json=?,error_code=NULL,error_message=NULL,updated_at=? "
                 "WHERE id=?", (token, until, json.dumps(evidence, ensure_ascii=False), utc_text(now), row["id"]),
             )
-            return {"id": row["id"], "token": token, "evidence": evidence, "user_id": user_id}
+            return {"id": row["id"], "token": token, "evidence": evidence, "user_id": user_id,
+                    "update_execution_id": register_desktop_execution(db, "macro_interpretations", row["id"])}
         identifier, token = new_id("macro"), new_id("macro_claim")
         bundle = resolve_prompt("macro_interpretation", response_locale=output_locale)
         artifact_id = save_prompt_artifact(db, bundle)
@@ -206,7 +211,8 @@ def _claim(evidence: dict, user_id: str, *, retry: bool,
              token, until, utc_text(now), utc_text(now), output_locale, artifact_id,
              json.dumps(bundle.metadata(), ensure_ascii=False)),
         )
-        return {"id": identifier, "token": token, "evidence": evidence, "user_id": user_id}
+        return {"id": identifier, "token": token, "evidence": evidence, "user_id": user_id,
+                "update_execution_id": register_desktop_execution(db, "macro_interpretations", identifier)}
 
 
 def _read_result(raw: str, evidence: dict) -> dict:
@@ -282,6 +288,15 @@ def _failure(exc: Exception) -> tuple[str, str, str]:
 
 
 def _run_claim(claim: dict) -> None:
+    from .desktop_updates import finish_desktop_execution
+
+    try:
+        _execute_claim(claim)
+    finally:
+        finish_desktop_execution(claim.get("update_execution_id"))
+
+
+def _execute_claim(claim: dict) -> None:
     with connect(readonly=True) as db:
         row = db.execute("SELECT * FROM macro_interpretations WHERE id=?", (claim["id"],)).fetchone()
     if (not row or row["status"] != "running" or row["claim_token"] != claim["token"]

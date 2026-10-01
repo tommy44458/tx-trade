@@ -136,7 +136,7 @@ def test_idempotency_busy_retry_guards_and_completion(client, monkeypatch):
     assert not state["busy"] and state["messages"][-1]["status"] == "completed"
     assert state["messages"][-1]["provider"] == "fake"
     assert state["messages"][-1]["model"] == "fixture-model"
-    assert len(calls) == 1 and calls[0][2] == 240
+    assert len(calls) == 1 and 0 < calls[0][2] <= 240
     assert [message["role"] for message in calls[0][1]] == ["user"]
     assistant_id = state["messages"][-1]["id"]
     assert client.post(f"/api/v1/discussions/analysis/analysis-one/messages/{assistant_id}/retry").status_code == 409
@@ -385,7 +385,7 @@ def test_schema_upgrade_preserves_old_report_and_initializes_empty_discussion_ta
         db.execute("PRAGMA user_version=3")
     init_db()
     with connect(readonly=True) as db:
-        assert db.execute("PRAGMA user_version").fetchone()["user_version"] == SCHEMA_VERSION == 7
+        assert db.execute("PRAGMA user_version").fetchone()["user_version"] == SCHEMA_VERSION == 8
         assert db.execute("SELECT report_json FROM analyses").fetchone()["report_json"]
         assert db.execute("SELECT count(*) AS n FROM discussion_sessions").fetchone()["n"] == 0
 

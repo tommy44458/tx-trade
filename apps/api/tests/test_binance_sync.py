@@ -394,12 +394,12 @@ def test_migration_seven_is_additive_and_repeated_initialization_is_safe(client)
         db.execute("DROP TABLE integration_sync_state")
         db.execute("DROP INDEX positions_exchange_scope")
         db.execute("ALTER TABLE positions DROP COLUMN account_scope")
-        db.execute("DELETE FROM schema_migrations WHERE version=7")
+        db.execute("DELETE FROM schema_migrations WHERE version>=7")
         db.execute("PRAGMA user_version=6")
     init_db()
     init_db()
     with connect(readonly=True) as db:
-        assert db.execute("PRAGMA user_version").fetchone()["user_version"] == SCHEMA_VERSION == 7
+        assert db.execute("PRAGMA user_version").fetchone()["user_version"] == SCHEMA_VERSION
         assert db.execute("SELECT * FROM position_exchange_estimates").fetchall() == []
         assert db.execute("SELECT * FROM integration_sync_state").fetchall() == []
         assert db.execute("SELECT count(*) AS n FROM schema_migrations WHERE version=7").fetchone()["n"] == 1

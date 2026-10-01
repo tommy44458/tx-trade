@@ -1,0 +1,159 @@
+name: Desktop build and draft release
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/desktop-release.yml'
+      - 'apps/**'
+      - 'scripts/**'
+      - 'package.json'
+      - 'version.json'
+      - 'CHANGELOG*.md'
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  UV_PYTHON: '3.14.1'
+  UV_PYTHON_PREFERENCE: only-managed
+
+jobs:
+  test-build:
+    name: macOS arm64 test installer
+    if: github.event_name != 'push'
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24.20.0'
+      - uses: pnpm/action-setup@7088e561eb65bb68695d245aa206f005ef30921d # v4.1.0
+        with:
+          version: '11.8.0'
+          run_install: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+        with:
+          version: '0.12.7'
+          enable-cache: false
+      - name: Check versions, languages, and JavaScript behavior
+        run: |
+          node scripts/release.mjs check
+          node scripts/check-bilingual.mjs
+          node --test scripts/tests/*.test.mjs apps/desktop/tests/*.test.mjs apps/web/tests/*.test.mjs
+      - name: Check backend
+        working-directory: apps/api
+        run: |
+          uv sync --frozen
+          uv run --frozen pytest
+          uv run --frozen ruff check src tests
+      - name: Build test installers with updates disabled
+        run: node scripts/desktop.mjs test-release
+      - name: Upload test installers
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: desktop-macos-arm64-test-${{ github.run_id }}
+          path: |
+            apps/desktop/release/*.dmg
+            apps/desktop/release/*.zip
+            apps/desktop/release/*.blockmap
+            apps/desktop/release/*-mac.yml
+            apps/desktop/release/SHA256SUMS.txt
+            apps/desktop/release/release-info.json
+          if-no-files-found: error
+          retention-days: 7
+
+  release-build:
+    name: Sign and notarize macOS arm64
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24.20.0'
+      - name: Require the matching version tag and prepared bilingual notes
+        run: node scripts/release-assets.mjs check-tag
+      - name: Require signing and notarization credentials
+        env:
+          CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: node --input-type=module -e "import {checkReleaseState} from './scripts/release.mjs'; import {assertReleaseEnvironment} from './scripts/release-assets.mjs'; assertReleaseEnvironment(checkReleaseState(undefined, {requirePrepared:true}));"
+      - uses: pnpm/action-setup@7088e561eb65bb68695d245aa206f005ef30921d # v4.1.0
+        with:
+          version: '11.8.0'
+          run_install: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+        with:
+          version: '0.12.7'
+          enable-cache: false
+      - name: Check versions, languages, and JavaScript behavior
+        run: |
+          node scripts/check-bilingual.mjs
+          node --test scripts/tests/*.test.mjs apps/desktop/tests/*.test.mjs apps/web/tests/*.test.mjs
+      - name: Check backend
+        working-directory: apps/api
+        run: |
+          uv sync --frozen
+          uv run --frozen pytest
+          uv run --frozen ruff check src tests
+      - name: Build signed installers and verify update metadata
+        env:
+          CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: node scripts/desktop.mjs release
+      - name: Upload validated release assets
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: desktop-macos-arm64-release-${{ github.run_id }}
+          path: |
+            apps/desktop/release/*.dmg
+            apps/desktop/release/*.zip
+            apps/desktop/release/*.blockmap
+            apps/desktop/release/*-mac.yml
+            apps/desktop/release/SHA256SUMS.txt
+            apps/desktop/release/release-info.json
+            apps/desktop/release/release-notes.md
+          if-no-files-found: error
+          retention-days: 14
+
+  draft-release:
+    name: Create reviewable GitHub draft
+    needs: release-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24.20.0'
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: desktop-macos-arm64-release-${{ github.run_id }}
+          path: release-assets
+      - name: Verify artifact hashes and create or update a draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/publish-draft.mjs release-assets

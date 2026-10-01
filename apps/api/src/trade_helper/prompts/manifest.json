@@ -1,14 +1,14 @@
 {
   "schema_version": "prompt_registry_manifest_v1",
-  "policy_version": "bilingual_trading_policy_v4",
+  "policy_version": "bilingual_trading_policy_v5",
   "locales": {
     "en-US": {
-      "translation_version": "en_prompts_v4",
-      "reviewed_policy_version": "bilingual_trading_policy_v4"
+      "translation_version": "en_prompts_v5",
+      "reviewed_policy_version": "bilingual_trading_policy_v5"
     },
     "zh-TW": {
-      "translation_version": "zh_prompts_v4",
-      "reviewed_policy_version": "bilingual_trading_policy_v4"
+      "translation_version": "zh_prompts_v5",
+      "reviewed_policy_version": "bilingual_trading_policy_v5"
     }
   },
   "policies": {
@@ -129,28 +129,28 @@
       "en-US": "a6adcd3f60fc7df40194364e71c381c1587d05eae53dc12bf43c71644fadc75a"
     },
     "FROZEN_DISCUSSION_EVIDENCE": {
-      "zh-TW": "90f9da2a17b5c697b47746706fb76027cd924425557c308594f99cac71c8e47e",
-      "en-US": "d18ba76f0ef518c322f51307527b712783c9f9621d9008e0dafbed8cf86901a8"
+      "zh-TW": "edaa1a2d45910cdacc377f25def92e3742ec30cb3edf273f745c92ea52f07650",
+      "en-US": "bbe6a00eefc7cf9532d10c84f1b806b26d95efcae9818dd20cc489c28e8e5984"
     },
     "DISCUSSION_PREFERENCE_REFERENCE": {
       "zh-TW": "a58583dc8fe4833e1688086c68c74ba5f3f9b2a8b7c68f9480be33709b13dde9",
       "en-US": "d74901be2e400328db25e1e0e55cbf03d4a4366bc072a628307c34e0ddc1ba8b"
     },
     "DISCUSSION_QUOTE_BOUNDARY": {
-      "zh-TW": "e7bebee569e12a703df81ab13d3a9636cf8eddaa60f8da3ec4254d8e83301ecc",
-      "en-US": "ce0a42c8d8ab3538e2cbcbe6c431c2443739d0f7c3a40e6e488b14edc525eeae"
+      "zh-TW": "dfe489adeee9fae5eab74e4118c578f4cfaeef2d0c83a4988e937cbaaec93086",
+      "en-US": "0828aa328b4e6649f12a7d29797d0ef1d2cc7d98934892682695a6de197a8ade"
     },
     "DISCUSSION_TIMEFRAME_AND_ZONES": {
-      "zh-TW": "4e7c958a6566ed741b43465ea6ca9d109fd379ba27f4dd08c5044b37abb27f11",
-      "en-US": "3fde0b9afe64d4f2ccf6e60ce249852b36723c93ab2127dcbf5a6cbbee07b0ab"
+      "zh-TW": "5f04cab096937d6ebbcee6e332a6d5468f9646fc521f5fed43257aa0c627a7e6",
+      "en-US": "8b55085acd5d5218594fe47a65e428a730e3f8fb6408f4ec36b90ff7d41beae2"
     },
     "DISCUSSION_MACRO_FACTS": {
       "zh-TW": "1c30056a07385cbb65b9cac4e1c51c7f2abe80bd9d33cdaa038e4b8dd695a4a9",
       "en-US": "fade846d091ea9eb4e92cb2291625fdec9bcb5d48e286b55349f00c9e91d7a94"
     },
     "DISCUSSION_UNTRUSTED_DATA": {
-      "zh-TW": "496d8df3f466f2db162658f69353b5cdd9d32ed22231fb26dc41c2e6ccc083a7",
-      "en-US": "8ae0a042a0727017b3918909ef2d2267b7ded0b532bfa2c71ffcc273307859bf"
+      "zh-TW": "d197b16264c28fd864b1b24cef08b044e688194c6ef3655be9844114ed882cd4",
+      "en-US": "bf0ee72ff0384deed5ed60fee8b560d6709a119f91a4ce2d2b63a53d0d0dfdba"
     },
     "MACRO_ROLE_AND_DATA": {
       "zh-TW": "b421f3162ec3eb5f279d06ecf25149d998ca98e87ef7ba46667f86753bc49c4c",
@@ -177,7 +177,7 @@
       "en-US": "4959ad8a23324dc8224770b35cbda9e617c3bc8191e45c3066c9d4caecf1e7b2"
     }
   },
-  "task_sections_sha256": "de783c65bddb9fc3976ba1a2590e11d98295f008bff730ba3dddc0eb10ec580b",
+  "task_sections_sha256": "0a25301dfcd533be9193a4f8f4cf38bd9467b6fac3683498cdb47e253a6ff707",
   "news_questions_sha256": "532feb24aebc172bebc227cb3ec3ecc16a6a3eb93531d4004e2f1394541c4f79",
   "terminology_sha256": "44d06fcd5aa6a98e27e55a52083aa225a10997d4d2ca3c69c03a7960932ecb01",
   "task_versions": {
@@ -190,7 +190,7 @@
       "schema_version": "strategy_response_v1"
     },
     "discussion": {
-      "prompt_version": "professional_discussion_v3",
+      "prompt_version": "professional_discussion_v4",
       "schema_version": "discussion_markdown_v1"
     },
     "macro_interpretation": {

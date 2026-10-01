@@ -2,10 +2,12 @@ import hashlib
 import hmac
 import json
 import os
+import sqlite3
 from contextlib import asynccontextmanager
 from copy import deepcopy
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
+from typing import Literal
 
 from fastapi import FastAPI, Header, HTTPException, Query, Request, Response
 from fastapi.exceptions import RequestValidationError
@@ -23,7 +25,13 @@ from .codex_bridge import shutdown as shutdown_codex
 from .config import assert_local_mode, local_user_id
 from .credential_migration import router as credential_migration_router
 from .credential_store import CredentialStoreError
-from .db import connect, init_db, new_id, public_job, utc_now
+from .db import connect, database_path, init_db, new_id, public_job, utc_now
+from .desktop_updates import (
+    require_task_start_allowed,
+    reset_desktop_update_gate,
+    update_is_draining,
+)
+from .desktop_updates import router as desktop_updates_router
 from .discussions import router as discussions_router
 from .events import event_snapshot
 from .indicator_preferences import (
@@ -41,21 +49,28 @@ from .local_settings import (
 from .local_settings import router as settings_router
 from .macro_interpretation import router as macro_interpretation_router
 from .market import fetch_candles, fetch_quote
-from .market_catalog import MarketCatalogUnavailable, get_catalog, validate_market_id
+from .market_catalog import (
+    MarketCatalogUnavailable,
+    get_catalog,
+    valid_market_id_format,
+    validate_market_id,
+)
 from .models import AnalysisRequest, PositionInput, PositionUpdate
 from .news import news_snapshot
 from .position_chart_snapshot import router as position_chart_snapshot_router
+from .product_version import product_version
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     assert_local_mode()
     init_db()
+    reset_desktop_update_gate()
     yield
     shutdown_codex()
 
 
-app = FastAPI(title="AI Trade Helper local API", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="AI Trade Helper local API", version=product_version(), lifespan=lifespan)
 app.include_router(settings_router)
 app.include_router(credential_migration_router)
 app.include_router(chatgpt_auth_router)
@@ -64,6 +79,7 @@ app.include_router(live_market_context_router)
 app.include_router(macro_interpretation_router)
 app.include_router(position_chart_snapshot_router)
 app.include_router(discussions_router)
+app.include_router(desktop_updates_router)
 
 
 @app.exception_handler(RequestValidationError)
@@ -113,6 +129,20 @@ async def local_only(request: Request, call_next):
         supplied = request.headers.get("Authorization", "").removeprefix("Bearer ")
         if not expected or not hmac.compare_digest(supplied.encode(), expected.encode()):
             return JSONResponse({"detail": "Desktop session authorization required"}, status_code=401)
+        if (request.method not in {"GET", "HEAD", "OPTIONS"}
+                and not request.url.path.startswith("/api/v1/desktop-updates/")):
+            try:
+                # Settings can initialize an empty local store lazily. A missing
+                # database cannot contain a gate; this check must not create it
+                # or introduce credential side effects before the route runs.
+                if database_path().exists():
+                    with connect(readonly=True) as db:
+                        if update_is_draining(db):
+                            return JSONResponse({"detail": {"code": "DESKTOP_UPDATE_PREPARING",
+                                "message": "The application is preparing an update."}}, status_code=409)
+            except (OSError, sqlite3.Error):
+                return JSONResponse({"detail": {"code": "UPDATE_STATE_UNAVAILABLE",
+                    "message": "Unable to verify the desktop update status."}}, status_code=503)
     return await call_next(request)
 
 
@@ -179,6 +209,7 @@ def create_analysis(body: AnalysisRequest, idempotency_key: str = Header(..., mi
     # selection must return the same job even if settings have since changed.
     request_hash = hashlib.sha256(canonical.encode()).hexdigest()
     with connect() as db:
+        require_task_start_allowed(db)
         existing = db.execute("SELECT * FROM analyses WHERE user_id=? AND idempotency_key=?", (user_id, idempotency_key)).fetchone()
         if existing:
             if not _same_analysis_input(existing, payload, request_hash):
@@ -247,6 +278,40 @@ def list_analyses():
     with connect(readonly=True) as db:
         rows = db.execute("SELECT * FROM analyses WHERE user_id=? ORDER BY created_at DESC LIMIT 50", (local_user_id(),)).fetchall()
         return [job_with_freshness(db, row) for row in rows]
+
+
+@app.get("/api/v1/analyses/latest")
+def latest_analysis(
+    response: Response,
+    market_id: str,
+    kind: Literal["market", "positions"] = "positions",
+):
+    # Saved reports remain readable after a market is delisted. Checking their
+    # identity must not refresh the exchange catalog or start another analysis.
+    if not valid_market_id_format(market_id):
+        raise HTTPException(422, "Unsupported market ID")
+    response.headers["Cache-Control"] = "no-store"
+    with connect(readonly=True) as db:
+        row = db.execute(
+            """SELECT * FROM analyses
+               WHERE user_id=? AND status='completed'
+                 AND CASE WHEN json_valid(request_json) AND json_valid(report_json)
+                     THEN json_type(request_json)='object'
+                      AND json_type(report_json)='object'
+                      AND json_extract(request_json,'$.kind')=?
+                      AND json_extract(request_json,'$.market_id')=?
+                      AND (json_type(report_json,'$.analysis_kind') IS NULL
+                           OR json_extract(report_json,'$.analysis_kind')=?)
+                      AND json_extract(report_json,'$.market_id')=?
+                      AND json_extract(report_json,'$.timeframe')=
+                          json_extract(request_json,'$.timeframe')
+                     ELSE 0 END
+               ORDER BY created_at DESC, completed_at DESC, id DESC LIMIT 1""",
+            (local_user_id(), kind, market_id, kind, market_id),
+        ).fetchone()
+        # The newest submitted analysis wins even if an older, slower job
+        # finishes later. Existing freshness flags still expose changed positions.
+        return job_with_freshness(db, row) if row else None
 
 
 @app.get("/api/v1/analyses/{analysis_id}")

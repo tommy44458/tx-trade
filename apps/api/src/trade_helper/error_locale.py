@@ -23,6 +23,10 @@ SYSTEM_ERRORS = {
         "另一週期的已收盤 K 線過期，請重新分析",
         "The closed candles for the other timeframe are out of date. Start a new analysis.",
     ),
+    "MARKET_DATA_UNAVAILABLE": (
+        "Binance 行情暫時無法取得，請稍後重新分析。",
+        "Binance market data is temporarily unavailable. Try the analysis again shortly.",
+    ),
     "ANALYSIS_FAILED": (
         "無法完成分析，請檢查服務與行情資料後重新分析。",
         "The analysis could not be completed. Check the service and market data, then try again.",
@@ -112,6 +116,36 @@ SAFE_EXCEPTION_NAMES = frozenset({
     "RateLimitError", "ModelProviderError", "CodexError", "CodexTimeoutError", "ChatGPTAuthError",
     "CredentialStoreError",
 })
+
+_ANALYSIS_STAGES = {
+    "prompt": ("讀取分析設定", "loading analysis settings"),
+    "macro": ("準備宏觀資料", "preparing macro context"),
+    "candles": ("取得主週期 K 線", "fetching primary candles"),
+    "context_candles": ("取得輔助週期 K 線", "fetching context candles"),
+    "higher_candles": ("取得長週期 K 線", "fetching higher timeframe candles"),
+    "quote": ("取得現價", "fetching the current price"),
+    "tick_size": ("取得最小價格單位", "fetching price precision"),
+    "events": ("讀取經濟事件", "loading economic events"),
+    "derivatives": ("取得合約市場資料", "fetching derivatives context"),
+    "news": ("讀取新聞依據", "loading news context"),
+    "snapshot": ("建立行情快照", "building the market snapshot"),
+    "preparation": ("計算分析指標", "preparing analysis indicators"),
+    "model": ("產生 AI 分析", "generating AI analysis"),
+    "report": ("整理分析報告", "building the analysis report"),
+    "save_report": ("儲存分析報告", "saving the analysis report"),
+}
+
+
+def analysis_failure_message(stage: str, exc: Exception, output_locale: str = "zh-TW") -> str:
+    """Give useful diagnostics without persisting an upstream exception message."""
+    english = output_locale == "en-US"
+    label = _ANALYSIS_STAGES.get(stage, ("分析流程", "analysis workflow"))[int(english)]
+    name = type(exc).__name__
+    if name not in SAFE_EXCEPTION_NAMES:
+        name = "Exception"
+    if english:
+        return f"Analysis stopped while {label} ({name}). Try again; if it repeats, share the task ID."
+    return f"分析在「{label}」時中斷（{name}）。請重新分析；若重複發生，請提供任務編號。"
 
 
 def system_error_message(code: str, output_locale: str = "zh-TW") -> str:

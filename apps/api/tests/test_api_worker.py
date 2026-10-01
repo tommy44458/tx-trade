@@ -173,6 +173,47 @@ def test_worker_reports_expired_market_data_with_specific_error(monkeypatch, tmp
         assert "請重新分析" in result["error"]["message"]
 
 
+def test_worker_retries_transient_market_failure_before_analysis(monkeypatch):
+    import httpx
+    from trade_helper.worker import _required_market_fetch
+
+    monkeypatch.setattr("trade_helper.worker.time.sleep", lambda *_: None)
+    attempts = 0
+
+    def temporary_failure():
+        nonlocal attempts
+        attempts += 1
+        if attempts < 3:
+            raise httpx.ConnectError("temporary connection failure")
+        return {"price": "100"}
+
+    assert _required_market_fetch(temporary_failure) == {"price": "100"}
+    assert attempts == 3
+
+
+def test_worker_reports_exchange_failure_without_generic_analysis_error(monkeypatch, tmp_path):
+    import httpx
+
+    monkeypatch.setenv("APP_DATA_DIR", str(tmp_path))
+    with TestClient(app) as client:
+        created = client.post("/api/v1/analyses", json={
+            "kind": "market", "market_id": "binance:perp:BTCUSDT", "timeframe": "1h"},
+            headers={"Idempotency-Key": "market-upstream-unavailable"}).json()
+        request = httpx.Request("GET", "https://fapi.binance.com/fapi/v1/klines")
+        response = httpx.Response(451, request=request)
+
+        def unavailable(*_args, **_kwargs):
+            raise httpx.HTTPStatusError("upstream response", request=request, response=response)
+
+        monkeypatch.setattr("trade_helper.worker.fetch_candles", unavailable)
+        assert run_once()
+        result = client.get(f"/api/v1/analyses/{created['id']}").json()
+        assert result["status"] == "failed"
+        assert result["error"]["code"] == "MARKET_DATA_UNAVAILABLE"
+        assert result["error"]["message"] == "Binance 行情暫時無法取得，請稍後重新分析。"
+        assert result["report"] is None
+
+
 def test_worker_reports_provider_processing_failure(monkeypatch, tmp_path):
     monkeypatch.setenv("APP_DATA_DIR", str(tmp_path))
     with TestClient(app) as client:
