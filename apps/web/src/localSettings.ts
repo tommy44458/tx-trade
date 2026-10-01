@@ -56,6 +56,7 @@ export type ModelAuthStatus = {
   status_known?: boolean;
   email?: string | null;
   plan?: string | null;
+  cli_installed?: boolean;
   error?: string | null;
   login_pending?: boolean;
 };

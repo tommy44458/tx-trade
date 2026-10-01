@@ -214,3 +214,36 @@ def test_missing_cli_is_reported_without_crashing(monkeypatch):
     monkeypatch.setattr(claude_code_bridge, "claude_executable", missing)
     status = TestClient(app).post("/api/v1/auth/claude_code/check").json()
     assert status["available"] is False and "找不到 Claude Code" in status["error"]
+
+
+@pytest.mark.parametrize("provider", ["codex", "claude_code"])
+def test_status_reports_missing_cli_without_starting_it(monkeypatch, tmp_path, provider):
+    from trade_helper import cli_paths, codex_bridge
+
+    monkeypatch.setattr(cli_paths.Path, "home", lambda: tmp_path)
+    monkeypatch.setattr(cli_paths.shutil, "which", lambda _name: None)
+    monkeypatch.setattr(cli_paths, "_common_directories", lambda: [tmp_path / "bin"])
+    monkeypatch.setattr(codex_bridge, "_find_codex", lambda: cli_paths.find_executable("codex"))
+    monkeypatch.setattr(claude_code_bridge, "_find_claude", lambda: cli_paths.find_executable("claude"))
+    monkeypatch.setattr(subprocess, "run", lambda *_a, **_k: pytest.fail("CLI started"))
+    client = TestClient(app)
+    assert client.get(f"/api/v1/auth/{provider}/status").json()["cli_installed"] is False
+    login = client.post(f"/api/v1/auth/{provider}/login").json()
+    assert login["auth_url"] is None and login["status"]["cli_installed"] is False
+    executable = tmp_path / "bin" / ("codex" if provider == "codex" else "claude")
+    executable.parent.mkdir()
+    executable.write_text("#!/bin/sh\n")
+    executable.chmod(0o755)
+    assert client.get(f"/api/v1/auth/{provider}/status").json()["cli_installed"] is True
+
+
+def test_finder_launched_app_finds_cli_outside_path(monkeypatch, tmp_path):
+    from trade_helper import cli_paths
+
+    monkeypatch.setattr(cli_paths.Path, "home", lambda: tmp_path)
+    monkeypatch.setattr(cli_paths.shutil, "which", lambda _name: None)
+    executable = tmp_path / ".nvm/versions/node/v24.1.0/bin/codex"
+    executable.parent.mkdir(parents=True)
+    executable.write_text("#!/bin/sh\n")
+    executable.chmod(0o755)
+    assert cli_paths.find_executable("codex") == str(executable)

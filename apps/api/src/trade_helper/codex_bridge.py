@@ -9,18 +9,17 @@ import atexit
 import json
 import os
 import queue
-import shutil
 import signal
 import subprocess
 import tempfile
 import threading
 from collections.abc import Callable
-from pathlib import Path
 from time import monotonic
 
 from fastapi import APIRouter, HTTPException
 
 from .auth_metadata import read_metadata, write_metadata
+from .cli_paths import find_executable
 from .codex_auth_storage import LocalCodexAuth
 from .credential_store import CredentialStoreError, delete_credentials
 from .local_settings import desktop_mode, patch_preferences, preferences
@@ -36,16 +35,21 @@ class CodexTimeoutError(CodexError, TimeoutError):
     """A safe stage-specific timeout, without hidden reasoning or inputs."""
 
 
+def _find_codex() -> str | None:
+    return find_executable("codex", os.getenv("APP_CODEX_PATH"), (
+        "/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex",
+        "/Applications/Codex.app/Contents/Resources/codex"))
+
+
+def cli_installed() -> bool:
+    return _find_codex() is not None
+
+
 def codex_executable() -> str:
-    custom = os.getenv("APP_CODEX_PATH")
-    candidates = [custom, shutil.which("codex"),
-                  ("/Applications/ChatGPT.app/Contents/Resources/codex-cli/"
-                   "CodexCLI.app/Contents/MacOS/codex"),
-                  "/Applications/Codex.app/Contents/Resources/codex"]
-    for candidate in candidates:
-        if candidate and Path(candidate).is_file() and os.access(candidate, os.X_OK):
-            return candidate
-    raise CodexError("找不到 Codex。請先安裝 Codex CLI 或 ChatGPT 桌面應用程式。")
+    executable = _find_codex()
+    if executable is None:
+        raise CodexError("找不到 Codex。請先安裝 Codex CLI 或 ChatGPT 桌面應用程式。")
+    return executable
 
 
 def _restricted_config() -> dict:
@@ -425,25 +429,32 @@ def shutdown():
 atexit.register(shutdown)
 
 
+def _with_cli(result: dict) -> dict:
+    # Only a file check, so passive status reads never start the CLI.
+    return result | {"cli_installed": cli_installed()}
+
+
 @router.get("")
 @router.get("/status")
 def get_status():
-    return status()
+    return _with_cli(status())
 
 
 @router.post("/check")
 def check_status():
-    return _live_status()
+    return _with_cli(_live_status())
 
 
 @router.post("/login")
 def login():
     global _login_id
+    if not cli_installed():
+        return {"auth_url": None, "status": _with_cli(status())}
     with _auth_lock:
         patch_preferences(remove=("codex_disconnected",))
         existing = _live_status()
         if existing["authenticated"]:
-            return {"auth_url": None, "status": existing}
+            return {"auth_url": None, "status": _with_cli(existing)}
         # New authorization belongs solely to this app. Official CLI file
         # storage is staged temporarily and persisted in encrypted SQLite;
         # existing shared authorization is never copied or replaced.
@@ -453,7 +464,7 @@ def login():
                 "type": "chatgpt", "useHostedLoginSuccessPage": True,
                 "appBrand": "codex"})
             _login_id = result.get("loginId")
-            return {"auth_url": result.get("authUrl"), "status": status()}
+            return {"auth_url": result.get("authUrl"), "status": _with_cli(status())}
         except (CodexError, TimeoutError) as exc:
             raise HTTPException(503, str(exc)) from exc
 

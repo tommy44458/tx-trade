@@ -10,7 +10,6 @@ through an in-process MCP server carried over the CLI's stdio control channel.
 import json
 import os
 import queue
-import shutil
 import signal
 import subprocess
 import tempfile
@@ -22,6 +21,7 @@ from time import monotonic
 from fastapi import APIRouter, HTTPException
 
 from .auth_metadata import read_metadata, write_metadata
+from .cli_paths import find_executable
 from .local_settings import desktop_mode, patch_preferences, preferences
 
 router = APIRouter(prefix="/api/v1/auth/claude_code", tags=["Claude Code authorization"])
@@ -46,17 +46,20 @@ class ClaudeCodeTimeoutError(ClaudeCodeError, TimeoutError):
     """A safe stage-specific timeout, without hidden reasoning or inputs."""
 
 
+def _find_claude() -> str | None:
+    return find_executable("claude", os.getenv("APP_CLAUDE_CODE_PATH"),
+                           (str(Path.home() / ".claude/local/claude"),))
+
+
+def cli_installed() -> bool:
+    return _find_claude() is not None
+
+
 def claude_executable() -> str:
-    home = Path.home()
-    # Desktop apps launched from Finder have a minimal PATH; check the
-    # installer's usual locations as well.
-    candidates = [os.getenv("APP_CLAUDE_CODE_PATH"), shutil.which("claude"),
-                  str(home / ".local/bin/claude"), str(home / ".claude/local/claude"),
-                  "/opt/homebrew/bin/claude", "/usr/local/bin/claude"]
-    for candidate in candidates:
-        if candidate and Path(candidate).is_file() and os.access(candidate, os.X_OK):
-            return candidate
-    raise ClaudeCodeError("找不到 Claude Code。請先安裝 Claude Code CLI。")
+    executable = _find_claude()
+    if executable is None:
+        raise ClaudeCodeError("找不到 Claude Code。請先安裝 Claude Code CLI。")
+    return executable
 
 
 def _environment() -> dict:
@@ -308,9 +311,10 @@ def _cli_status(runner=subprocess.run) -> dict:
 
 
 def _live_status() -> dict:
+    installed = cli_installed()
     if preferences().get("claude_code_disconnected"):
         return {"authenticated": False, "available": True, "auth_source": None,
-                "login_pending": False, "status_known": True}
+                "login_pending": False, "status_known": True, "cli_installed": installed}
     try:
         account = _cli_status()
         authenticated = account.get("loggedIn") is True
@@ -326,17 +330,20 @@ def _live_status() -> dict:
                   "login_pending": False, "error": str(exc)}
     write_metadata(_METADATA, {"status": {key: result.get(key) for key in
                                           ("authenticated", "available", "email", "plan", "auth_source")}})
-    return result | {"status_known": True}
+    return result | {"status_known": True, "cli_installed": installed}
 
 
 def status() -> dict:
+    # Only a file check: passive reads never start the CLI.
+    installed = cli_installed()
     if preferences().get("claude_code_disconnected"):
         return {"authenticated": False, "available": True, "auth_source": None,
-                "login_pending": False, "status_known": True}
+                "login_pending": False, "status_known": True, "cli_installed": installed}
     saved = read_metadata(_METADATA).get("status")
     return {"authenticated": False, "available": True, "auth_source": None,
             **(saved if isinstance(saved, dict) else {}),
-            "login_pending": False, "status_known": isinstance(saved, dict)}
+            "login_pending": False, "status_known": isinstance(saved, dict),
+            "cli_installed": installed}
 
 
 def require_authorized() -> None:

@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { AnalysisSpinner } from "./AnalysisProgress";
 import SelectControl from "./SelectControl";
 import BinanceSettingsPanel from "./BinanceSettingsPanel";
+import CliSetupDialog, { type CliSetupReason } from "./CliSetupDialog";
 import { openAuthorization } from "./desktop";
 import { isUiTheme, normalizeUiTheme, type UiTheme } from "./uiTheme";
 import {
@@ -71,6 +72,9 @@ export default function SettingsPanel({
   const [waiting, setWaiting] = useState(false);
   const [authUrl, setAuthUrl] = useState("");
   const [userCode, setUserCode] = useState("");
+  const [cliSetup, setCliSetup] = useState<CliSetupReason | null>(null);
+  const [cliChecking, setCliChecking] = useState(false);
+  const [cliError, setCliError] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [bingxKey, setBingxKey] = useState("");
@@ -135,6 +139,8 @@ export default function SettingsPanel({
         if (!active) return;
         setAuth(value);
         setWaiting(!!value.login_pending);
+        // Selecting a provider whose CLI is not installed explains what to do.
+        if (value.cli_installed === false) openCliSetup("install");
       })
       .catch((reason: Error) => {
         if (active) setError(reason.message);
@@ -308,6 +314,42 @@ export default function SettingsPanel({
     setIndicatorsNotice(false);
   }
 
+  function openCliSetup(reason: CliSetupReason) {
+    setCliError("");
+    setCliSetup(reason);
+  }
+
+  async function recheckCli() {
+    if (provider === "openai") return;
+    setCliChecking(true);
+    setCliError("");
+    try {
+      const value = await settingsRequest<ModelAuthStatus>(`/auth/${provider}/check`, { method: "POST" });
+      if (!mounted.current) return;
+      setAuth(value);
+      if (value.cli_installed === false) {
+        setCliSetup("install");
+        setCliError(provider === "claude_code"
+          ? uiText("仍未偵測到 Claude Code CLI。安裝完成後，若剛修改過 PATH，請重新開啟 txTrade。")
+          : uiText("仍未偵測到 Codex CLI。安裝完成後，若剛修改過 PATH，請重新開啟 txTrade。"));
+      } else if (value.authenticated) {
+        setCliSetup(null);
+        setNotice(uiText("帳號已連線。"));
+        await changedRef.current();
+      } else if (provider === "claude_code") {
+        if (cliSetup === "signin") setCliError(uiText("Claude Code 仍未登入，請先完成 claude auth login。"));
+        setCliSetup("signin");
+      } else {
+        setCliSetup(null);
+        setNotice(uiText("已偵測到 Codex CLI，請按「連線 Codex」完成登入。"));
+      }
+    } catch (reason) {
+      if (mounted.current) setCliError((reason as Error).message);
+    } finally {
+      if (mounted.current) setCliChecking(false);
+    }
+  }
+
   function login() {
     void perform("login", async () => {
       const result = await settingsRequest<{
@@ -320,6 +362,10 @@ export default function SettingsPanel({
       setAuthUrl(url);
       setUserCode(result.user_code || "");
       if (typeof result.status === "object") setAuth(result.status);
+      if (typeof result.status === "object" && result.status.cli_installed === false) {
+        openCliSetup("install");
+        return;
+      }
       if (
         typeof result.status === "object" &&
         result.status.authenticated &&
@@ -331,8 +377,7 @@ export default function SettingsPanel({
       }
       if (provider === "claude_code") {
         // Claude Code keeps its own sign-in; this app only binds to it.
-        const status = typeof result.status === "object" ? result.status : null;
-        setError(status?.error || uiText("Claude Code 尚未登入，請先在終端機執行 claude auth login。"));
+        openCliSetup("signin");
         return;
       }
       setWaiting(true);
@@ -368,6 +413,10 @@ export default function SettingsPanel({
 
   return (
     <div className="local-settings">
+      {cliSetup && provider !== "openai" && (
+        <CliSetupDialog provider={provider} reason={cliSetup} checking={cliChecking} error={cliError}
+          onRecheck={() => void recheckCli()} onClose={() => setCliSetup(null)} />
+      )}
       <div className="page-title">
         <h1>{uiText("設定")}</h1>
       </div>
@@ -463,6 +512,7 @@ export default function SettingsPanel({
                 disabled={!!busy || waiting}
                 onChange={(event) => {
                   setProvider(event.target.value as ModelProvider);
+                  setCliSetup(null);
                   setAuth(null);
                   setModels([]);
                   setModel("");
@@ -473,7 +523,7 @@ export default function SettingsPanel({
                 }}
               >
                 <option value="codex">{uiText("Codex 授權")}</option>
-                <option value="claude_code">{uiText("Claude Code（本機登入）")}</option>
+                <option value="claude_code">{uiText("Claude Code")}</option>
                 {settings.model_provider === "openai" && (
                   <option value="openai">{uiText("OpenAI API（既有設定）")}</option>
                 )}
