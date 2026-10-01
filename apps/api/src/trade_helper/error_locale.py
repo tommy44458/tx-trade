@@ -7,7 +7,6 @@ this module.
 
 from openai import APIConnectionError, APITimeoutError, AuthenticationError, RateLimitError
 
-from .chatgpt_auth import ChatGPTAuthError
 from .credential_store import CredentialStoreError
 
 SYSTEM_ERRORS = {
@@ -48,21 +47,9 @@ MODEL_MESSAGES = {
         "APP_CODEX_REASONING_EFFORT 不是支援的推理強度。",
         "APP_CODEX_REASONING_EFFORT is not a supported reasoning effort.",
     ),
-    "ChatGPT 分析未完成，請檢查授權與帳號額度後重試。": (
-        "ChatGPT 分析未完成，請檢查授權與帳號額度後重試。",
-        "ChatGPT did not finish the analysis. Check authorization and account limits, then retry.",
-    ),
-    "ChatGPT 連線中斷，沒有收到完整分析報告。": (
-        "ChatGPT 連線中斷，沒有收到完整分析報告。",
-        "The ChatGPT connection was interrupted before the full analysis arrived.",
-    ),
-    "ChatGPT 授權已失效，請在設定重新登入。": (
-        "ChatGPT 授權已失效，請在設定重新登入。",
-        "ChatGPT authorization expired. Sign in again in Settings.",
-    ),
-    "ChatGPT 帳號沒有可用模型；請確認授權與方案。": (
-        "ChatGPT 帳號沒有可用模型；請確認授權與方案。",
-        "No models are available for this ChatGPT account. Check authorization and your plan.",
+    "APP_CLAUDE_CODE_EFFORT 不是支援的推理強度。": (
+        "APP_CLAUDE_CODE_EFFORT 不是支援的推理強度。",
+        "APP_CLAUDE_CODE_EFFORT is not a supported reasoning effort.",
     ),
     "Codex 沒有可用模型。": (
         "Codex 沒有可用模型。", "No Codex models are available.",
@@ -92,28 +79,48 @@ MODEL_MESSAGES = {
         "請先在設定連接 Codex 的 ChatGPT 帳號。",
         "Connect your ChatGPT account for Codex in Settings first.",
     ),
-    "請先使用 Continue with ChatGPT 登入並授權策略分析。": (
-        "請先使用 Continue with ChatGPT 登入並授權策略分析。",
-        "Use Continue with ChatGPT to sign in and authorize strategy analysis first.",
+    "找不到 Claude Code。請先安裝 Claude Code CLI。": (
+        "找不到 Claude Code。請先安裝 Claude Code CLI。",
+        "Claude Code was not found. Install the Claude Code CLI first.",
     ),
-    "此帳號尚未允許使用 ChatGPT 方案額度；請重新授權。": (
-        "此帳號尚未允許使用 ChatGPT 方案額度；請重新授權。",
-        "This account has not authorized ChatGPT plan usage. Authorize it again.",
+    "請先在終端機執行 claude auth login 登入 Claude Code，再回到設定按「連線 Claude Code」。": (
+        "請先在終端機執行 claude auth login 登入 Claude Code，再回到設定按「連線 Claude Code」。",
+        "Run claude auth login in a terminal to sign in to Claude Code, then choose Connect Claude Code in Settings.",
     ),
-    "ChatGPT 授權已到期；請重新登入。": (
-        "ChatGPT 授權已到期；請重新登入。",
-        "ChatGPT authorization expired. Sign in again.",
+    "Claude Code 暫時無法回應，請稍後重試。": (
+        "Claude Code 暫時無法回應，請稍後重試。",
+        "Claude Code is not responding. Try again shortly.",
     ),
-    "ChatGPT 授權已失效；請重新登入。": (
-        "ChatGPT 授權已失效；請重新登入。",
-        "ChatGPT authorization is no longer valid. Sign in again.",
+    "無法讀取 Claude Code 登入狀態，請確認 CLI 版本。": (
+        "無法讀取 Claude Code 登入狀態，請確認 CLI 版本。",
+        "Claude Code sign-in status could not be read. Check the CLI version.",
+    ),
+    "Claude Code 連線已中斷，請重新分析。": (
+        "Claude Code 連線已中斷，請重新分析。",
+        "The Claude Code connection was interrupted. Start the analysis again.",
+    ),
+    "Claude Code 已停止，請確認登入狀態後重試。": (
+        "Claude Code 已停止，請確認登入狀態後重試。",
+        "Claude Code stopped. Check its sign-in status and retry.",
+    ),
+    "Claude Code 無法啟動分析，請確認版本與登入狀態。": (
+        "Claude Code 無法啟動分析，請確認版本與登入狀態。",
+        "Claude Code could not start the analysis. Check its version and sign-in status.",
+    ),
+    "Claude Code 分析未完成，請檢查登入狀態與帳號額度後重試。": (
+        "Claude Code 分析未完成，請檢查登入狀態與帳號額度後重試。",
+        "Claude Code did not finish the analysis. Check sign-in status and usage limits, then retry.",
+    ),
+    "Claude Code 沒有回傳分析報告。": (
+        "Claude Code 沒有回傳分析報告。", "Claude Code did not return an analysis report.",
     ),
 }
 
 SAFE_EXCEPTION_NAMES = frozenset({
     "Exception", "ValueError", "RuntimeError", "TimeoutError", "TypeError", "KeyError",
     "OSError", "JSONDecodeError", "APITimeoutError", "APIConnectionError", "AuthenticationError",
-    "RateLimitError", "ModelProviderError", "CodexError", "CodexTimeoutError", "ChatGPTAuthError",
+    "RateLimitError", "ModelProviderError", "CodexError", "CodexTimeoutError", "ClaudeCodeError",
+    "ClaudeCodeTimeoutError",
     "CredentialStoreError",
 })
 
@@ -170,7 +177,7 @@ def model_error_message(exc: Exception, output_locale: str = "zh-TW") -> str:
     if english:
         if isinstance(exc, (TimeoutError, APITimeoutError)):
             return "The model analysis timed out. Check usage before starting a new analysis."
-        if isinstance(exc, (AuthenticationError, ChatGPTAuthError)):
+        if isinstance(exc, AuthenticationError):
             return "Model authorization failed. Reconnect the model in Settings and retry."
         if isinstance(exc, RateLimitError):
             return "The model is rate limited. Check account limits and retry later."

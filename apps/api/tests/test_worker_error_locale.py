@@ -9,9 +9,14 @@ from openai import APITimeoutError, AuthenticationError, RateLimitError
 
 from trade_helper import worker
 from trade_helper.api import app
+from trade_helper.claude_code_bridge import ClaudeCodeError, ClaudeCodeTimeoutError
 from trade_helper.codex_bridge import CodexError, CodexTimeoutError
 from trade_helper.db import connect
-from trade_helper.error_locale import analysis_failure_message, model_error_message, system_error_message
+from trade_helper.error_locale import (
+    analysis_failure_message,
+    model_error_message,
+    system_error_message,
+)
 from trade_helper.model_providers import ModelProviderError
 
 from .test_analysis import sample_candles
@@ -21,7 +26,8 @@ SECRET = "upstream-secret-never-return"
 
 @pytest.mark.parametrize("exception", [
     ValueError(SECRET), RuntimeError(SECRET), ModelProviderError(SECRET), CodexError(SECRET),
-    TimeoutError(SECRET), CodexTimeoutError(SECRET),
+    TimeoutError(SECRET), CodexTimeoutError(SECRET), ClaudeCodeError(SECRET),
+    ClaudeCodeTimeoutError(SECRET),
     APITimeoutError(request=httpx.Request("POST", "https://model.invalid/" + SECRET)),
     AuthenticationError(SECRET, response=httpx.Response(401, request=httpx.Request(
         "POST", "https://model.invalid/" + SECRET)), body={"api_key": SECRET}),

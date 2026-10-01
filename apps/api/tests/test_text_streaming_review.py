@@ -2,9 +2,7 @@
 
 from types import SimpleNamespace as NS
 
-import httpx
 import pytest
-from openai import AuthenticationError
 
 from trade_helper import codex_bridge, discussions, model_providers
 
@@ -32,64 +30,6 @@ def test_completed_response_is_authoritative_without_reading_a_failing_tail(afte
     assert result is completed
     assert prefixes == ["A draft", "The final answer"]
     assert consumed_tail == []
-
-
-@pytest.mark.parametrize("with_callback", [False, True])
-def test_chatgpt_does_not_repeat_generation_after_hidden_stream_content(
-        monkeypatch, with_callback):
-    tokens, clients, prefixes = [], [], []
-    unauthorized = AuthenticationError("private-provider-payload", body={}, response=httpx.Response(
-        401, request=httpx.Request("POST", "https://model.invalid")))
-
-    def events():
-        yield NS(type="response.reasoning_text.delta", delta="private reasoning already generated")
-        raise unauthorized
-
-    first = Stream(events())
-    # The second stream must never be requested even though no visible answer
-    # was emitted. Reasoning also consumes usage and cannot be safely repeated.
-    second = Stream([NS(type="response.completed", response=NS(
-        status="completed", output=[message("A repeated generation")]))])
-    monkeypatch.setattr(model_providers.chatgpt_auth, "get_access_token", lambda **kwargs:
-                        (tokens.append(kwargs["force_refresh"]), "fixture-token")[1])
-
-    def factory(**_kwargs):
-        stream = first if not clients else second
-        clients.append(True)
-        return NS(responses=NS(create=lambda **_kwargs: stream), close=lambda: None)
-
-    with pytest.raises(model_providers.ModelProviderError) as exc:
-        model_providers.ChatGPTResponses(factory).create(
-            timeout=5, on_text=prefixes.append if with_callback else None)
-    assert "private" not in str(exc.value)
-    assert tokens == [False] and clients == [True]
-    assert prefixes == [] and first.closed
-
-
-def test_chatgpt_can_refresh_on_unauthorized_before_a_stream_is_created(monkeypatch):
-    tokens, clients, prefixes, closed = [], [], [], []
-    unauthorized = AuthenticationError("private-provider-payload", body={}, response=httpx.Response(
-        401, request=httpx.Request("POST", "https://model.invalid")))
-    stream = Stream([NS(type="response.completed", response=NS(
-        status="completed", output=[message("Authorized answer")]))])
-    monkeypatch.setattr(model_providers.chatgpt_auth, "get_access_token", lambda **kwargs:
-                        (tokens.append(kwargs["force_refresh"]), "fixture-token")[1])
-
-    def factory(**_kwargs):
-        attempt = len(clients)
-        clients.append(True)
-
-        def create(**_kwargs):
-            if attempt == 0:
-                raise unauthorized
-            return stream
-
-        return NS(responses=NS(create=create), close=lambda: closed.append(True))
-
-    result = model_providers.ChatGPTResponses(factory).create(timeout=5, on_text=prefixes.append)
-    assert result.status == "completed" and prefixes == ["Authorized answer"]
-    assert tokens == [False, True] and clients == closed == [True, True]
-    assert stream.closed
 
 
 @pytest.mark.parametrize("empty", ["", "   \n"])
@@ -165,14 +105,14 @@ def test_codex_session_counts_rpc_startup_in_total_model_budget(monkeypatch, tim
     monkeypatch.setattr(model_providers, "CodexRpc", factory)
     session = model_providers.ModelSession.__new__(model_providers.ModelSession)
     session.isolated_codex = False
-    session.model = "fixture"
+    session.provider, session.model = "codex", "fixture"
     if timeout == 1:
         with pytest.raises(TimeoutError):
-            session.analyze_codex(instructions="Frozen instructions", context="Saved context",
-                                  tools=[], tool_handler=None, timeout=timeout, response_format="text")
+            session.analyze_local_agent(instructions="Frozen instructions", context="Saved context",
+                                        tools=[], tool_handler=None, timeout=timeout, response_format="text")
         assert calls == []
     else:
-        response = session.analyze_codex(
+        response = session.analyze_local_agent(
             instructions="Frozen instructions", context="Saved context",
             tools=[], tool_handler=None, timeout=timeout, response_format="text")
         assert response.output_text == "The answer"

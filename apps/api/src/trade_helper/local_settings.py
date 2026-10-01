@@ -36,6 +36,8 @@ _INITIALIZED_PREFERENCES: set[tuple[int, str, str]] = set()
 INTEGRATION_NAMES = ("bingx", "binance", "jev", "jblanked", "openai")
 _API_KEY_ENVIRONMENT = {"jev": "TYPESAFE_API_KEY", "jblanked": "JBLANKED_API_KEY", "openai": "OPENAI_API_KEY"}
 UiTheme = Literal["system", "light", "dark"]
+ModelProvider = Literal["claude_code", "codex", "openai"]
+MODEL_PROVIDERS = frozenset({"claude_code", "codex", "openai"})
 
 
 def desktop_mode() -> bool:
@@ -132,7 +134,8 @@ def save_preferences(value: dict) -> None:
 def provider_configuration() -> tuple[str, str]:
     saved = preferences()
     provider = saved.get("model_provider", "codex" if desktop_mode() else "openai")
-    if provider not in {"chatgpt", "codex", "openai"}:
+    if provider not in MODEL_PROVIDERS:
+        # Includes the retired "chatgpt" provider: fall back to the default.
         provider = "codex" if desktop_mode() else "openai"
     model = saved.get("models", {}).get(provider)
     if model is None:
@@ -314,7 +317,7 @@ def trading_preferences() -> dict:
 
 class SettingsUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    model_provider: Literal["chatgpt", "codex", "openai"] | None = None
+    model_provider: ModelProvider | None = None
     model: str | None = Field(default=None, max_length=120)
     ui_locale: OutputLocale | None = None
     ui_theme: UiTheme | None = None

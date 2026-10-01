@@ -19,7 +19,7 @@ from .binance_sync import BinanceAccountChangedError, BinanceSyncSupersededError
 from .binance_sync import sync_positions as sync_binance_positions
 from .bingx import BingXError
 from .bingx_sync import sync_positions as sync_bingx_positions
-from .chatgpt_auth import router as chatgpt_auth_router
+from .claude_code_bridge import router as claude_code_auth_router
 from .codex_bridge import router as codex_auth_router
 from .codex_bridge import shutdown as shutdown_codex
 from .config import assert_local_mode, local_user_id
@@ -73,7 +73,7 @@ async def lifespan(_app: FastAPI):
 app = FastAPI(title="AI Trade Helper local API", version=product_version(), lifespan=lifespan)
 app.include_router(settings_router)
 app.include_router(credential_migration_router)
-app.include_router(chatgpt_auth_router)
+app.include_router(claude_code_auth_router)
 app.include_router(codex_auth_router)
 app.include_router(live_market_context_router)
 app.include_router(macro_interpretation_router)

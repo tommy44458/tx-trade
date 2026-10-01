@@ -1,6 +1,6 @@
 import { uiText } from "./i18n/index.ts";
 import { applyUiTheme, normalizeUiTheme, type UiTheme } from "./uiTheme.ts";
-export type ModelProvider = "chatgpt" | "codex" | "openai";
+export type ModelProvider = "codex" | "claude_code" | "openai";
 export type InitialIndicatorCatalogItem = {
   name: string;
   tool: string;
@@ -55,17 +55,9 @@ export type ModelAuthStatus = {
   needs_reentry?: boolean;
   status_known?: boolean;
   email?: string | null;
-  plan_usage_enabled?: boolean;
+  plan?: string | null;
   error?: string | null;
   login_pending?: boolean;
-  accounts?: {
-    id: string;
-    email?: string | null;
-    label?: string;
-    authenticated: boolean;
-    plan_usage_enabled: boolean;
-  }[];
-  active_account_id?: string | null;
 };
 
 export async function settingsRequest<T>(
@@ -108,10 +100,7 @@ export async function readModelConnection() {
   return {
     settings,
     error: status.error ?? null,
-    ready:
-      status.authenticated &&
-      (settings.model_provider !== "chatgpt" ||
-        status.plan_usage_enabled !== false),
+    ready: status.authenticated,
   };
 }
 import type { AnalysisTimeframe } from "./timeframes";

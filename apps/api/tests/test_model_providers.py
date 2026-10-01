@@ -1,9 +1,6 @@
 import json
-from types import SimpleNamespace
 
-import httpx
 import pytest
-from openai import AuthenticationError
 
 from trade_helper import model_providers
 from trade_helper.agent import analyze_with_tools
@@ -25,75 +22,67 @@ class FakeStream:
         self.closed = True
 
 
-def test_chatgpt_plan_uses_streaming_full_context_namespace_and_no_api_key(monkeypatch):
-    calls = []
-    completion = SimpleNamespace(output=[], output_text='{"strategy":"分析"}')
-    stream = FakeStream([SimpleNamespace(type="response.completed", response=completion)])
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-    monkeypatch.setattr(model_providers.chatgpt_auth, "get_access_token", lambda **_: "oauth-token")
-
-    def client_factory(**options):
-        assert options["api_key"] == "oauth-token"
-        assert options["base_url"] == "https://api.openai.com/v1"
-        return SimpleNamespace(responses=SimpleNamespace(create=lambda **values: (calls.append(values), stream)[1]), close=lambda: None)
-
-    transport = model_providers.ChatGPTResponses(client_factory)
-    context = [{"role": "user", "content": "market context"}]
-    tool = {"type": "function", "name": "rsi", "description": "RSI", "parameters": {"type": "object"}}
-    result = transport.create(model="account-model", input=context, instructions="Trading analysis",
-                              tools=[tool], tool_choice="auto", parallel_tool_calls=False)
-    assert result is completion
-    assert stream.closed
-    assert calls[0]["stream"] is True and calls[0]["store"] is False
-    assert calls[0]["input"] is context
-    assert calls[0]["tools"] == [{"type": "namespace", "name": "indicators",
-        "description": "Optional Python market indicator calculations", "tools": [tool]}]
-    assert "previous_response_id" not in calls[0] and "max_output_tokens" not in calls[0]
-
-
-def test_chatgpt_auth_failure_refreshes_once_and_closes_clients(monkeypatch):
-    tokens, closed = [], []
-    request = httpx.Request("POST", "https://api.openai.com/v1/responses")
-    response = httpx.Response(401, request=request)
-    monkeypatch.setattr(model_providers.chatgpt_auth, "get_access_token",
-                        lambda **kwargs: (tokens.append(kwargs["force_refresh"]), "token")[1])
-
-    def client_factory(**_):
-        def unauthorized(**__):
-            raise AuthenticationError("private upstream error", response=response, body={})
-        return SimpleNamespace(responses=SimpleNamespace(create=unauthorized), close=lambda: closed.append(1))
-
-    with pytest.raises(model_providers.ModelProviderError, match="重新登入") as error:
-        model_providers.ChatGPTResponses(client_factory).create(input=[], model="model", tools=[])
-    assert "private" not in str(error.value)
-    assert tokens == [False, True] and len(closed) == 2
-
-
-def test_chatgpt_agent_uses_remaining_analysis_budget_instead_of_legacy_api_cap(monkeypatch):
+def test_claude_code_agent_uses_same_evidence_and_optional_python_tool(monkeypatch):
     request, candles, context, quote = fixture()
     trace = prepare_analysis_evidence(request, candles, quote, context)
-    save_preferences({"model_provider": "chatgpt", "models": {"chatgpt": "account-model"}})
-    monkeypatch.setenv("APP_ANALYSIS_TIMEOUT_SECONDS", "240")
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-    monkeypatch.setattr(model_providers.chatgpt_auth, "get_access_token", lambda **_: "oauth-token")
-    timeouts = []
+    monkeypatch.delenv("APP_CLAUDE_CODE_EFFORT", raising=False)
+    save_preferences({"model_provider": "claude_code", "models": {"claude_code": "sonnet"}})
+    monkeypatch.setattr(model_providers.claude_code_bridge, "require_authorized", lambda: None)
+    calls = []
 
-    def client_factory(**options):
-        timeouts.append(options["timeout"])
+    class FakeSession:
+        def analyze(self, instructions, supplied, model, tools, handler, *, timeout, effort):
+            payload = json.loads(supplied)
+            assert payload["current_candle"]["quote_price"] == quote["price"]
+            assert model == "sonnet" and timeout <= 240 and effort == "medium"
+            assert {item["name"] for item in tools} == set(ADDITIONAL_INDICATORS)
+            calls.append(handler("rsi", {"period": 21, "timeframe": "4h", "reason": "檢查動能"}))
+            return {"text": final_response(trace), "usage": {"inputTokens": 900, "outputTokens": 150}}
 
-        def create(**values):
-            timeouts.append(values["timeout"])
-            completion = SimpleNamespace(output=[], output_text=final_response(trace))
-            return FakeStream([SimpleNamespace(type="response.completed", response=completion)])
+        def close(self):
+            calls.append("closed")
 
-        return SimpleNamespace(responses=SimpleNamespace(create=create), close=lambda: None)
-
-    monkeypatch.setattr("trade_helper.agent.OpenAI", client_factory)
+    monkeypatch.setattr(model_providers.claude_code_bridge, "ClaudeCodeSession", FakeSession)
+    monkeypatch.setattr(model_providers, "CodexRpc", lambda **_: pytest.fail("wrong provider"))
     decision = analyze_with_tools(request, candles, quote, context, prepared_trace=trace)
-    assert decision["analysis_execution"]["provider"] == "chatgpt"
-    # Both the SDK transport and SSE request receive the shared remaining budget.
-    # A larger account-funded report must not be cut off at the old 90-second cap.
-    assert len(timeouts) == 2 and all(90 < value <= 240 for value in timeouts)
+    assert calls[0]["timeframe"] == "4h" and calls[-1] == "closed"
+    assert decision["analysis_execution"]["provider"] == "claude_code"
+    assert decision["analysis_execution"]["model"] == "sonnet"
+    assert decision["analysis_execution"]["additional_tool_calls"] == 1
+    assert decision["analysis_execution"]["input_tokens"] == 900
+
+
+def test_claude_code_without_model_uses_cli_default_and_does_not_bypass_sign_in(monkeypatch):
+    from trade_helper.claude_code_bridge import ClaudeCodeError
+
+    save_preferences({"model_provider": "claude_code"})
+    monkeypatch.setattr(model_providers.claude_code_bridge, "require_authorized", lambda: None)
+    session = model_providers.ModelSession(openai_factory=lambda **_: pytest.fail("API fallback"))
+    assert session.provider == "claude_code" and session.model == "" and session.uses_local_agent
+
+    def unauthorized():
+        raise ClaudeCodeError("請先登入")
+
+    monkeypatch.setattr(model_providers.claude_code_bridge, "require_authorized", unauthorized)
+    with pytest.raises(ClaudeCodeError, match="登入"):
+        model_providers.ModelSession(openai_factory=lambda **_: pytest.fail("API fallback"))
+
+
+@pytest.mark.parametrize(("codex", "explicit", "expected"), [
+    ("medium", None, "medium"), ("minimal", None, "low"), ("ultra", None, "max"),
+    ("medium", "xhigh", "xhigh"),
+])
+def test_claude_code_effort_follows_codex_setting_unless_overridden(monkeypatch, codex, explicit, expected):
+    monkeypatch.setenv("APP_CODEX_REASONING_EFFORT", codex)
+    if explicit:
+        monkeypatch.setenv("APP_CLAUDE_CODE_EFFORT", explicit)
+    else:
+        monkeypatch.delenv("APP_CLAUDE_CODE_EFFORT", raising=False)
+    assert model_providers.claude_code_effort() == expected
+    monkeypatch.setenv("APP_CLAUDE_CODE_EFFORT", "ultra")
+    with pytest.raises(model_providers.ModelProviderError):
+        model_providers.claude_code_effort()
 
 
 def test_codex_agent_uses_same_evidence_and_optional_python_tool_without_api_key(monkeypatch):
@@ -173,7 +162,7 @@ def test_codex_plain_text_uses_authorized_session_and_selects_conversation_mode(
 
     monkeypatch.setattr(model_providers, "CodexRpc", FakeRpc)
     session = model_providers.ModelSession(openai_factory=lambda **_: pytest.fail("API key fallback"))
-    response = session.analyze_codex(instructions="professional discussion", context="frozen report",
+    response = session.analyze_local_agent(instructions="professional discussion", context="frozen report",
                                    tools=[], tool_handler=None, timeout=240, response_format="text")
     assert response.output_text == "繁體中文對話"
     assert calls == ["authorize", ("professional discussion", "frozen report"), "close"]

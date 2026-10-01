@@ -360,7 +360,7 @@ def test_schema_seven_upgrade_preserves_messages_and_adds_null_evidence(client):
     send(client)
     with connect() as db:
         db.execute("ALTER TABLE discussion_messages DROP COLUMN live_market_json")
-        db.execute("DELETE FROM schema_migrations WHERE version=8")
+        db.execute("DELETE FROM schema_migrations WHERE version>=8")
         db.execute("PRAGMA user_version=7")
         old = db.execute("SELECT * FROM discussion_messages ORDER BY sequence").fetchall()
         session = db.execute("SELECT * FROM discussion_sessions").fetchone()
@@ -373,4 +373,4 @@ def test_schema_seven_upgrade_preserves_messages_and_adds_null_evidence(client):
         assert all(row["live_market_json"] is None for row in current)
         assert db.execute("SELECT * FROM discussion_sessions").fetchone() == session
         assert db.execute("SELECT * FROM analyses").fetchone() == analysis_row
-        assert db.execute("PRAGMA user_version").fetchone()["user_version"] == SCHEMA_VERSION == 8
+        assert db.execute("PRAGMA user_version").fetchone()["user_version"] == SCHEMA_VERSION == 9

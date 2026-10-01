@@ -216,7 +216,7 @@ def test_translation_format_cannot_mutate_literal_values_or_response_field_shape
         translation.read_translation(json.dumps({"texts": texts}), source, literals)
 
 
-@pytest.mark.parametrize("provider", ["codex", "chatgpt", "openai"])
+@pytest.mark.parametrize("provider", ["codex", "claude_code", "openai"])
 def test_translation_transport_uses_saved_instructions_and_no_tools(monkeypatch, provider):
     original = save_source()
     translation.request_macro_translation("macro-original", local_user_id(), "en-US")
@@ -228,7 +228,8 @@ def test_translation_transport_uses_saved_instructions_and_no_tools(monkeypatch,
         calls.append(kwargs)
         return SimpleNamespace(output_text=json.dumps({"texts": supplied["texts"]}), status="completed")
 
-    session = SimpleNamespace(provider=provider, model="mock-model", analyze_codex=create,
+    session = SimpleNamespace(provider=provider, model="mock-model", analyze_local_agent=create,
+                              uses_local_agent=provider != "openai",
                               client=SimpleNamespace(responses=SimpleNamespace(create=create)),
                               close=lambda: closes.append(True))
     monkeypatch.setattr(translation, "ModelSession", lambda **_: session)

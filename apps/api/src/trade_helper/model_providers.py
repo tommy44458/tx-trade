@@ -8,9 +8,7 @@ from threading import Event, Thread
 from time import monotonic
 from types import SimpleNamespace
 
-from openai import AuthenticationError
-
-from . import chatgpt_auth
+from . import claude_code_bridge
 from .codex_bridge import CodexRpc, require_authorized
 from .codex_bridge import models as codex_models
 from .local_settings import integration_credentials, provider_configuration
@@ -190,48 +188,19 @@ def codex_reasoning_effort() -> str:
     return value
 
 
+def claude_code_effort() -> str:
+    value = os.getenv("APP_CLAUDE_CODE_EFFORT") or claude_code_bridge.effort_level(codex_reasoning_effort())
+    if value not in {"low", "medium", "high", "xhigh", "max"}:
+        raise ModelProviderError("APP_CLAUDE_CODE_EFFORT 不是支援的推理強度。")
+    return value
+
+
 def tool_name(name: str) -> str:
-    # ChatGPT plan tools are namespaced. Existing Python dispatch is flat.
+    # Namespaced tool names are accepted; existing Python dispatch is flat.
     return name.removeprefix("indicators.")
 
 
-class ChatGPTResponses:
-    def __init__(self, client_factory):
-        self.client_factory = client_factory
-
-    def create(self, **kwargs):
-        timeout = kwargs.pop("timeout", 90)
-        on_text = kwargs.pop("on_text", None)
-        deadline = monotonic() + timeout
-        tools = kwargs.pop("tools", [])
-        kwargs.update(store=False, stream=True)
-        if tools:
-            kwargs["tools"] = [{"type": "namespace", "name": "indicators",
-                               "description": "Optional Python market indicator calculations",
-                               "tools": tools}]
-        # OAuth plan usage requires SSE and the full input history on each turn;
-        # no previous_response_id or unsupported generation controls are sent.
-        for attempt in range(2):
-            token = chatgpt_auth.get_access_token(force_refresh=bool(attempt))
-            remaining = deadline - monotonic()
-            if remaining <= 0:
-                raise TimeoutError("ChatGPT 分析回應逾時")
-            client = self.client_factory(api_key=token, base_url="https://api.openai.com/v1",
-                                         timeout=remaining, max_retries=0)
-            stream = None
-            try:
-                stream = client.responses.create(timeout=remaining, **kwargs)
-                return _read_response_stream(stream, deadline=deadline, on_text=on_text)
-            except AuthenticationError as exc:
-                # Retry only a rejected HTTP request before SSE begins. Even
-                # reasoning-only partial generation may have consumed allowance.
-                if attempt or stream is not None:
-                    raise ModelProviderError("ChatGPT 授權已失效，請在設定重新登入。") from exc
-            finally:
-                # The bounded reader owns stream cleanup. Closing the client
-                # must also be nonblocking once the overall budget is spent.
-                _close_transport(client, deadline=deadline)
-        raise ModelProviderError("ChatGPT 授權已失效，請在設定重新登入。")
+LOCAL_AGENT_PROVIDERS = frozenset({"codex", "claude_code"})
 
 
 class ModelSession:
@@ -246,14 +215,9 @@ class ModelSession:
                 # Retain the old dev-mode exception contract for existing callers.
                 raise RuntimeError("OPENAI_API_KEY and OPENAI_MODEL are required for Agent analysis")
             self.client = openai_factory(api_key=key, timeout=90, max_retries=0)
-        elif self.provider == "chatgpt":
-            chatgpt_auth.get_access_token()
-            if not self.model:
-                available = chatgpt_auth.list_models()
-                if not available:
-                    raise ModelProviderError("ChatGPT 帳號沒有可用模型；請確認授權與方案。")
-                self.model = available[0]["id"]
-            self.client = SimpleNamespace(responses=ChatGPTResponses(openai_factory))
+        elif self.provider == "claude_code":
+            # An empty model uses Claude Code's own default for the signed-in account.
+            claude_code_bridge.require_authorized()
         else:
             self.isolated_codex = require_authorized()
             if not self.model:
@@ -264,43 +228,49 @@ class ModelSession:
                     raise ModelProviderError("Codex 沒有可用模型。")
                 self.model = selected.get("model") or selected["id"]
 
-    def analyze_codex(self, *, instructions: str, context: str, tools: list[dict],
-                      tool_handler, timeout: float, response_format: str = "json",
-                      on_text: Callable[[str], None] | None = None):
+    @property
+    def uses_local_agent(self) -> bool:
+        return self.provider in LOCAL_AGENT_PROVIDERS
+
+    def analyze_local_agent(self, *, instructions: str, context: str, tools: list[dict],
+                            tool_handler, timeout: float, response_format: str = "json",
+                            on_text: Callable[[str], None] | None = None):
         deadline = monotonic() + timeout
-        rpc = CodexRpc(isolated=self.isolated_codex)
+        if self.provider == "claude_code":
+            label, effort = "Claude Code", claude_code_effort()
+            runner = claude_code_bridge.ClaudeCodeSession()
+        else:
+            label, effort = "Codex", codex_reasoning_effort()
+            runner = CodexRpc(isolated=self.isolated_codex)
         try:
             remaining = deadline - monotonic()
             if remaining <= 0:
-                raise TimeoutError("Codex 模型連接逾時")
+                raise TimeoutError(f"{label} 模型連接逾時")
             options = {"response_format": response_format} if response_format != "json" else {}
             if on_text is not None:
                 options["on_text"] = on_text
-            result = rpc.analyze(instructions, context, self.model, tools, tool_handler,
-                                 timeout=remaining, effort=codex_reasoning_effort(), **options)
+            result = runner.analyze(instructions, context, self.model, tools, tool_handler,
+                                    timeout=remaining, effort=effort, **options)
             usage = result.get("usage") or {}
             return SimpleNamespace(output=[], output_text=result["text"],
                 provider_diagnostics=result.get("diagnostics"),
                 usage=SimpleNamespace(input_tokens=usage.get("inputTokens"),
                                       output_tokens=usage.get("outputTokens")))
         finally:
-            rpc.close()
+            runner.close()
 
     def stream_text(self, *, instructions: str, context: str, timeout: float,
                     on_text: Callable[[str], None] | None = None):
-        if self.provider == "codex":
-            return self.analyze_codex(instructions=instructions, context=context,
+        if self.uses_local_agent:
+            return self.analyze_local_agent(instructions=instructions, context=context,
                 tools=[], tool_handler=None, timeout=timeout, response_format="text", on_text=on_text)
         deadline = monotonic() + timeout
         self._stream_deadline = deadline
         options = {"model": self.model, "instructions": instructions,
                    "input": [{"role": "user", "content": context}],
                    "timeout": timeout, "store": False, "stream": True}
-        if self.provider == "chatgpt":
-            response = self.client.responses.create(**options, on_text=on_text)
-        else:
-            stream = self.client.responses.create(**options)
-            response = _read_response_stream(stream, deadline=deadline, on_text=on_text)
+        stream = self.client.responses.create(**options)
+        response = _read_response_stream(stream, deadline=deadline, on_text=on_text)
         return SimpleNamespace(output=getattr(response, "output", []),
             output_text=_visible_response_text(response), status=getattr(response, "status", None),
             usage=getattr(response, "usage", None))
