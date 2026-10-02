@@ -6,7 +6,7 @@
   "publish": {
     "provider": "github",
     "owner": "tommy44458",
-    "repo": "tx-trade",
+    "repo": "txin-trade",
     "channel": "latest",
     "releaseType": "draft"
   },

@@ -9,7 +9,7 @@ import { checkReleaseState, parseChangelog } from "./release.mjs";
 
 const defaultRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const signingVariables = ["CSC_LINK", "CSC_KEY_PASSWORD", "APPLE_ID", "APPLE_APP_SPECIFIC_PASSWORD", "APPLE_TEAM_ID"];
-export const officialRepository = "tommy44458/tx-trade";
+export const officialRepository = "tommy44458/txin-trade";
 
 export function assertReleaseTag(state, environment = process.env) {
   const expected = `v${state.version}`;

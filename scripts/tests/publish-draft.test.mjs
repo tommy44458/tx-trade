@@ -53,7 +53,7 @@ function publish(f, releases = []) {
     cwd: f.root, encoding: "utf8", env: {
       PATH: `${join(f.root, "bin")}${delimiter}${process.env.PATH}`,
       GITHUB_REF_TYPE: "tag", GITHUB_REF_NAME: "v1.2.3", GITHUB_REF: "refs/tags/v1.2.3",
-      GITHUB_REPOSITORY: "tommy44458/tx-trade", GITHUB_SHA: "test-commit",
+      GITHUB_REPOSITORY: "tommy44458/txin-trade", GITHUB_SHA: "test-commit",
       GH_TOKEN: "test-token", TEST_CALLS: join(f.root, "calls.jsonl"), TEST_RELEASES: JSON.stringify([releases]),
     },
   });
