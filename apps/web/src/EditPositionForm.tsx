@@ -82,6 +82,7 @@ export default function EditPositionForm({
                 ? uiText("平均進場價（USDT）")
                 : uiText("持有數量（幣）")}
           <input
+            name={key}
             required={!exchangeSynced && index < 2}
             inputMode="decimal"
             value={value[key]}

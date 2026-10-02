@@ -1,3 +1,4 @@
+/* One compact row however many exchanges are connected: a chip each, and one Sync all. */
 .exchange-sync {
   margin: 0 0 20px;
   padding: 12px 16px;
@@ -5,58 +6,105 @@
   border-radius: var(--radius-md);
   background: var(--surface);
 }
+.exchange-sync-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
 .exchange-sync h2 {
-  margin: 0 0 4px;
+  margin: 0;
   font-size: 13px;
   font-weight: 600;
+  white-space: nowrap;
 }
-.exchange-sync-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 4px 12px;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--border);
-}
-.exchange-sync-row:last-child { border-bottom: 0; }
-.exchange-sync-info { min-width: 0; }
-.exchange-sync-label {
+.exchange-sync-chips {
   display: flex;
-  align-items: baseline;
+  flex: 1;
   flex-wrap: wrap;
-  gap: 4px 10px;
-  font-size: 12px;
-}
-.exchange-sync-label strong { font-weight: 600; }
-.exchange-sync-label span,
-.exchange-sync-summary,
-.exchange-sync-empty,
-.exchange-sync-note {
-  color: var(--text-secondary);
-  font-size: 11px;
-  line-height: 1.6;
-}
-.exchange-sync-summary { display: grid; gap: 2px; margin-top: 4px; overflow-wrap: anywhere; }
-.exchange-sync-empty { display: block; margin-top: 4px; }
-.exchange-sync-action {
-  display: inline-flex;
-  justify-content: center;
   align-items: center;
   gap: 6px;
-  min-height: 44px;
-  padding: 8px 12px;
+  min-width: 0;
+}
+.exchange-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 4px 11px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--surface-control);
+  border-radius: 999px;
+  background: var(--surface-subtle);
   color: var(--text);
   font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
 }
-.exchange-sync-action:hover:not(:disabled) { background: var(--surface-subtle); }
-.exchange-sync-action .analysis-spinner { width: 14px; height: 14px; }
-.exchange-sync-error { grid-column: 1 / -1; margin: 4px 0 0; color: var(--negative); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
-.exchange-sync-note { margin: 4px 0 0; }
+.exchange-chip:hover:not(:disabled) { border-color: var(--border-strong); }
+.exchange-chip i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-tertiary);
+}
+.exchange-chip[data-state="synced"] i { background: var(--positive); }
+.exchange-chip[data-state="error"] i { background: var(--negative); }
+.exchange-chip[data-state="error"] { color: var(--negative); }
+.exchange-chip b {
+  min-width: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.exchange-chip-add {
+  border-style: dashed;
+  background: transparent;
+  color: var(--accent);
+}
+.exchange-chip .icon { width: 13px; height: 13px; }
+.exchange-chip .analysis-spinner,
+.exchange-sync-all .analysis-spinner,
+.exchange-sync-loading .analysis-spinner { width: 12px; height: 12px; }
+.exchange-sync-loading { display: inline-flex; color: var(--text-tertiary); }
+.exchange-sync-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  margin-left: auto;
+  padding: 4px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.exchange-sync-all .icon { width: 14px; height: 14px; }
+.exchange-sync-all:hover:not(:disabled) { background: var(--surface-subtle); }
+.exchange-sync-error {
+  margin: 8px 0 0;
+  color: var(--negative);
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.exchange-sync-note {
+  margin: 8px 0 0;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  line-height: 1.6;
+}
 @media (max-width: 480px) {
-  .exchange-sync { padding: 10px 12px; }
-  .exchange-sync-row { gap: 4px 8px; }
-  .exchange-sync-action { padding-inline: 10px; }
+  .exchange-sync { padding: 12px; }
+  /* Title and Sync all share the first line; the chips take the full second line. */
+  .exchange-sync-chips { order: 3; flex-basis: 100%; }
+  .exchange-chip, .exchange-sync-all { min-height: 40px; }
 }

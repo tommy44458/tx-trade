@@ -9,7 +9,8 @@ export type IconName =
   | "close"
   | "star"
   | "search"
-  | "chevronDown";
+  | "chevronDown"
+  | "plus";
 
 const paths: Record<IconName, string> = {
   market: "M3 17l5-6 4 3 8-10M16 4h4v4M4 21h16",
@@ -25,6 +26,7 @@ const paths: Record<IconName, string> = {
   star: "m12 3 2.8 5.8 6.4.9-4.6 4.5 1.1 6.4-5.7-3-5.7 3 1.1-6.4L2.8 9.7l6.4-.9L12 3z",
   search: "M21 21l-5-5M18 10.5a7.5 7.5 0 1 1-15 0 7.5 7.5 0 0 1 15 0",
   chevronDown: "M6 9l6 6 6-6",
+  plus: "M12 5v14M5 12h14",
 };
 
 export default function Icon({

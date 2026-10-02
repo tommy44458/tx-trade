@@ -54,7 +54,7 @@
 }
 .metric-label > span {
   color: var(--text-tertiary);
-  font-size: 10px;
+  font-size: 11px;
   padding-top: 3px;
   flex: none;
 }
@@ -106,7 +106,7 @@
 .metric-provenance small {
   display: block;
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.8;
   margin-bottom: 6px;
 }
@@ -141,7 +141,7 @@
 }
 .event-date small {
   display: block;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-secondary);
   margin-top: 4px;
 }
@@ -182,7 +182,7 @@
 .event-result small {
   display: block;
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.8;
   margin-top: 6px;
 }

@@ -43,7 +43,7 @@
 }
 .bingx-sync-action .analysis-spinner { width: 14px; height: 14px; }
 .bingx-sync .compact-details { margin-top: 6px; }
-.bingx-sync .compact-details > summary { min-height: 24px; font-size: 11px; }
+.bingx-sync .compact-details > summary { min-height: 24px; font-size: 12px; }
 .bingx-sync .compact-details p { margin: 8px 0 0; font-size: 12px; line-height: 1.7; }
 .bingx-sync-note { margin: 8px 0 0; line-height: 1.6; }
 @media (pointer: coarse) {

@@ -275,6 +275,19 @@ const when = (v?: string | null) =>
         minute: "2-digit",
       })
     : "—";
+type LadderRow = { kind: "level"; level: Level } | { kind: "now"; price: string };
+/** Zones from the highest price down, with the current price marked where it falls between them. */
+const levelLadder = (levels: Level[], price?: string | null): LadderRow[] => {
+  const sorted = [...levels].sort((a, b) => Number(b.high) - Number(a.high));
+  const rows: LadderRow[] = sorted.map((level) => ({ kind: "level", level }));
+  const current = Number(price);
+  if (!price || !Number.isFinite(current)) return rows;
+  // A zone the price is inside of keeps its highlight instead of a separate marker.
+  if (sorted.some((level) => Number(level.low) <= current && current <= Number(level.high))) return rows;
+  const below = sorted.findIndex((level) => Number(level.high) < current);
+  rows.splice(below === -1 ? rows.length : below, 0, { kind: "now", price });
+  return rows;
+};
 const localDateTimeInput = (value?: string | null) => {
   if (!value) return "";
   const date = new Date(value);
@@ -436,6 +449,18 @@ function App({ remoteSection, remoteIdentity, remoteMenu, remoteStatus }: {
   const [pendingJob, setPendingJob] = useState<Job | null>(null);
   const [manualPositionAnalysisId, setManualPositionAnalysisId] = useState<string | null>(null);
   const synchronizeLatestTimeframe = useRef(true);
+  const manualPositionRef = useRef<HTMLDetailsElement>(null);
+  /** The field to bring into view once the position editor opens, e.g. a stop loss the exchange does not report. */
+  const [editFocus, setEditFocus] = useState<"stop_loss" | null>(null);
+  /** Open the manual position form below the list, bring it into view, and start at its first field. */
+  function openManualPosition() {
+    const details = manualPositionRef.current;
+    if (!details) return;
+    details.open = true;
+    const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    details.scrollIntoView({ behavior: still ? "auto" : "smooth", block: "start" });
+    details.querySelector<HTMLElement>("form input, form button, form select")?.focus({ preventScroll: true });
+  }
   useEffect(() => {
     // Closing or synchronizing positions may select a different pair without using the picker.
     synchronizeLatestTimeframe.current = true;
@@ -544,6 +569,15 @@ function App({ remoteSection, remoteIdentity, remoteMenu, remoteStatus }: {
   const visibleLevels = currentMarketData?.levels ?? EMPTY_LEVELS;
   const chartLevels = useMemo(() => [...visibleLevels, ...(currentMarketData?.recently_invalidated_levels ?? [])],
     [visibleLevels, currentMarketData?.recently_invalidated_levels]);
+  useEffect(() => {
+    if (!editingId || !editFocus) return;
+    const input = document.querySelector<HTMLInputElement>(`.position-editor input[name="${editFocus}"]`);
+    if (!input) return;
+    const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    input.closest("form")?.scrollIntoView({ behavior: still ? "auto" : "smooth", block: "center" });
+    input.focus({ preventScroll: true });
+    setEditFocus(null);
+  }, [editingId, editFocus]);
 
   async function refreshLocalSettings() {
     try {
@@ -1014,7 +1048,7 @@ function App({ remoteSection, remoteIdentity, remoteMenu, remoteStatus }: {
       </aside>
       <main id="main-content" tabIndex={-1}>
         <header className="topbar">
-          <span>{uiText("工作台")}<b>/</b> {pages.find((page) => page.id === view)?.label}
+          <span className="topbar-crumb">{uiText("工作台")}<b>/</b> {pages.find((page) => page.id === view)?.label}
           </span>
           <span className="workspace-status">
             {tradingPreferences.saving ? <><AnalysisSpinner />{" "}{uiText("儲存偏好中…")}</>
@@ -1185,21 +1219,16 @@ function App({ remoteSection, remoteIdentity, remoteMenu, remoteStatus }: {
                     </summary>
                     <div className="reference-panels">
                       <section className="panel">
-                        <div className="panel-head">
-                          <div>
-                            <h2>
-                              {market?.symbol ?? marketId.split(":").at(-1)}{" "}
-                              <span>· {timeframe.toUpperCase()}</span>
-                            </h2>
-                          </div>
+                        {/* The summary above already names the pair and timeframe. */}
+                        <div className="market-context-status" data-error={!!marketError}>
+                          <span role="status">
+                            {marketError ? <>
+                              {marketError}{" "}{currentMarketData ? uiText("；保留上次行情，尚未更新。") : uiText("；尚未取得行情與區間。")}
+                            </> : marketLoading ? uiText("正在更新行情與支撐壓力…") : uiText("現價所在區間以本次行情更新判斷")}
+                          </span>
+                          {marketError && <button type="button" className="settings-link" disabled={marketLoading}
+                            onClick={() => setMarketRefresh((value) => value + 1)}>{uiText("重試")}</button>}
                           <div className="legend">{uiText("● 上漲")}<span>{uiText("● 下跌")}</span>{uiText("◼ 支撐／壓力")}</div>
-                        </div>
-                        <div className="market-context-status" role="status" data-error={!!marketError}>
-                          {marketError ? <>
-                            <span>{marketError}{" "}{currentMarketData ? uiText("；保留上次行情，尚未更新。") : uiText("；尚未取得行情與區間。")}</span>
-                            <button type="button" className="settings-link" disabled={marketLoading}
-                              onClick={() => setMarketRefresh((value) => value + 1)}>{uiText("重試")}</button>
-                          </> : marketLoading ? uiText("正在更新行情與支撐壓力…") : uiText("現價所在區間以本次行情更新判斷")}
                         </div>
                         <CandlestickChart candles={chartCandles} levels={chartLevels} quotePrice={quote?.price}
                           marketId={marketId} timeframe={timeframe} loading={marketLoading && !currentMarketData}
@@ -1223,30 +1252,30 @@ function App({ remoteSection, remoteIdentity, remoteMenu, remoteStatus }: {
                           <p className="level-reference">{uiText("以現價 $")}{fmt(quote.price)}{" " + uiText("判斷區間位置 ·") + " "}{when(quote.observed_at)}{" "}{uiText("更新。 區間包含上下邊界；盤中穿越不代表已確認突破。")}</p>
                         )}
                         {visibleLevels.length ? (
-                          visibleLevels.map((level, i) => (
-                            <div className={`level${level.price_relation === "inside" ? " level-inside" : ""}`}
-                              data-relation={level.price_relation} key={level.id ?? `${level.kind}-${level.low}-${i}`}>
-                              <i className={level.kind} />
-                              <div>
-                                <strong>
-                                  {level.kind === "support"
-                                    ? uiText("支撐區")
-                                    : uiText("壓力區")}
-                                </strong>
-                                <small>
-                                  {levelLocationLabel(level) &&
-                                    `${levelLocationLabel(level)} · `}
-                                  {when(level.confirmed_at)}{" "}{uiText("確認")}{level.algorithm_version ===
-                                  "confirmed_pivot_lifecycle_v3"
-                                    ? " " + uiText("· {{p0}} 次確認轉折 · {{p1}} 次獨立觸及", { p0: level.pivot_count, p1: level.independent_touch_count })
-                                    : level.touch_count != null
-                                      ? " " + uiText("· {{p0}} 次轉折 · 轉折 K 線相對量 {{p1}}×{{p2}}", { p0: level.touch_count, p1: level.relative_pivot_volume, p2: level.order_book_snapshot_overlap ? " " + uiText("· 與掛單快照重疊") : "" })
-                                      : " " + uiText("· 版本未標示")}
-                                </small>
-                              </div>
+                          levelLadder(visibleLevels, quote?.price).map((row, i) => row.kind === "now" ? (
+                            <div className="level-now" key="now"><span>{uiText("現價")}</span><b>${fmt(row.price)}</b></div>
+                          ) : (
+                            <div className={`level ladder${row.level.price_relation === "inside" ? " level-inside" : ""}`}
+                              data-relation={row.level.price_relation} key={row.level.id ?? `${row.level.kind}-${row.level.low}-${i}`}>
+                              <i className={row.level.kind} />
+                              <strong>
+                                {row.level.kind === "support"
+                                  ? uiText("支撐區")
+                                  : uiText("壓力區")}
+                              </strong>
                               <b>
-                                ${fmt(level.low)} – ${fmt(level.high)}
+                                ${fmt(row.level.low)} – ${fmt(row.level.high)}
                               </b>
+                              <small>
+                                {levelLocationLabel(row.level) &&
+                                  `${levelLocationLabel(row.level)} · `}
+                                {when(row.level.confirmed_at)}{" "}{uiText("確認")}{row.level.algorithm_version ===
+                                "confirmed_pivot_lifecycle_v3"
+                                  ? " " + uiText("· {{p0}} 次確認轉折 · {{p1}} 次獨立觸及", { p0: row.level.pivot_count, p1: row.level.independent_touch_count })
+                                  : row.level.touch_count != null
+                                    ? " " + uiText("· {{p0}} 次轉折 · 轉折 K 線相對量 {{p1}}×{{p2}}", { p0: row.level.touch_count, p1: row.level.relative_pivot_volume, p2: row.level.order_book_snapshot_overlap ? " " + uiText("· 與掛單快照重疊") : "" })
+                                    : " " + uiText("· 版本未標示")}
+                              </small>
                             </div>
                           ))
                         ) : (
@@ -1331,10 +1360,15 @@ function App({ remoteSection, remoteIdentity, remoteMenu, remoteStatus }: {
                     <div>
                       <h2>{uiText("目前持倉")}</h2>
                     </div>
-                    <span className="tag">
-                      {uiText("positionCount", { count: marketPositions.length })}</span>
+                    <div className="current-positions-actions">
+                      <span className="tag">
+                        {uiText("positionCount", { count: marketPositions.length })}</span>
+                      <button type="button" className="secondary-button add-position-button" onClick={openManualPosition}>
+                        <Icon name="plus" />{uiText("新增持倉")}
+                      </button>
+                    </div>
                   </div>
-                  <div className="position-selection">
+                  {!!marketPositions.length && <div className="position-selection">
                     <div className="position-selection-actions">
                       <button type="button" className="secondary-button"
                         disabled={busy || !marketPositions.length || allPositionsSelected}
@@ -1350,7 +1384,7 @@ function App({ remoteSection, remoteIdentity, remoteMenu, remoteStatus }: {
                     <span className="position-selection-count" role="status">
                       {uiText("已選 {{p0}}／{{p1}} 筆", { p0: selectedPositionIds.length, p1: marketPositions.length })}
                     </span>
-                  </div>
+                  </div>}
                   {marketPositions.map((p) => (
                       <div className="position" key={p.id}>
                         <label>
@@ -1365,44 +1399,38 @@ function App({ remoteSection, remoteIdentity, remoteMenu, remoteStatus }: {
                                 : current.filter((id) => id !== p.id));
                             }}
                           />
-                          <span>
-                            <b>
-                              {market?.symbol} ·{" "}
-                              {positionSourceLabel(p.source, p.contract_type)}{" "}
-                              · {p.side === "long" ? uiText("多單") : uiText("空單")} ·{" "}
-                              {p.leverage}×{" "}
-                              {p.margin_mode === "isolated" ? uiText("逐倉") : uiText("全倉")}
-                            </b>
-                            <small>{uiText("進場 $")}{fmt(p.entry_price)}{" " + uiText("· 數量") + " "}{p.quantity}
-                            </small>
-                            {(p.stop_loss || p.take_profit) && (
-                              <small>{uiText("止損")}{" "}
-                                {p.stop_loss
-                                  ? "$" + fmt(p.stop_loss)
-                                  : uiText("未設定")}{" "}{uiText("· 止盈")}{" "}
-                                {p.take_profit
-                                  ? "$" + fmt(p.take_profit)
-                                  : uiText("未設定")}
+                          <span className="position-body">
+                            <span className="position-title">
+                              <b>{market?.symbol}</b>
+                              <em className="position-side" data-side={p.side}>{p.side === "long" ? uiText("多單") : uiText("空單")}</em>
+                              <em className="position-chip">{p.leverage}× {p.margin_mode === "isolated" ? uiText("逐倉") : uiText("全倉")}</em>
+                              <small>{positionSourceLabel(p.source, p.contract_type)}</small>
+                            </span>
+                            <dl className="position-facts">
+                              <div><dt>{uiText("進場")}</dt><dd>${fmt(p.entry_price)}</dd></div>
+                              <div><dt>{uiText("數量")}</dt><dd>{p.quantity}</dd></div>
+                              {/* Some exchange APIs (BingX standard contracts) never report stops, so an
+                                  imported position without one says so instead of claiming none was set. */}
+                              <div><dt>{uiText("止損")}</dt><dd>{p.stop_loss ? "$" + fmt(p.stop_loss) : <span>{isManualPosition(p.source) ? uiText("未設定") : uiText("交易所未提供")}</span>}</dd></div>
+                              <div><dt>{uiText("止盈")}</dt><dd>{p.take_profit ? "$" + fmt(p.take_profit) : <span>{isManualPosition(p.source) ? uiText("未設定") : uiText("交易所未提供")}</span>}</dd></div>
+                              {p.exchange_liquidation_price && (
+                                <div><dt>{liquidationSourceLabel(p.source)}</dt><dd>${fmt(p.exchange_liquidation_price)}</dd></div>
+                              )}
+                            </dl>
+                            {(p.entry_time || p.synced_at) && (
+                              <small className="position-meta">
+                                {p.entry_time && uiText("進場") + " " + when(p.entry_time)}
+                                {p.entry_time && p.synced_at && " · "}
+                                {p.synced_at && uiText("交易所同步") + " " + when(p.synced_at)}
                               </small>
-                            )}{" "}
-                            {p.entry_time && (
-                              <small>{uiText("進場") + " "}{when(p.entry_time)}</small>
-                            )}{" "}
-                            {p.synced_at && (
-                              <small>{uiText("交易所同步") + " "}{when(p.synced_at)}</small>
-                            )}{" "}
-                            {p.exchange_liquidation_price && (
-                              <small>
-                                {liquidationSourceLabel(p.source)}{" "}
-                                ${fmt(p.exchange_liquidation_price)}
-                              </small>
-                            )}{" "}
-                            {p.notes && <small>{uiText("備註：")}{" "}{p.notes}</small>}
+                            )}
+                            {p.notes && <small className="position-meta">{uiText("備註")}{" · "}{p.notes}</small>}
                           </span>
                         </label>
                         <div className="editor-actions">
                           <button
                             onClick={() => {
+                              setEditFocus(!isManualPosition(p.source) && !p.stop_loss ? "stop_loss" : null);
                               setEditingId(p.id);
                               setEditForm({
                                 side: p.side,
@@ -1418,7 +1446,7 @@ function App({ remoteSection, remoteIdentity, remoteMenu, remoteStatus }: {
                                 notes: p.notes ?? "",
                               });
                             }}
-                          >{uiText("修改")}</button>
+                          >{!isManualPosition(p.source) && !p.stop_loss ? uiText("補登止損") : uiText("修改")}</button>
                           {isManualPosition(p.source) && (
                             <button onClick={() => closePosition(p.id)}>{uiText("標記平倉")}</button>
                           )}
@@ -1436,8 +1464,11 @@ function App({ remoteSection, remoteIdentity, remoteMenu, remoteStatus }: {
                     />
                   )}{" "}
                   {!marketPositions.length && (
-                    <div className="placeholder big">
-                      {positions.length ? uiText("此歷史報告的持倉已不在目前持倉清單。") : uiText("尚無持倉。可同步帳戶或手動新增持倉。")}
+                    <div className="positions-empty">
+                      <p>{positions.length ? uiText("此歷史報告的持倉已不在目前持倉清單。") : uiText("尚無持倉。可同步帳戶或手動新增持倉。")}</p>
+                      <button type="button" className="action" onClick={openManualPosition}>
+                        <Icon name="plus" />{uiText("手動新增持倉")}
+                      </button>
                     </div>
                   )}
                   <RiskSelector value={risk} onChange={chooseRisk} />
@@ -1513,7 +1544,7 @@ function App({ remoteSection, remoteIdentity, remoteMenu, remoteStatus }: {
                       <div className="note">{uiText("本次手動填寫帳戶權益 $")}{fmt(report.account_equity_usdt)}{" "}{uiText("USDT；比例只計算參考價到登記止損的價格距離，未含費用、滑價與其他持倉。")}</div>
                     )}
                 </section>
-                <details className="panel manual-position">
+                <details className="panel manual-position" ref={manualPositionRef}>
                   <summary>{uiText("手動新增持倉")}</summary>
                   <form className="position-form" onSubmit={addPosition}>
                     <MarketPicker

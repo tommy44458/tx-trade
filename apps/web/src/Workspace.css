@@ -186,6 +186,10 @@
 .market-context-status button {
   flex: none;
 }
+.market-context-status .legend {
+  flex: none;
+  margin-left: auto;
+}
 .reference-panels .level-inside {
   border-left: 3px solid var(--accent);
   background: var(--accent-soft);
@@ -370,8 +374,10 @@
   line-height: 1.6;
 }
 .decision-context b {
+  margin-left: 6px;
   color: var(--text-secondary);
   font-weight: 500;
+  font-variant-numeric: tabular-nums;
 }
 .ai-plan {
   margin: 0 24px 24px;
@@ -483,6 +489,15 @@
 }
 .report-disclosure[open] > summary::after {
   content: "−";
+}
+/* Open, the content keeps the same 24px inset at the bottom as at the sides. */
+.report-disclosure[open] {
+  padding-bottom: 24px;
+}
+/* The summary already sits above: the divider follows it without a second gap. */
+.report-disclosure > summary + .tool-heading {
+  margin-top: 0;
+  padding-top: 16px;
 }
 .disclosure-hint {
   margin-left: auto;
@@ -699,6 +714,20 @@
   .timeframe-control { grid-column: 1 / -1; }
   .controls > .leverage-control, .controls > .quote { grid-column: 1 / -1; }
   .plan-prices > div { border-right: 0; border-bottom: 1px solid var(--border); }
+  /* The price leads on a narrow screen: label and time on the left, the price on the right. */
+  .content .controls > .quote {
+    order: -1;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: 12px;
+    margin-left: 0;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+  }
+  .content .controls > .quote > .quote-heading { grid-column: 1; grid-row: 1; justify-content: flex-start; }
+  .content .controls > .quote > strong { grid-column: 2; grid-row: 1 / 3; font-size: 28px; }
+  .content .controls > .quote > small { grid-column: 1; grid-row: 2; }
 }
 @media (max-width: 1100px) {
   .sidebar {
@@ -861,6 +890,48 @@
   display: block;
   margin-top: 4px;
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 400;
+}
+
+/* Adding a position stays one click away from the list, and leads when the list is empty. */
+.current-positions-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.add-position-button {
+  min-height: 36px;
+  padding: 6px 12px;
+  color: var(--accent);
+  font-weight: 500;
+}
+.add-position-button .icon,
+.positions-empty .icon {
+  width: 16px;
+  height: 16px;
+}
+.positions-empty {
+  display: grid;
+  justify-items: center;
+  gap: 16px;
+  margin: 8px 0 24px;
+  padding: 36px 24px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+  text-align: center;
+}
+.positions-empty p {
+  max-width: 34em;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.7;
+}
+.positions-empty .action {
+  width: auto;
+  padding: 11px 20px;
+}
+.manual-position {
+  scroll-margin-top: 72px;
 }

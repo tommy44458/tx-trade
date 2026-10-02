@@ -107,10 +107,14 @@
   /* Page status row: where you are, and whether this is local or remote. */
   .topbar {
     display: flex;
-    height: 40px;
+    height: 34px;
     padding: 0 16px;
     background: transparent;
     font-size: 12px;
+  }
+  /* The tab bar already says where you are; keep only the local or remote status. */
+  .topbar-crumb {
+    display: none;
   }
   .workspace-status {
     min-width: 0;

@@ -47,13 +47,13 @@
 }
 .technical-indicators thead span {
   display: block;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 400;
   color: var(--text-secondary);
   margin-top: 4px;
 }
 .technical-indicators small {
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.8;
   color: var(--text-secondary);
 }

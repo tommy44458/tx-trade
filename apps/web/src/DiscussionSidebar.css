@@ -68,7 +68,7 @@
 .discussion-composer-disabled { margin: 0; }
 .discussion-composer-disabled textarea { opacity: 0.6; }
 .discussion-composer-disabled .discussion-send { display: grid; place-items: center; width: 44px; height: 44px; min-width: 44px; padding: 0; border: 0; border-radius: 50%; background: var(--surface-control); }
-.discussion-composer-disabled .discussion-composer-footer > p { font-size: 11px; color: var(--text-tertiary); margin: 0; }
+.discussion-composer-disabled .discussion-composer-footer > p { font-size: 12px; color: var(--text-tertiary); margin: 0; }
 @media (max-width: 1240px) {
   .discussion-sidebar {
     position: fixed;

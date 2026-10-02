@@ -52,7 +52,7 @@
   background: var(--negative-soft);
 }
 .macro-outlook-heading small {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--warning);
 }
 .macro-outlook > p {
@@ -146,7 +146,7 @@
   color: var(--text-tertiary);
   margin-left: auto;
   flex: none;
-  font-size: 11px;
+  font-size: 12px;
 }
 .macro-version-meta {
   display: grid;
@@ -168,7 +168,7 @@
 .macro-identity {
   overflow-wrap: anywhere;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.8;
 }
 .macro-current-dataset {
@@ -221,13 +221,13 @@
 .macro-official-evidence small {
   display: block;
   color: var(--text-tertiary);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.8;
   margin-top: 4px;
 }
 .macro-timezone {
   color: var(--text-tertiary);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.8;
   margin: 12px 0 0;
 }
