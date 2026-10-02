@@ -65,6 +65,50 @@ export function validateUpdateMetadata(metadata, state, files) {
   }
 }
 
+/** The update metadata with one installer's digest replaced, e.g. after a ticket is stapled to the DMG. */
+export function withInstallerDigest(metadata, name, { sha512, size }) {
+  const entry = metadata?.files?.find(file => file.url === name);
+  if (!entry) throw new Error(`Update metadata has no entry for ${name}.`);
+  return { ...metadata, files: metadata.files.map(file => file === entry ? { ...file, sha512, size } : file),
+    ...(metadata.path === name ? { sha512 } : {}) };
+}
+
+function builderModules(root) {
+  // Reuse electron-builder's pinned YAML parser and block map writer instead of adding dependencies.
+  const desktopRequire = createRequire(join(root, "apps/desktop/package.json"));
+  const builderRequire = createRequire(desktopRequire.resolve("electron-builder/package.json"));
+  return createRequire(builderRequire.resolve("app-builder-lib/package.json"));
+}
+
+/**
+ * electron-builder notarizes the app but not the DMG around it, which Gatekeeper then rejects when a
+ * downloaded copy is opened. Notarize and staple the DMG, then rebuild its block map and update digest.
+ */
+export async function notarizeDiskImage(root = defaultRoot, environment = process.env) {
+  const state = checkReleaseState(root, { requirePrepared: true });
+  assertReleaseEnvironment(state, environment);
+  const directory = join(root, "apps/desktop/release");
+  const name = `txinTrade-${state.version}-mac-arm64.dmg`;
+  const dmg = join(directory, name);
+  const submission = spawnSync("xcrun", ["notarytool", "submit", dmg,
+    "--apple-id", environment.APPLE_ID, "--password", environment.APPLE_APP_SPECIFIC_PASSWORD,
+    "--team-id", environment.APPLE_TEAM_ID, "--wait", "--timeout", "40m", "--output-format", "json"], { encoding: "utf8" });
+  let result = null;
+  try { result = JSON.parse(submission.stdout); } catch { /* reported below */ }
+  if (submission.status !== 0 || result?.status !== "Accepted") {
+    throw new Error(`DMG notarization was not accepted (${result?.status ?? "no result"}${result?.id ? `, submission ${result.id}` : ""}).`);
+  }
+  command("xcrun", ["stapler", "staple", dmg]);
+  const appBuilderRequire = builderModules(root);
+  const { buildBlockMap } = appBuilderRequire("app-builder-lib/out/targets/blockmap/blockmap");
+  const digest = await buildBlockMap(dmg, "gzip", `${dmg}.blockmap`);
+  const yaml = appBuilderRequire("js-yaml");
+  const metadataPath = join(directory, `${state.channel === "beta" ? "beta" : "latest"}-mac.yml`);
+  const metadata = withInstallerDigest(yaml.load(readFileSync(metadataPath, "utf8")), name, digest);
+  writeFileSync(metadataPath, yaml.dump(metadata, { lineWidth: -1 }));
+  return result.id;
+}
+
 function command(commandName, args, options = {}) {
   const result = spawnSync(commandName, args, { encoding: "utf8", ...options });
   if (result.error || result.status !== 0) {
@@ -165,11 +209,7 @@ export async function validateReleaseArtifacts(root = defaultRoot, { official = 
     }
   }
   const installers = assets.slice(0, 2).map(asset => digestFile(join(directory, asset)));
-  // Reuse electron-builder's pinned YAML parser instead of adding another runtime dependency.
-  const desktopRequire = createRequire(join(root, "apps/desktop/package.json"));
-  const builderRequire = createRequire(desktopRequire.resolve("electron-builder/package.json"));
-  const appBuilderRequire = createRequire(builderRequire.resolve("app-builder-lib/package.json"));
-  const yaml = appBuilderRequire("js-yaml");
+  const yaml = builderModules(root)("js-yaml");
   const metadata = yaml.load(readFileSync(join(directory, assets[4]), "utf8"));
   validateUpdateMetadata(metadata, state, installers);
   const app = join(directory, "mac-arm64/txinTrade.app");
@@ -197,6 +237,10 @@ export async function validateReleaseArtifacts(root = defaultRoot, { official = 
     }
     command("xcrun", ["stapler", "validate", app]);
     command("spctl", ["--assess", "--type", "execute", "--verbose", app]);
+    // A downloaded DMG is assessed on open: it needs its own notarization ticket.
+    const dmg = join(directory, assets[0]);
+    command("xcrun", ["stapler", "validate", dmg]);
+    command("spctl", ["--assess", "--type", "open", "--context", "context:primary-signature", "--verbose", dmg]);
   }
   await smokeTestBackend(root, app, state.version);
   const entries = assets.map(asset => digestFile(join(directory, asset)));

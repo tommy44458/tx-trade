@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { assertReleaseEnvironment, assertReleaseTag, validateUpdateMetadata } from "../release-assets.mjs";
+import { assertReleaseEnvironment, assertReleaseTag, validateUpdateMetadata, withInstallerDigest } from "../release-assets.mjs";
 
 const state = { version: "1.2.3", channel: "stable" };
 const tagEnvironment = { GITHUB_REF_TYPE: "tag", GITHUB_REF_NAME: "v1.2.3",
@@ -45,4 +45,15 @@ test("update manifest must hash both exact installers and select the ZIP", () =>
     { files: [{ ...metadata.files[0], size: 99 }, metadata.files[1]] },
     { path: "app.dmg" }, { sha512: "tampered" },
   ]) assert.throws(() => validateUpdateMetadata({ ...metadata, ...changed }, state, files));
+});
+
+test("stapling the DMG updates only its digest, and the update path keeps the ZIP", () => {
+  const metadata = { version: "1.2.3", path: "app.zip", sha512: "zip-digest", releaseDate: "2026-10-02T00:00:00.000Z",
+    files: [{ url: "app.zip", sha512: "zip-digest", size: 10 }, { url: "app.dmg", sha512: "old", size: 20 }] };
+  const updated = withInstallerDigest(metadata, "app.dmg", { sha512: "stapled", size: 21 });
+  assert.deepEqual(updated.files, [{ url: "app.zip", sha512: "zip-digest", size: 10 }, { url: "app.dmg", sha512: "stapled", size: 21 }]);
+  assert.equal(updated.path, "app.zip");
+  assert.equal(updated.sha512, "zip-digest");
+  assert.equal(metadata.files[1].sha512, "old");
+  assert.throws(() => withInstallerDigest(metadata, "other.dmg", { sha512: "x", size: 1 }), /no entry/);
 });

@@ -3,7 +3,7 @@ import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } fr
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { checkReleaseState } from "./release.mjs";
-import { assertReleaseEnvironment, validateReleaseArtifacts } from "./release-assets.mjs";
+import { assertReleaseEnvironment, notarizeDiskImage, validateReleaseArtifacts } from "./release-assets.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const pnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
@@ -75,6 +75,7 @@ if (mode !== "start") {
     rmSync(join(desktop, "release"), { recursive: true, force: true });
     await run(pnpm, ["exec", "electron-builder", "--config", generated,
       "--mac", "--arm64", "--publish", "never"], desktop);
+    if (officialRelease) await notarizeDiskImage(root);
     await validateReleaseArtifacts(root, { official: officialRelease });
   } else {
     await run(pnpm, ["package"], join(root, "apps/desktop"));
