@@ -1,0 +1,13 @@
+{
+  // The remote web page at app.txintrade.com: static files only, no server code.
+  // Deploy with `pnpm deploy:remote` after `wrangler login`.
+  "name": "txintrade-app",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [{ "pattern": "app.txintrade.com", "custom_domain": true }],
+  "assets": {
+    "directory": "./dist-remote",
+    "not_found_handling": "single-page-application"
+  }
+}

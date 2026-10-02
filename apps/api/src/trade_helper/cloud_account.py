@@ -128,6 +128,13 @@ def session_record() -> dict | None:
         return None
     if not isinstance(record.get("expires_at"), int) or record["expires_at"] <= time.time() * 1000:
         return None
+    # A session belongs to the cloud it was issued by; after the app is pointed at
+    # another cloud (for example from development to production), sign in again.
+    try:
+        if record.get("origin") != cloud_origin():
+            return None
+    except CloudAccountError:
+        return None
     return record
 
 
@@ -142,7 +149,7 @@ def status() -> dict:
                 "expires_at": None}
     metadata = read_metadata(_METADATA)
     signed_in = bool(metadata.get("signed_in")) and isinstance(metadata.get("expires_at"), int) \
-        and metadata["expires_at"] > time.time() * 1000
+        and metadata["expires_at"] > time.time() * 1000 and metadata.get("origin") == origin
     profile = {key: metadata.get(key) for key in ("email", "display_name", "picture_url")} if signed_in else None
     return {"configured": True, "origin": origin, "signed_in": signed_in, "pending": pending,
             "error": error, "profile": profile,

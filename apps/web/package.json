@@ -10,7 +10,8 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "dev:remote": "vite --config vite.remote.config.ts",
-    "build:remote": "tsc -b && vite build --config vite.remote.config.ts"
+    "build:remote": "tsc -b && vite build --config vite.remote.config.ts",
+    "deploy:remote": "npm run build:remote && npx --yes wrangler@4 deploy -c wrangler.remote.jsonc"
   },
   "dependencies": {
     "i18next": "^26.4.2",

@@ -1,4 +1,4 @@
-import { renameSync } from 'node:fs'
+import { renameSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import react from '@vitejs/plugin-react'
 import { defineConfig, type Plugin } from 'vite'
@@ -17,6 +17,17 @@ const remoteIndex = (): Plugin => ({
   },
   closeBundle() {
     renameSync(resolve(OUT_DIR, 'remote.html'), resolve(OUT_DIR, 'index.html'))
+    // Security headers for the hosted page; it talks only to the txinTrade cloud.
+    const api = (process.env.VITE_TXINTRADE_CLOUD_ORIGIN ?? 'https://api.txintrade.com').replace(/\/$/, '')
+    const csp = [
+      "default-src 'self'", "script-src 'self'", "style-src 'self' 'unsafe-inline'", "img-src 'self' data:",
+      "font-src 'self'", `connect-src 'self' ${api} ${api.replace(/^http/, 'ws')}`,
+      "frame-ancestors 'none'", "base-uri 'self'", "form-action 'self'", "object-src 'none'",
+    ].join('; ')
+    writeFileSync(resolve(OUT_DIR, '_headers'), [
+      '/*', `  Content-Security-Policy: ${csp}`, '  X-Content-Type-Options: nosniff',
+      '  Referrer-Policy: no-referrer', '  Permissions-Policy: camera=(), microphone=(), geolocation=()', '',
+    ].join('\n'))
   },
 })
 

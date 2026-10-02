@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- Full-bleed home-screen icon; the platform rounds the corners. Same artwork as
+       apps/desktop/resources/icon.svg without the macOS padding and shadow.
+       Rendered to public/apple-touch-icon.png, icon-192.png and icon-512.png. -->
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2a2a2f"/>
+      <stop offset="1" stop-color="#121214"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0.30" stop-color="#f5f5f7"/>
+      <stop offset="0.50" stop-color="#75b6ff"/>
+      <stop offset="0.70" stop-color="#f5f5f7"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#tile)"/>
+  <text x="512" y="512" dominant-baseline="central" text-anchor="middle" fill="url(#shine)"
+        font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif"
+        font-size="200" letter-spacing="-7"><tspan font-weight="400">txin</tspan><tspan font-weight="700">Trade</tspan></text>
+</svg>

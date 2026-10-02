@@ -95,6 +95,17 @@ def test_desktop_sign_in_brings_its_own_pkce_and_stores_the_session_privately(cl
         assert TOKEN not in json.dumps(response)
 
 
+def test_a_session_from_another_cloud_asks_to_sign_in_again(cloud, monkeypatch):
+    client = TestClient(app)
+    started = client.post("/api/v1/cloud-account/sign-in").json()
+    assert browser_returns(started["start_url"], code=CODE)[0] == 200
+    assert client.get("/api/v1/cloud-account").json()["signed_in"] is True
+    # The app now points at production instead of the development cloud.
+    monkeypatch.setenv("TXINTRADE_CLOUD_ORIGIN", "https://api.txintrade.com")
+    assert client.get("/api/v1/cloud-account").json()["signed_in"] is False
+    assert cloud_account.session_record() is None
+
+
 def test_a_wrong_state_neither_signs_in_nor_cancels_the_real_attempt(cloud):
     started = TestClient(app).post("/api/v1/cloud-account/sign-in").json()
     query = parse_qs(urlsplit(started["start_url"]).query)
