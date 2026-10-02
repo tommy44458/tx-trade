@@ -4,6 +4,8 @@ The product version is managed in `version.json`. Dates record release preparati
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-10-02
+
 ### Changed
 
 - While a newer version is available, a notice stays above the account at the bottom left (available, download progress, ready to restart); selecting it opens the update window, so choosing Later no longer means forgetting it. After Download Update, the notice shows a spinner and progress bar at once and the Dock icon shows the download, so the app never looks stuck. Each time the app opens, it checks within seconds and offers the update instead of after a minute or more.
