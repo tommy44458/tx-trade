@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { uiLocale, uiText } from "../i18n/index.ts";
-import { AnalysisSpinner } from "../AnalysisProgress";
+import { uiText, useUiLocale } from "../i18n/index.ts";
 import App from "../App";
-import GoogleMark from "../GoogleMark";
 import { setRemoteTransport } from "../transport.ts";
 import {
   CloudError,
@@ -20,6 +18,7 @@ import {
   type Me,
   type Plan,
 } from "./cloud";
+import { Confirming, GateShell, Notice, Offline, Problem, Setup, Subscribe, Waiting, Welcome } from "./Gate";
 import "./RemoteApp.css";
 
 const DEVICE_KEY = "txintrade.remote.device";
@@ -127,17 +126,12 @@ function HeaderAccount({ me, device, devices, onChoose, onSignOut }: {
   );
 }
 
-function Screen({ children, account }: { children: ReactNode; account?: ReactNode }) {
-  return (
-    <div className="remote-shell">
-      <header className="remote-top"><span className="brand-wordmark">txin<strong>Trade</strong></span>{account}</header>
-      <main className="remote-main">{children}</main>
-    </div>
-  );
+function Screen({ children, account, tone }: { children: ReactNode; account?: ReactNode; tone?: "hero" }) {
+  return <GateShell account={account} tone={tone}>{children}</GateShell>;
 }
 
 function Loading({ label }: { label: string }) {
-  return <p className="remote-loading" role="status"><AnalysisSpinner />{label}</p>;
+  return <Waiting label={label} />;
 }
 
 /** Opens Creem's customer portal: cancel, change the card, invoices. */
@@ -176,46 +170,24 @@ function RemoteMenu({ device, devices, billing, onChoose, onSignOut }: {
   );
 }
 
-const PLAN_COPY = [
-  { plan: "monthly", name: "遠端存取", price: "US$3.99／月", note: "以美元按月計費，隨時可取消。" },
-] as const;
-
 /** The remote access plan; it goes to Creem's checkout for the signed-in account. */
-function Plans({ subscribedBefore }: { subscribedBefore: boolean }) {
-  const [busy, setBusy] = useState<Plan | null>(null);
+function Plans({ computer, subscribedBefore }: { computer: string; subscribedBefore: boolean }) {
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const choose = (plan: Plan) => {
-    setBusy(plan);
+  const manage = () => void openBillingPortal().catch((reason) => setError(describe(reason)));
+  const subscribe = (plan: Plan) => {
+    setBusy(true);
     setError("");
     startCheckout(plan).catch((reason) => {
-      setBusy(null);
+      setBusy(false);
       // A subscription that still exists (e.g. a failed renewal) is fixed in the portal.
-      if (reason instanceof CloudError && reason.code === "already_subscribed")
-        return openBillingPortal().catch((portal) => setError(describe(portal)));
+      if (reason instanceof CloudError && reason.code === "already_subscribed") return manage();
       setError(describe(reason));
     });
   };
   return (
-    <section className="remote-welcome">
-      <h2>{uiText("訂閱遠端存取")}</h2>
-      <p>{uiText("從任何瀏覽器使用電腦上的 txinTrade：查看分析與持倉、遠端發起分析、即時追問。分析仍在你的電腦上執行。")}</p>
-      {error && <p className="remote-notice warn" role="alert">{error}</p>}
-      <div className="remote-plans">
-        {PLAN_COPY.map((item) => (
-          <button type="button" key={item.plan} className="remote-plan" disabled={busy !== null}
-            aria-busy={busy === item.plan} onClick={() => choose(item.plan)}>
-            <strong>{uiText(item.name)}</strong>
-            <span className="remote-plan-price">{uiText(item.price)}</span>
-            <small>{busy === item.plan ? uiText("正在前往付款頁…") : uiText(item.note)}</small>
-          </button>
-        ))}
-      </div>
-      <p className="remote-plan-note">{uiText("付款由 Creem 處理，可隨時取消；首次付款 7 天內可全額退款。")}</p>
-      {subscribedBefore && (
-        <button type="button" className="remote-secondary"
-          onClick={() => void openBillingPortal().catch((reason) => setError(describe(reason)))}>{uiText("管理訂閱")}</button>
-      )}
-    </section>
+    <Subscribe computer={computer} busy={busy} error={error} onSubscribe={() => subscribe("monthly")}
+      onManage={subscribedBefore ? manage : undefined} />
   );
 }
 
@@ -311,11 +283,10 @@ function RemoteWorkspace({ device, devices, me, onChoose, onSignOut, onSignedOut
   if (check.state !== "ready")
     return (
       <Screen account={account}>
-        <p className="remote-notice warn" role="alert">
-          {check.state === "outdated" ? uiText("電腦上的 txinTrade 版本不支援這個操作，請更新 App。") : check.error}
-        </p>
-        <button type="button" className="remote-secondary"
-          onClick={() => setCheck({ device: "", state: "checking", attempt: attempt + 1 })}>{uiText("重試")}</button>
+        <Problem title={check.state === "outdated" ? uiText("請更新電腦上的 txinTrade") : uiText("無法連上你的電腦")}
+          message={check.state === "outdated" ? uiText("電腦上的 txinTrade 版本不支援這個操作，請更新 App。") : check.error ?? ""}
+          action={uiText("重試")} update={check.state === "outdated"}
+          onAction={() => setCheck({ device: "", state: "checking", attempt: attempt + 1 })} />
       </Screen>
     );
   return (
@@ -333,41 +304,10 @@ function RemoteWorkspace({ device, devices, me, onChoose, onSignOut, onSignedOut
   );
 }
 
-/**
- * An account that has never connected a computer: remote screens run on the desktop app, so
- * say exactly where to sign in with this same account and turn remote access on.
- */
-function NoComputer({ email, onRefresh }: { email: string | null; onRefresh: () => void }) {
-  const download = uiLocale() === "en-US" ? "https://txintrade.com/download" : "https://txintrade.com/zh-TW/download";
-  return (
-    <section className="remote-welcome remote-setup">
-      <h2>{uiText("先在電腦上打開遠端存取")}</h2>
-      <p>{email
-        ? uiText("你登入的是 {{p0}}，這個帳號還沒有連線過任何電腦。遠端網頁使用的是你電腦上的 txinTrade，請先在電腦上完成以下設定：", { p0: email })
-        : uiText("這個帳號還沒有連線過任何電腦。遠端網頁使用的是你電腦上的 txinTrade，請先在電腦上完成以下設定：")}</p>
-      <ol className="remote-steps">
-        <li>
-          <strong>{uiText("在電腦上開啟 txinTrade")}</strong>
-          <span>{uiText("還沒安裝？")}{" "}<a href={download}>{uiText("下載 txinTrade")}</a></span>
-        </li>
-        <li>
-          <strong>{uiText("用同一個 Google 帳號登入")}</strong>
-          <span>{email
-            ? uiText("點左下角的帳戶，選「登入雲端帳戶以遠端使用」，用 {{p0}} 登入。", { p0: email })
-            : uiText("點左下角的帳戶，選「登入雲端帳戶以遠端使用」，用同一個帳號登入。")}</span>
-        </li>
-        <li>
-          <strong>{uiText("打開「遠端存取」")}</strong>
-          <span>{uiText("在同一個帳戶選單打開「遠端存取」，並讓 txinTrade 保持開啟。這個頁面會自動連上你的電腦。")}</span>
-        </li>
-      </ol>
-      <button type="button" className="remote-secondary" onClick={onRefresh}>{uiText("重新整理")}</button>
-    </section>
-  );
-}
-
 /** Remote page for the txinTrade cloud: the desktop app's screens, run on your own computer. */
 export default function RemoteApp() {
+  // Re-render every screen when the language changes on this page.
+  useUiLocale();
   const [me, setMe] = useState<Me | null | undefined>(undefined);
   const [subscribed, setSubscribed] = useState(false);
   const [devices, setDevices] = useState<Device[] | null>(null);
@@ -431,32 +371,20 @@ export default function RemoteApp() {
       <RemoteWorkspace device={device} devices={devices} me={me} onChoose={choose} onSignedOut={signedOut}
         onSignOut={() => void signOut().finally(signedOut)} />
     );
+  const account = me ? <HeaderAccount me={me} device={device} devices={devices} onChoose={choose}
+    onSignOut={() => void signOut().finally(signedOut)} /> : undefined;
   return (
-    <Screen account={me ? <HeaderAccount me={me} device={device} devices={devices} onChoose={choose}
-      onSignOut={() => void signOut().finally(signedOut)} /> : undefined}>
-      {error && <p className="remote-notice warn" role="alert">{error}</p>}
-      {me === undefined ? <Loading label={uiText("正在連線到 txinTrade 雲端…")} /> : me === null ? (
-        <section className="remote-welcome">
-          <h1>{uiText("從任何裝置使用你的 txinTrade")}</h1>
-          <p>{uiText("查看電腦上的分析與持倉，或遠端發起新的分析。分析仍在你的電腦上執行，金鑰與完整資料不會離開電腦。")}</p>
-          <a className="cloud-google-button" href={signInUrl()}><GoogleMark /><span>{uiText("使用 Google 登入")}</span></a>
-        </section>
-      ) : !subscribed ? (
-        confirming ? <Loading label={uiText("正在確認付款…")} /> : <Plans subscribedBefore={Boolean(me.billing)} />
-      ) : !devices ? <Loading label={uiText("正在讀取你的電腦…")} /> : !device ? (
-        <NoComputer email={me.profile?.email ?? null} onRefresh={() => void refreshDevices()} />
-      ) : (
-        <section className="remote-welcome">
-          <h2>{uiText("電腦目前離線")}</h2>
-          <p>{uiText("電腦需要開著 txinTrade 並打開「遠端存取」；電腦睡眠時也無法連線。")}</p>
-          {devices.length > 1 && (
-            <select value={device.id} onChange={(event) => choose(event.target.value)} aria-label={uiText("選擇電腦")}>
-              {devices.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
-            </select>
-          )}
-          <button type="button" className="remote-secondary" onClick={() => void refreshDevices()}>{uiText("重新整理")}</button>
-        </section>
-      )}
+    <Screen account={account} tone={me === null ? "hero" : undefined}>
+      {error && <Notice>{error}</Notice>}
+      {me === undefined ? <Loading label={uiText("正在連線到 txinTrade 雲端…")} />
+      : me === null ? <Welcome signInHref={signInUrl()} />
+      : confirming && !subscribed ? <Confirming />
+      : !devices ? <Loading label={uiText("正在讀取你的電腦…")} />
+      : !device ? <Setup email={me.profile?.email ?? null} onRefresh={() => void refreshDevices()} />
+      : device.online && !subscribed ? (
+        // Only once the app is installed and linked is it worth paying for remote access.
+        <Plans computer={device.label} subscribedBefore={Boolean(me.billing)} />
+      ) : <Offline device={device} devices={devices} onChoose={choose} onRefresh={() => void refreshDevices()} />}
     </Screen>
   );
 }
