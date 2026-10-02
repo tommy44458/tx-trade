@@ -44,6 +44,7 @@ import AnalysisProgress, {
   type AnalysisKind,
 } from "./AnalysisProgress";
 import ExchangeSyncPanel from "./ExchangeSyncPanel";
+import { levelLadder } from "./levelLadder";
 import { importedPositionFacts, isManualPosition, liquidationSourceLabel, positionSourceLabel, type PositionSource } from "./positionSources";
 import Icon, { type IconName } from "./Icon";
 import AccountMenu from "./AccountMenu";
@@ -275,19 +276,6 @@ const when = (v?: string | null) =>
         minute: "2-digit",
       })
     : "—";
-type LadderRow = { kind: "level"; level: Level } | { kind: "now"; price: string };
-/** Zones from the highest price down, with the current price marked where it falls between them. */
-const levelLadder = (levels: Level[], price?: string | null): LadderRow[] => {
-  const sorted = [...levels].sort((a, b) => Number(b.high) - Number(a.high));
-  const rows: LadderRow[] = sorted.map((level) => ({ kind: "level", level }));
-  const current = Number(price);
-  if (!price || !Number.isFinite(current)) return rows;
-  // A zone the price is inside of keeps its highlight instead of a separate marker.
-  if (sorted.some((level) => Number(level.low) <= current && current <= Number(level.high))) return rows;
-  const below = sorted.findIndex((level) => Number(level.high) < current);
-  rows.splice(below === -1 ? rows.length : below, 0, { kind: "now", price });
-  return rows;
-};
 const localDateTimeInput = (value?: string | null) => {
   if (!value) return "";
   const date = new Date(value);

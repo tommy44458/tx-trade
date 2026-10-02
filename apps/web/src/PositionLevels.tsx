@@ -1,5 +1,6 @@
 import { uiText, uiLocale } from "./i18n/index.ts";
 import "./PositionLevels.css";
+import { levelLadder } from "./levelLadder";
 import { levelLocationLabel, type LevelLocation } from "./levelLocation";
 import type { IndicatorSpec } from "./chartIndicators";
 import CandlestickChart from "./CandlestickChart";
@@ -108,7 +109,11 @@ export default function PositionLevels({
         />
       </div>
       {levels.length ? (
-        levels.map((level, index) => {
+        // Highest price first, with the analysis-time price marked between the zones it sits between.
+        levelLadder(levels, quotePrice).map((row, index) => {
+          if (row.kind === "now")
+            return <div className="level-now" key="now"><span>{uiText("現價")}</span><b>${price(row.price)}</b></div>;
+          const level = row.level;
           const relation =
             levelLocationLabel(level) ||
             (reference < Number(level.low)
@@ -118,29 +123,27 @@ export default function PositionLevels({
                 : uiText("現價位於區間內"));
           return (
             <div
-              className={`position-level${reference >= Number(level.low) && reference <= Number(level.high) ? " position-level-inside" : ""}`}
+              className={`level ladder${reference >= Number(level.low) && reference <= Number(level.high) ? " level-inside" : ""}`}
               key={
                 level.id ?? `${level.kind}-${level.low}-${level.high}-${index}`
               }
             >
               <i className={level.kind} aria-hidden="true" />
-              <div>
-                <strong>
-                  {level.kind === "support" ? uiText("支撐區") : uiText("壓力區")}
-                </strong>
-                <small>
-                  {relation}
-                  {level.pivot_count != null
-                    ? " " + uiText("· {{p0}} 次確認轉折", { p0: level.pivot_count })
-                    : ""}
-                  {level.independent_touch_count != null
-                    ? " " + uiText("· {{p0}} 次獨立觸及", { p0: level.independent_touch_count })
-                    : ""}
-                </small>
-              </div>
+              <strong>
+                {level.kind === "support" ? uiText("支撐區") : uiText("壓力區")}
+              </strong>
               <b>
                 ${price(level.low)} – ${price(level.high)}
               </b>
+              <small>
+                {relation}
+                {level.pivot_count != null
+                  ? " " + uiText("· {{p0}} 次確認轉折", { p0: level.pivot_count })
+                  : ""}
+                {level.independent_touch_count != null
+                  ? " " + uiText("· {{p0}} 次獨立觸及", { p0: level.independent_touch_count })
+                  : ""}
+              </small>
             </div>
           );
         })

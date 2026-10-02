@@ -4,6 +4,12 @@ The product version is managed in `version.json`. Dates record release preparati
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-10-02
+
+### Changed
+
+- Support and resistance in position analyses are also listed from the highest price down with the analysis-time price marked, matching market analysis.
+
 ### Fixed
 
 - When the computer was offline, none was connected yet, or there was no subscription, the remote web page showed neither the signed-in account nor a way to sign out. These screens now show the account at the top right, with a menu to switch computers and sign out.

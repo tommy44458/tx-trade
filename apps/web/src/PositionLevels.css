@@ -36,50 +36,22 @@
   line-height: 1.8;
   margin: 12px 0 0;
 }
-.position-level {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  border-top: 1px solid var(--border);
-  padding: 16px 0;
-}
 /* The chart is a div too, so :first-of-type never matched the first zone. */
-.position-levels-chart + .position-level {
+.position-levels-chart + .level,
+.position-levels-chart + .level-now {
   margin-top: 12px;
   border-top: 0;
 }
-.position-level i {
-  width: 3px;
-  height: 36px;
-  border-radius: 3px;
-  flex: none;
+/* The zone the analysis-time price sat in, as on the market page. */
+.position-levels .level-inside {
+  margin: 0 -12px;
+  padding-left: 12px;
+  padding-right: 12px;
+  border-radius: 8px;
+  background: var(--accent-soft);
 }
-.position-level i.support {
-  background: var(--positive);
-}
-.position-level i.resistance {
-  background: var(--negative);
-}
-.position-level > div {
-  display: grid;
-  gap: 5px;
-  min-width: 0;
-}
-.position-level strong {
-  font-size: 13px;
-  font-weight: 600;
-}
-.position-level small {
-  font-size: 12px;
-  line-height: 1.6;
-  color: var(--text-secondary);
-}
-.position-level > b {
-  margin-left: auto;
-  font-size: 13px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
+.position-levels .level-inside strong {
+  color: var(--accent);
 }
 .position-levels .position-levels-foot {
   margin: 4px 0 0;
@@ -119,17 +91,6 @@
   white-space: nowrap;
 }
 .position-levels-chart .candlestick-chart { margin-top: 0; }
-.position-level-inside > div > strong { color: var(--accent); }
-.position-level-inside > b { color: var(--accent); }
-@media (max-width: 1240px) {
-  .position-level {
-    flex-wrap: wrap;
-  }
-  .position-level > b {
-    width: 100%;
-    margin-left: 15px;
-  }
-}
 @media (max-width: 600px) {
   .position-levels-chart { padding: 0 8px 8px; }
   .position-levels-chart-status {
