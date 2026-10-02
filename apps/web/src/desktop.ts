@@ -1,5 +1,16 @@
 import { uiText } from "./i18n/index.ts";
+/** The update state the desktop shell shares with the window; null when updates are off. */
+export type DesktopUpdateState = {
+  status: "idle" | "checking" | "available" | "downloading" | "downloaded" | "waiting-for-idle" | "installing" | "error";
+  version: string | null;
+  percent: number;
+  canInstall: boolean;
+} | null;
+
 export type DesktopBridge = {
+  updateState?: () => Promise<DesktopUpdateState>;
+  showUpdate?: () => Promise<void>;
+  onUpdateState?: (listener: (state: DesktopUpdateState) => void) => () => void;
   openExternal: (url: string) => Promise<void>;
   focusWindow?: () => Promise<void>;
   updateLocale?: (locale: import("./i18n/index.ts").UiLocale) => Promise<void>;

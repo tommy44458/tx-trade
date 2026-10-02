@@ -239,7 +239,8 @@ export function createDesktopUpdater({ app, autoUpdater, prepareUpdate, cancelUp
   async function start() {
     if (disposed || !enabled || started) return state;
     started = true;
-    const delay = startupDelayMs ?? (30000 + Math.floor(random() * 60001));
+    // Soon after launch, so an available update is offered each time the app opens.
+    const delay = startupDelayMs ?? (5000 + Math.floor(random() * 10001));
     scheduleCheck(delay);
     return state;
   }

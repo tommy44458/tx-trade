@@ -10,4 +10,11 @@ contextBridge.exposeInMainWorld("tradeHelper", Object.freeze({
   retryStartup: () => ipcRenderer.invoke("desktop:retry-startup"),
   updateLocale: locale => ipcRenderer.invoke("desktop:update-locale", locale),
   updateTheme: theme => ipcRenderer.invoke("desktop:update-theme", theme),
+  updateState: () => ipcRenderer.invoke("desktop:update-state"),
+  showUpdate: () => ipcRenderer.invoke("desktop:show-update"),
+  onUpdateState: listener => {
+    const forward = (_event, state) => listener(state);
+    ipcRenderer.on("desktop:update-state", forward);
+    return () => ipcRenderer.removeListener("desktop:update-state", forward);
+  },
 }));

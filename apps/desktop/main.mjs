@@ -249,7 +249,18 @@ async function cancelUpdateWait() {
   catch { await showUpdateDialog(); }
 }
 
+/** What the window shows of the update state: enough for its notice, nothing more. */
+function publicUpdateState(state) {
+  if (!state?.enabled) return null;
+  return { status: state.status, version: state.version ?? null, percent: Math.floor(state.percent ?? 0),
+    canInstall: Boolean(state.canInstall) };
+}
+
 function updateStateChanged(state) {
+  // The notice is a convenience: a page that is still loading must never hold up the update itself.
+  try {
+    if (window && !window.isDestroyed()) window.webContents.send("desktop:update-state", publicUpdateState(state));
+  } catch { /* The native dialog below still offers the update. */ }
   // Keep download progress visible without rebuilding the entire menu for each byte event.
   const key = `${state.status}:${state.canInstall}:${Math.floor(state.percent / 5)}`;
   if (key !== updateMenuKey) { updateMenuKey = key; updateNativeMenu(); }
@@ -431,6 +442,14 @@ app.whenReady().then(async () => {
     trustedSender(event);
     if (!startupFailed) throw new Error("Startup is already running");
     void startBackend();
+  });
+  ipcMain.handle("desktop:update-state", event => {
+    trustedSender(event);
+    return publicUpdateState(updater?.state);
+  });
+  ipcMain.handle("desktop:show-update", event => {
+    trustedSender(event);
+    runUpdateAction(showUpdateDialog);
   });
   ipcMain.handle("desktop:update-locale", (event, locale) => {
     trustedSender(event);

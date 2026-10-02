@@ -48,6 +48,7 @@ import { levelLadder } from "./levelLadder";
 import { importedPositionFacts, isManualPosition, liquidationSourceLabel, positionSourceLabel, type PositionSource } from "./positionSources";
 import Icon, { type IconName } from "./Icon";
 import AccountMenu from "./AccountMenu";
+import UpdateNotice from "./UpdateNotice";
 import LocalCloudMenu from "./LocalCloudMenu";
 import DerivativesContext, { type DerivativesData } from "./DerivativesContext";
 import MarketReference, { type MarketReferenceData } from "./MarketReference";
@@ -1029,6 +1030,7 @@ function App({ remoteSection, remoteIdentity, remoteMenu, remoteStatus }: {
         <nav aria-label={uiText("主要導覽")}>
           {pages.filter((page) => page.id !== "settings").map(navButton)}
         </nav>
+        <UpdateNotice />
         <AccountMenu account={account} settingsActive={view === "settings"} onOpenSettings={() => openPage("settings")}>
           {remoteMenu ?? <LocalCloudMenu onOpenSettings={() => openPage("settings")}
             onChanged={() => { api<SessionInfo>("/session").then(setSession).catch(() => {}); }} />}

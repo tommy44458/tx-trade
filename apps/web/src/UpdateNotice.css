@@ -1,0 +1,51 @@
+/* A quiet, persistent line above the account while an update waits. */
+.update-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 36px;
+  margin-top: auto;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+.update-notice:hover {
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+}
+.update-notice-dot {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.update-notice-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* The account no longer pushes itself to the bottom: the notice above it already does. */
+.update-notice + .sidebar-foot {
+  margin-top: 8px;
+}
+@media (max-width: 860px) {
+  /* In the narrow navigation bar, a compact pill beside the account. */
+  .sidebar .update-notice {
+    width: auto;
+    min-height: 30px;
+    margin: 0 8px 0 auto;
+    padding: 4px 10px;
+    border-radius: 999px;
+  }
+  .sidebar .update-notice + .sidebar-foot.account-menu {
+    margin: 0;
+  }
+}

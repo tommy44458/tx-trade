@@ -67,6 +67,7 @@ async function harness(options = {}) {
       this.urls = [];
       this.webContents = Object.assign(new EventEmitter(), { id: 1, mainFrame: {},
         executeJavaScript: async code => { calls.startupScripts ??= []; calls.startupScripts.push(code); },
+        send: (channel, state) => { calls.sent ??= []; calls.sent.push([channel, state]); },
         setWindowOpenHandler: () => {}, session: {
           setPermissionRequestHandler: () => {}, setPermissionCheckHandler: () => {},
           webRequest: { onBeforeSendHeaders: () => {}, onHeadersReceived: () => {} },
@@ -234,9 +235,15 @@ test("notices offer an explicit download and restart, and a rejected native inst
   assert.equal(h.calls.dialogs.at(-1).buttons[0], "Download Update");
   assert.equal(h.calls.updater.state.status, "available");
   assert.equal(h.calls.nativeRequested, undefined);
+  // The window's persistent notice hears every state, with only what it shows.
+  const [channel, notice] = h.calls.sent.at(-1);
+  assert.equal(channel, "desktop:update-state");
+  assert.deepEqual(Object.keys(notice).sort(), ["canInstall", "percent", "status", "version"]);
+  assert.equal(notice.status, "available");
   await h.calls.updater.download();
   await flush();
   assert.equal(h.calls.dialogs.at(-1).buttons[0], "Restart and Update");
+  assert.equal(h.calls.sent.at(-1)[1].canInstall, true);
   assert.equal(h.calls.fetches.length, 0);
   assert.equal(h.calls.nativeRequested, undefined);
   h.menuItem("Install Update").click();

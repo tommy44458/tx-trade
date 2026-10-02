@@ -138,7 +138,7 @@ test("startup is delayed, checks coalesce and periodic failures back off", async
   await f.updater.start();
   assert.equal(f.calls.length, 0);
   assert.equal(f.timers.pending.length, 1);
-  assert.ok(f.timers.pending[0].delay >= 30000 && f.timers.pending[0].delay <= 90000);
+  assert.ok(f.timers.pending[0].delay >= 5000 && f.timers.pending[0].delay <= 15000);
   f.timers.runNext();
   await flush();
   const first = f.updater.check();
