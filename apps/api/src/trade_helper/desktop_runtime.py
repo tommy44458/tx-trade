@@ -61,10 +61,17 @@ def stop_services(children: list[subprocess.Popen]) -> None:
             child.wait()
 
 
-def monitor_services(children, server, stopped: threading.Event, failed: threading.Event) -> None:
+def monitor_services(children, server, stopped: threading.Event, failed: threading.Event,
+                     parent: int | None = None) -> None:
     # Never leave the UI accepting jobs when its worker has died. The desktop
     # shell owns the restart action and will terminate this private process group.
     while not stopped.wait(0.5):
+        # The app was force-quit (for example Ctrl+C in a terminal) without stopping
+        # this group: exit too, so no orphan keeps the data locks or the cloud link.
+        if parent is not None and os.getppid() != parent:
+            stopped.set()
+            server.should_exit = True
+            return
         if any(child.poll() is not None for child in children):
             failed.set()
             server.should_exit = True
@@ -115,7 +122,7 @@ def main(argv: list[str] | None = None) -> None:
     try:
         if not args.no_workers:
             children.extend(subprocess.Popen(service_command(service)) for service in SERVICES)
-            threading.Thread(target=monitor_services, args=(children, server, stopped, failed),
+            threading.Thread(target=monitor_services, args=(children, server, stopped, failed, os.getppid()),
                              daemon=True).start()
         server.run()
     finally:

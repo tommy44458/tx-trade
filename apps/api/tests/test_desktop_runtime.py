@@ -36,6 +36,16 @@ def test_dead_analysis_worker_fails_supervisor_instead_of_leaving_jobs_queued():
     assert server.should_exit
 
 
+def test_backend_exits_when_the_app_that_started_it_is_gone(monkeypatch):
+    # Force-quitting the app reparents this process; it must not linger holding locks.
+    server, stopped, failed = SimpleNamespace(should_exit=False), threading.Event(), threading.Event()
+    monkeypatch.setattr(desktop_runtime.os, "getppid", lambda: 1)
+    monitor_services([SimpleNamespace(poll=lambda: None)], server, stopped, failed, parent=4242)
+    assert server.should_exit is True
+    assert stopped.is_set()
+    assert not failed.is_set()
+
+
 def test_normal_shutdown_does_not_become_a_worker_failure():
     stopped = threading.Event()
     stopped.set()

@@ -106,7 +106,9 @@ def main() -> None:
     init_db()
     init_market_store()
     with (data_dir() / "v4_worker.lock").open("w") as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        # A previous app instance may still be shutting down; wait for its lock
+        # instead of failing, which would stop the whole local backend.
+        fcntl.flock(lock, fcntl.LOCK_EX)
         while True:
             worked = run_once()
             if "--once" in sys.argv:
