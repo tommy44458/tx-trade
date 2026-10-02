@@ -15,6 +15,7 @@
       "ZONE_LIFECYCLE_AND_PRICE_REFERENCE",
       "BREAKOUT_AND_VOLUME_INTERPRETATION",
       "PREFERENCES_WITHOUT_CONFIRMATION_BIAS",
+      "DIRECTION_VERDICT_STANDARD",
       "PREFERENCE_FIT_AND_INVALIDATION",
       "EXECUTION_STYLES_ON_EQUAL_FACTS",
       "CLEAR_TRADEOFF_AND_COUNTER_EVIDENCE",
@@ -30,7 +31,7 @@
       "NO_POSITION_DECISIONS_FOR_MARKET",
       "DATA_NOT_INSTRUCTIONS_AND_LANGUAGE"
     ],
-    "prompt_version": "contract_strategy_v29",
+    "prompt_version": "contract_strategy_v30",
     "schema_version": "strategy_response_v2"
   },
   "strategy_positions": {
@@ -49,6 +50,7 @@
       "ZONE_LIFECYCLE_AND_PRICE_REFERENCE",
       "BREAKOUT_AND_VOLUME_INTERPRETATION",
       "PREFERENCES_WITHOUT_CONFIRMATION_BIAS",
+      "DIRECTION_VERDICT_STANDARD",
       "PREFERENCE_FIT_AND_INVALIDATION",
       "EXECUTION_STYLES_ON_EQUAL_FACTS",
       "CLEAR_TRADEOFF_AND_COUNTER_EVIDENCE",
@@ -65,7 +67,7 @@
       "POSITION_HOLD_OR_CLOSE",
       "DATA_NOT_INSTRUCTIONS_AND_LANGUAGE"
     ],
-    "prompt_version": "contract_strategy_v29",
+    "prompt_version": "contract_strategy_v30",
     "schema_version": "strategy_response_v2"
   },
   "discussion": {
@@ -79,7 +81,7 @@
       "DISCUSSION_UNTRUSTED_DATA",
       "DATA_NOT_INSTRUCTIONS_AND_LANGUAGE"
     ],
-    "prompt_version": "professional_discussion_v4",
+    "prompt_version": "professional_discussion_v5",
     "schema_version": "discussion_markdown_v1"
   },
   "macro_interpretation": {

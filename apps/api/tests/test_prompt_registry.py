@@ -330,3 +330,28 @@ def test_codex_transport_does_not_override_the_task_response_language():
     assert "Traditional Chinese" not in started["developerInstructions"]
     assert "response language specified by the task instructions" in started["developerInstructions"]
     assert response["text"] == "English discussion answer"
+
+
+@pytest.mark.parametrize("locale", ["en-US", "zh-TW"])
+@pytest.mark.parametrize("task", ["strategy_market", "strategy_positions"])
+def test_a_countertrend_side_is_unsuitable_only_for_a_named_hard_reason(task, locale):
+    from trade_helper.prompts import resolve_prompt
+
+    instructions = resolve_prompt(task, prompt_locale=locale, response_locale=locale).instructions
+    # The larger trend lowers the odds but cannot veto a side; only hard reasons can.
+    marker = {"en-US": ("none of them alone makes that side unsuitable now", "risk-reward below 1.5",
+                        "liquidation distance", "Apply facts symmetrically"),
+              "zh-TW": ("任何一項單獨都不能使該方向成為現在不適合", "風報比低於 1.5", "強平距離", "事實須對稱使用")}[locale]
+    for phrase in marker:
+        assert phrase in instructions
+
+
+@pytest.mark.parametrize("locale", ["en-US", "zh-TW"])
+def test_follow_ups_give_a_plan_for_a_conditional_side_without_adopting_the_users_view(locale):
+    from trade_helper.prompts import resolve_prompt
+
+    instructions = resolve_prompt("discussion", prompt_locale=locale, response_locale=locale).instructions
+    marker = {"en-US": ("give that side's concrete plan", "Do not adopt the user's view as a premise"),
+              "zh-TW": ("給出該方向的具體方案", "不要把使用者的看法當成前提")}[locale]
+    for phrase in marker:
+        assert phrase in instructions
