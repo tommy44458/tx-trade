@@ -61,6 +61,8 @@ def no_public_derivatives_network_in_unit_tests(monkeypatch):
     from trade_helper.timeframes import higher_timeframes
 
     monkeypatch.setenv('TRADE_DERIVATIVES_CONTEXT_ENABLED', '0')
+    # BTC/ETH reference candles are public network reads too; dedicated tests enable them.
+    monkeypatch.setenv('TRADE_MARKET_REFERENCE_ENABLED', '0')
 
     def unavailable_higher(_market, timeframe='1h', *, context_candles=None):
         frames = higher_timeframes(timeframe)

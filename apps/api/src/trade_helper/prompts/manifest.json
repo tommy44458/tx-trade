@@ -1,14 +1,14 @@
 {
   "schema_version": "prompt_registry_manifest_v1",
-  "policy_version": "bilingual_trading_policy_v5",
+  "policy_version": "bilingual_trading_policy_v6",
   "locales": {
     "en-US": {
-      "translation_version": "en_prompts_v5",
-      "reviewed_policy_version": "bilingual_trading_policy_v5"
+      "translation_version": "en_prompts_v6",
+      "reviewed_policy_version": "bilingual_trading_policy_v6"
     },
     "zh-TW": {
-      "translation_version": "zh_prompts_v5",
-      "reviewed_policy_version": "bilingual_trading_policy_v5"
+      "translation_version": "zh_prompts_v6",
+      "reviewed_policy_version": "bilingual_trading_policy_v6"
     }
   },
   "policies": {
@@ -83,6 +83,10 @@
     "DERIVATIVES_CONTEXT_LIMITS": {
       "zh-TW": "2bbf3cca8355ace23add730942878982d60e1454cd615d5e0bb9a5e093022663",
       "en-US": "41ed2584d8b0a54f2d4d2eaf0bc362c561b880fcc9ada4cbb7c4c94e03ef1a78"
+    },
+    "MARKET_REFERENCE_CONTEXT": {
+      "zh-TW": "f60983c64deb65b431e4dbb2dbc852b4a905e96771ec3604a3ebb9338c83b448",
+      "en-US": "5310baed7ae29cffcb44cf8364721dfd77ef31639c1fda7acd7ae6203fc5df1e"
     },
     "CURRENT_PRICE_AND_CANDLE_STATE": {
       "zh-TW": "33ee6ae0849b052b1dffe7636e8af1addad59734e7c85e12b618f3af12ecbd6b",
@@ -177,16 +181,16 @@
       "en-US": "4959ad8a23324dc8224770b35cbda9e617c3bc8191e45c3066c9d4caecf1e7b2"
     }
   },
-  "task_sections_sha256": "0a25301dfcd533be9193a4f8f4cf38bd9467b6fac3683498cdb47e253a6ff707",
+  "task_sections_sha256": "7a909c11162fcbedb312e6b6a99501363074080269a2d25a17bf60e81e460c57",
   "news_questions_sha256": "532feb24aebc172bebc227cb3ec3ecc16a6a3eb93531d4004e2f1394541c4f79",
   "terminology_sha256": "44d06fcd5aa6a98e27e55a52083aa225a10997d4d2ca3c69c03a7960932ecb01",
   "task_versions": {
     "strategy_market": {
-      "prompt_version": "contract_strategy_v27",
+      "prompt_version": "contract_strategy_v28",
       "schema_version": "strategy_response_v1"
     },
     "strategy_positions": {
-      "prompt_version": "contract_strategy_v27",
+      "prompt_version": "contract_strategy_v28",
       "schema_version": "strategy_response_v1"
     },
     "discussion": {

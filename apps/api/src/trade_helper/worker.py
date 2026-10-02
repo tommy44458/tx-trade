@@ -31,6 +31,7 @@ from .market import (
     fetch_quote,
     fetch_tick_size,
 )
+from .market_reference import fetch_market_reference
 from .model_providers import analysis_timeout_seconds
 from .news import news_snapshot
 from .news_evidence import build_news_evidence_pack
@@ -163,6 +164,9 @@ def run_once() -> bool:
         stage = "derivatives"
         quote["derivatives_context"] = fetch_derivatives_context(
             request["market_id"], cutoff, request["timeframe"])
+        stage = "market_reference"
+        quote["market_reference"] = fetch_market_reference(
+            request["market_id"], request["timeframe"], candles, context_candles, cutoff)
         stage = "news"
         news = news_snapshot(cutoff, request["market_id"])
         news["evidence_pack"] = build_news_evidence_pack(cutoff, request["market_id"])

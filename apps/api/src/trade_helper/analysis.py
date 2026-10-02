@@ -273,6 +273,7 @@ def build_report(request: dict, candles: list[dict], quote: dict, positions: lis
         "technical_snapshot": technical_snapshot,
         "analysis_execution": decision.get("analysis_execution"),
         "derivatives_context": quote.get("derivatives_context"),
+        "market_reference": quote.get("market_reference"),
         "agent_stance": decision.get("agent_stance"),
         "entry_decision": entry_plan,
         "entry_risk_reference": entry_risk_reference,

@@ -46,6 +46,7 @@ import ExchangeSyncPanel from "./ExchangeSyncPanel";
 import { importedPositionFacts, isManualPosition, liquidationSourceLabel, positionSourceLabel, type PositionSource } from "./positionSources";
 import Icon, { type IconName } from "./Icon";
 import DerivativesContext, { type DerivativesData } from "./DerivativesContext";
+import MarketReference, { type MarketReferenceData } from "./MarketReference";
 import SettingsPanel from "./SettingsPanel";
 import {
   readModelConnection,
@@ -140,6 +141,7 @@ type Report = {
   output_locale?: UiLocale;
   response_locale?: UiLocale;
   derivatives_context?: DerivativesData | null;
+  market_reference?: MarketReferenceData | null;
   market_id: string;
   timeframe: string;
   generated_at: string;
@@ -1264,6 +1266,12 @@ function App() {
                     <NewsPanel context={report.news_context} />
                   </details>
                 )}{" "}
+                {report?.market_reference && (
+                  <details className="secondary-evidence">
+                    <summary>{uiText("BTC／ETH 大盤參考")}</summary>
+                    <MarketReference data={report.market_reference} />
+                  </details>
+                )}{" "}
                 {report && (
                   <details className="secondary-evidence">
                     <summary>{uiText("衍生品市場背景")}</summary>
@@ -1652,6 +1660,12 @@ function App() {
                       <summary>{uiText("查看本次分析的新聞來源覆蓋")}</summary>
                       <NewsPanel context={report.news_context} />
                     </details>
+                    {report.market_reference && (
+                      <details className="secondary-evidence">
+                        <summary>{uiText("BTC／ETH 大盤參考")}</summary>
+                        <MarketReference data={report.market_reference} />
+                      </details>
+                    )}
                     <details className="secondary-evidence">
                       <summary>{uiText("衍生品市場背景")}</summary>
                       <DerivativesContext data={report.derivatives_context} />

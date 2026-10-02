@@ -6,6 +6,7 @@ The product version is managed in `version.json`. Dates record release preparati
 
 ### Added
 
+- Market and position analyses now include a BTC/ETH market reference: the trend, swing structure, and recent change of both on the primary and next higher timeframe from closed candles, plus the analyzed pair's correlation and beta to each. The AI weighs market direction as risk context by the measured linkage and never lets it replace the pair's own levels or invalidation. It is computed locally and adds no model requests.
 - Switching pairs in market analysis now shows that pair's latest completed analysis; a just-finished report or one opened from history takes precedence.
 
 ## [0.2.0] - 2026-10-02

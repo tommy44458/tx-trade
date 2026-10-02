@@ -295,6 +295,7 @@ def agent_context(request: dict, candles: list[dict], quote: dict,
         ] if positions else [],
         "quote_time": quote["observed_at"],
         "derivatives_context": compact_derivatives(quote.get("derivatives_context")),
+        "market_reference": quote.get("market_reference"),
         "last_closed_candle": candles[-1]["close_time"],
         "current_candle": (current_candle_context(candles, quote, request["timeframe"])
                            if candles and "close" in candles[-1] and "price" in quote else None),

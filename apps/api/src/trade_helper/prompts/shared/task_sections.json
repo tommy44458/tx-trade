@@ -19,6 +19,7 @@
       "EXECUTION_STYLES_ON_EQUAL_FACTS",
       "CLEAR_TRADEOFF_AND_COUNTER_EVIDENCE",
       "DERIVATIVES_CONTEXT_LIMITS",
+      "MARKET_REFERENCE_CONTEXT",
       "CURRENT_PRICE_AND_CANDLE_STATE",
       "ENTRY_DECISION_ACTIONS",
       "ENTRY_PLAN_PRICE_CONTRACT",
@@ -29,7 +30,7 @@
       "NO_POSITION_DECISIONS_FOR_MARKET",
       "DATA_NOT_INSTRUCTIONS_AND_LANGUAGE"
     ],
-    "prompt_version": "contract_strategy_v27",
+    "prompt_version": "contract_strategy_v28",
     "schema_version": "strategy_response_v1"
   },
   "strategy_positions": {
@@ -52,6 +53,7 @@
       "EXECUTION_STYLES_ON_EQUAL_FACTS",
       "CLEAR_TRADEOFF_AND_COUNTER_EVIDENCE",
       "DERIVATIVES_CONTEXT_LIMITS",
+      "MARKET_REFERENCE_CONTEXT",
       "CURRENT_PRICE_AND_CANDLE_STATE",
       "ENTRY_DECISION_ACTIONS",
       "ENTRY_PLAN_PRICE_CONTRACT",
@@ -63,7 +65,7 @@
       "POSITION_HOLD_OR_CLOSE",
       "DATA_NOT_INSTRUCTIONS_AND_LANGUAGE"
     ],
-    "prompt_version": "contract_strategy_v27",
+    "prompt_version": "contract_strategy_v28",
     "schema_version": "strategy_response_v1"
   },
   "discussion": {

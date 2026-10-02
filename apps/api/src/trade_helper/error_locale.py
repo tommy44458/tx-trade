@@ -134,6 +134,7 @@ _ANALYSIS_STAGES = {
     "tick_size": ("取得最小價格單位", "fetching price precision"),
     "events": ("讀取經濟事件", "loading economic events"),
     "derivatives": ("取得合約市場資料", "fetching derivatives context"),
+    "market_reference": ("取得 BTC／ETH 大盤參考", "fetching the BTC/ETH market reference"),
     "news": ("讀取新聞依據", "loading news context"),
     "snapshot": ("建立行情快照", "building the market snapshot"),
     "preparation": ("計算分析指標", "preparing analysis indicators"),
