@@ -6,12 +6,16 @@ allowlisted commands (see cloud_commands). No port is opened on this computer,
 and the local API token is never involved. Disabled or signed out, it is idle.
 """
 
+import base64
 import contextlib
+import gzip
 import json
+import os
 import random
 import socket
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 import httpx
 from fastapi import APIRouter
@@ -21,6 +25,7 @@ from websockets.sync.client import connect
 from .auth_metadata import read_metadata, write_metadata
 from .cloud_account import CloudAccountError, cloud_origin, session_record
 from .cloud_commands import CommandFailed, run_command
+from .cloud_routes import allowed
 from .credential_store import (
     CredentialStoreError,
     delete_credentials,
@@ -34,6 +39,11 @@ PING_SECONDS = 30
 MAX_BACKOFF_SECONDS = 60
 WAIT_SECONDS = {"subscription_required": 300, "device_limit": 300, "device_already_connected": 30}
 MAX_FRAME_BYTES = 262_144
+# Remote screens issue several requests at once; answer them in parallel.
+REQUEST_WORKERS = 4
+REQUEST_TIMEOUT_SECONDS = 20
+CHUNK_CHARS = 196_000
+MAX_CHUNKS = 64
 router = APIRouter(prefix="/api/v1/cloud-account/remote", tags=["txinTrade remote access"])
 
 
@@ -66,6 +76,8 @@ class Connector:
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
         self._socket = None
+        self._send_lock = threading.Lock()
+        self._requests = ThreadPoolExecutor(REQUEST_WORKERS, thread_name_prefix="cloud-request")
         self._state = {"state": "disabled", "error": None, "device_id": None, "connected_since": None}
 
     # ---- lifecycle -------------------------------------------------------
@@ -191,7 +203,7 @@ class Connector:
             last_ping = time.monotonic()
             while not self._stop.is_set() and remote_enabled():
                 if time.monotonic() - last_ping >= PING_SECONDS:
-                    ws.send("ping")
+                    self._send(ws, "ping")
                     last_ping = time.monotonic()
                 try:
                     message = ws.recv(timeout=1)
@@ -205,6 +217,8 @@ class Connector:
                     self._set("connected", device_id=device["device_id"], connected_since=int(time.time() * 1000))
                 elif event.get("type") == "job.dispatch":
                     self._handle(ws, event)
+                elif event.get("type") == "request.dispatch" and isinstance(event.get("request"), dict):
+                    self._requests.submit(self._answer, ws, event["request"])
         except (ConnectionClosed, WebSocketException, OSError, ValueError):
             pass  # The relay closes links at least every 15 minutes; reconnect.
         finally:
@@ -212,19 +226,70 @@ class Connector:
                 self._socket = None
         return established
 
-    @staticmethod
-    def _handle(ws, event: dict) -> None:
+    def _send(self, ws, message: str) -> None:
+        # Request workers and the link loop share one socket.
+        with self._send_lock:
+            ws.send(message)
+
+    def _handle(self, ws, event: dict) -> None:
         job = event.get("job") or {}
         job_id = job.get("id")
         if not isinstance(job_id, str):
             return
-        ws.send(json.dumps({"v": 1, "type": "job.accepted", "job_id": job_id}))
+        self._send(ws, json.dumps({"v": 1, "type": "job.accepted", "job_id": job_id}))
         try:
             result = run_command(job.get("command") or {}, str(event.get("local_idempotency_key", "")))
-            ws.send(json.dumps({"v": 1, "type": "job.completed", "job_id": job_id, "result": result},
-                               ensure_ascii=False))
+            self._send(ws, json.dumps({"v": 1, "type": "job.completed", "job_id": job_id, "result": result},
+                                      ensure_ascii=False))
         except CommandFailed as failed:
-            ws.send(json.dumps({"v": 1, "type": "job.failed", "job_id": job_id, "code": failed.code}))
+            self._send(ws, json.dumps({"v": 1, "type": "job.failed", "job_id": job_id, "code": failed.code}))
+
+    def _answer(self, ws, request: dict) -> None:
+        """Run one relayed request against this computer's own API and send the answer back."""
+        request_id = request.get("id")
+        if not isinstance(request_id, str):
+            return
+        try:
+            try:
+                chunks, status = self._local_response(request)
+            except CommandFailed as failed:
+                self._send(ws, json.dumps({"v": 1, "type": "request.failed", "request_id": request_id,
+                                           "code": failed.code}))
+                return
+            for index, data in enumerate(chunks):
+                self._send(ws, json.dumps({"v": 1, "type": "request.chunk", "request_id": request_id,
+                                           "index": index, "data": data}))
+            self._send(ws, json.dumps({"v": 1, "type": "request.completed", "request_id": request_id,
+                                       "status": status, "chunks": len(chunks)}))
+        except (ConnectionClosed, WebSocketException, OSError):
+            pass  # The link ended; the cloud already answered the browser.
+
+    @staticmethod
+    def _local_response(request: dict) -> tuple[list[str], int]:
+        if not allowed(request):
+            raise CommandFailed("unsupported_operation")
+        headers = {}
+        token = os.getenv("APP_DESKTOP_TOKEN")
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+        if request.get("idempotency_key"):
+            headers["Idempotency-Key"] = request["idempotency_key"]
+        port = os.getenv("APP_API_PORT", "8000")
+        query = request.get("query") or ""
+        url = f"http://127.0.0.1:{port}{request['path']}" + (f"?{query}" if query else "")
+        try:
+            # Through the real local server, so middleware, validation and background work match the app.
+            response = httpx.request(request["method"], url, headers=headers, timeout=REQUEST_TIMEOUT_SECONDS,
+                                     **({"json": request["body"]} if "body" in request else {}))
+        except httpx.HTTPError:
+            raise CommandFailed("local_unavailable") from None
+        if not response.content:
+            return [], response.status_code
+        encoded = base64.b64encode(gzip.compress(response.content, compresslevel=6)).decode()
+        chunks = [encoded[start:start + CHUNK_CHARS] for start in range(0, len(encoded), CHUNK_CHARS)]
+        if len(chunks) > MAX_CHUNKS:
+            raise CommandFailed("local_error")
+        return chunks, response.status_code
 
 
 connector = Connector()

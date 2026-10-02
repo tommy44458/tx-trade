@@ -1,4 +1,7 @@
+import base64
+import gzip
 import json
+import secrets
 import threading
 import time
 
@@ -28,8 +31,8 @@ def wait_for(predicate, timeout=10):
 class FakeRelay:
     """A local WebSocket server standing in for the cloud UserRelay."""
 
-    def __init__(self, jobs: list[dict], accept_token=DEVICE_TOKEN):
-        self.jobs, self.accept_token = jobs, accept_token
+    def __init__(self, jobs: list[dict], accept_token=DEVICE_TOKEN, requests: list[dict] | None = None):
+        self.jobs, self.accept_token, self.requests = jobs, accept_token, requests or []
         self.received: list[dict] = []
         self.pings = 0
         self.headers: list[dict] = []
@@ -49,6 +52,8 @@ class FakeRelay:
         for job in self.jobs:
             ws.send(json.dumps({"v": 1, "type": "job.dispatch", "job": job,
                                 "local_idempotency_key": f"cloud:{job['id']}"}))
+        for request in self.requests:
+            ws.send(json.dumps({"v": 1, "type": "request.dispatch", "request": request}))
         for message in ws:
             if message == "ping":
                 self.pings += 1
@@ -187,3 +192,41 @@ def test_switching_reports_the_new_intent_immediately(cloud, monkeypatch):
     assert (switched_off["enabled"], switched_off["state"]) == (False, "disabled")
     assert wait_for(lambda: cloud["connector"].status()["state"] == "disabled")
     assert relay.port
+
+
+def test_relays_allowlisted_requests_to_the_local_api_and_refuses_the_rest(cloud, monkeypatch):
+    calls = []
+    # Random text, so compression still leaves several chunks.
+    payload = secrets.token_hex(50_000)
+
+    def local(method, url, headers=None, timeout=None, **kwargs):
+        calls.append((method, url, headers, kwargs))
+        return httpx.Response(200, json={"items": [payload]}, request=httpx.Request(method, url))
+
+    monkeypatch.setattr(cloud_connector.httpx, "request", local)
+    monkeypatch.setattr(cloud_connector, "CHUNK_CHARS", 20_000)
+    monkeypatch.setenv("APP_DESKTOP_TOKEN", "local-token")
+    monkeypatch.setenv("APP_API_PORT", "45678")
+    ok_id, refused_id = "00000000-0000-4000-8000-0000000000a1", "00000000-0000-4000-8000-0000000000a2"
+    relay = cloud["relay"]["relay"] = FakeRelay([], requests=[
+        {"id": ok_id, "method": "POST", "path": "/api/v1/analyses", "query": "",
+         "body": {"kind": "market"}, "idempotency_key": "remote-0001"},
+        {"id": refused_id, "method": "POST", "path": "/api/v1/auth/codex/login", "query": ""},
+    ])
+    write_metadata("txintrade_remote", {"enabled": True})
+    cloud["connector"].start()
+    assert wait_for(lambda: any(event.get("type") == "request.completed" for event in relay.received)
+                    and any(event.get("type") == "request.failed" for event in relay.received))
+    failed = next(event for event in relay.received if event.get("type") == "request.failed")
+    assert (failed["request_id"], failed["code"]) == (refused_id, "unsupported_operation")
+    assert len(calls) == 1
+    method, url, headers, kwargs = calls[0]
+    assert (method, url) == ("POST", "http://127.0.0.1:45678/api/v1/analyses")
+    assert headers == {"Authorization": "Bearer local-token", "Idempotency-Key": "remote-0001"}
+    assert kwargs == {"json": {"kind": "market"}}
+    done = next(event for event in relay.received if event.get("type") == "request.completed")
+    chunks = sorted((event for event in relay.received if event.get("type") == "request.chunk"),
+                    key=lambda event: event["index"])
+    assert done["status"] == 200 and done["chunks"] == len(chunks) > 1
+    body = json.loads(gzip.decompress(base64.b64decode("".join(event["data"] for event in chunks))))
+    assert body["items"][0] == payload
