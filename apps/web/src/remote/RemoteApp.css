@@ -129,3 +129,51 @@ a.cloud-google-button {
     max-width: 120px;
   }
 }
+
+/* The account at the top right of screens outside the workspace; its menu opens downward. */
+.remote-account {
+  position: relative;
+  min-width: 0;
+}
+.remote-account-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 240px;
+  min-height: 40px;
+  padding: 4px 10px 4px 4px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+}
+.remote-account-trigger:hover,
+.remote-account-trigger[aria-expanded="true"] {
+  background: var(--surface-control);
+}
+.remote-account-trigger .avatar {
+  width: 30px;
+  height: 30px;
+  flex: none;
+  /* The same filled avatar as the sidebar account on the desktop. */
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 70%, white), var(--accent));
+  color: #fff;
+}
+.remote-account-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.remote-account-panel {
+  top: calc(100% + 6px);
+  right: 0;
+  bottom: auto;
+  left: auto;
+  transform-origin: top right;
+}
+@media (max-width: 480px) {
+  .remote-account-name { display: none; }
+  .remote-account-trigger { padding-right: 4px; }
+}

@@ -54,10 +54,73 @@ function errorText(code: string): string {
 
 const describe = (error: unknown) => errorText(error instanceof CloudError ? error.code : "");
 
-function Screen({ children }: { children: ReactNode }) {
+/** The signed-in Google account, as the account menus show it. */
+function identityOf(me: Me) {
+  const name = me.profile?.display_name || me.profile?.email || "";
+  const email = me.profile?.email ?? null;
+  return name ? { initial: Array.from(name)[0].toUpperCase(), name, detail: email && email !== name ? email : null } : null;
+}
+
+/**
+ * The account at the top right of every screen outside the workspace (offline computer, no
+ * subscription, a failed check), so you can always see who is signed in and sign out.
+ */
+function HeaderAccount({ me, device, devices, onChoose, onSignOut }: {
+  me: Me;
+  device: Device | null;
+  devices: Device[] | null;
+  onChoose: (id: string) => void;
+  onSignOut: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const close = (event: Event) => {
+      if (event instanceof KeyboardEvent ? event.key === "Escape" : !root.current?.contains(event.target as Node))
+        setOpen(false);
+    };
+    document.addEventListener("pointerdown", close);
+    document.addEventListener("keydown", close);
+    return () => { document.removeEventListener("pointerdown", close); document.removeEventListener("keydown", close); };
+  }, [open]);
+  const identity = identityOf(me);
+  return (
+    <div className="remote-account" ref={root} onClick={(event) => {
+      if ((event.target as Element).closest("[data-menu-close]")) setOpen(false);
+    }}>
+      <button type="button" className="remote-account-trigger" aria-expanded={open} aria-controls="remote-account-panel"
+        aria-label={uiText("帳戶與設定")} onClick={() => setOpen((value) => !value)}>
+        <span className="avatar" aria-hidden="true">{identity?.initial ?? "?"}</span>
+        {identity && <span className="remote-account-name">{identity.name}</span>}
+      </button>
+      {open && (
+        <div className="account-menu-panel remote-account-panel" id="remote-account-panel">
+          {identity && (
+            <div className="account-menu-identity">
+              <span className="avatar" aria-hidden="true">{identity.initial}</span>
+              <span>
+                <strong>{identity.name}</strong>
+                {identity.detail && <small>{identity.detail}</small>}
+              </span>
+            </div>
+          )}
+          {device && devices?.length ? <RemoteMenu device={device} devices={devices} onChoose={onChoose} onSignOut={onSignOut} /> : (
+            <>
+              <hr className="account-menu-separator" />
+              <button type="button" className="account-menu-item destructive" data-menu-close onClick={onSignOut}>{uiText("登出")}</button>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Screen({ children, account }: { children: ReactNode; account?: ReactNode }) {
   return (
     <div className="remote-shell">
-      <header className="remote-top"><span className="brand-wordmark">txin<strong>Trade</strong></span></header>
+      <header className="remote-top"><span className="brand-wordmark">txin<strong>Trade</strong></span>{account}</header>
       <main className="remote-main">{children}</main>
     </div>
   );
@@ -136,9 +199,10 @@ function RemoteWorkspace({ device, devices, me, onChoose, onSignOut, onSignedOut
     return () => { active = false; };
   }, [device.id, onSignedOut, attempt]);
 
-  const name = me.profile?.display_name || me.profile?.email || "";
+  const identity = identityOf(me);
+  const name = identity?.name ?? "";
   const email = me.profile?.email ?? null;
-  const identity = name ? { initial: Array.from(name)[0].toUpperCase(), name, detail: email && email !== name ? email : null } : null;
+  const account = <HeaderAccount me={me} device={device} devices={devices} onChoose={onChoose} onSignOut={onSignOut} />;
   const section = (
     <section className="panel settings-section" aria-labelledby="settings-remote-title">
       <div className="panel-head">
@@ -180,10 +244,10 @@ function RemoteWorkspace({ device, devices, me, onChoose, onSignOut, onSignedOut
   );
 
   if (check.device !== device.id || check.state === "checking")
-    return <Screen><Loading label={uiText("正在連線到你的電腦…")} /></Screen>;
+    return <Screen account={account}><Loading label={uiText("正在連線到你的電腦…")} /></Screen>;
   if (check.state !== "ready")
     return (
-      <Screen>
+      <Screen account={account}>
         <p className="remote-notice warn" role="alert">
           {check.state === "outdated" ? uiText("電腦上的 txinTrade 版本不支援這個操作，請更新 App。") : check.error}
         </p>
@@ -252,7 +316,8 @@ export default function RemoteApp() {
         onSignOut={() => void signOut().finally(signedOut)} />
     );
   return (
-    <Screen>
+    <Screen account={me ? <HeaderAccount me={me} device={device} devices={devices} onChoose={choose}
+      onSignOut={() => void signOut().finally(signedOut)} /> : undefined}>
       {error && <p className="remote-notice warn" role="alert">{error}</p>}
       {me === undefined ? <Loading label={uiText("正在連線到 txinTrade 雲端…")} /> : me === null ? (
         <section className="remote-welcome">

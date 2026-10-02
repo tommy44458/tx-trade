@@ -4,6 +4,10 @@ The product version is managed in `version.json`. Dates record release preparati
 
 ## [Unreleased]
 
+### Fixed
+
+- When the computer was offline, none was connected yet, or there was no subscription, the remote web page showed neither the signed-in account nor a way to sign out. These screens now show the account at the top right, with a menu to switch computers and sign out.
+
 ## [1.0.0] - 2026-10-02
 
 The first public release of txinTrade: crypto futures market and position analysis on your computer, with the Claude Code or Codex you already use. Later versions install through in-app updates, after your data is backed up.
