@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://txintrade.com/sitemap-index.xml

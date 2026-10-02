@@ -1,0 +1,20 @@
+{
+  "name": "txintrade-site",
+  "private": true,
+  "version": "0.2.0",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "deploy": "astro build && npx --yes wrangler@4 deploy"
+  },
+  "dependencies": {
+    "astro": "^7.3.5",
+    "marked": "^18.0.14"
+  },
+  "devDependencies": {
+    "@astrojs/sitemap": "^3.7.4"
+  }
+}

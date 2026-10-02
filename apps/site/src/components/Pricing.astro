@@ -1,0 +1,45 @@
+---
+import { t } from "../i18n";
+import { DOWNLOAD_MAC, RELEASED, localePath, type Locale } from "../site";
+
+interface Props { locale: Locale }
+const { locale } = Astro.props;
+const text = t(locale).pricing;
+---
+<section class="wrap page">
+  <h1>{text.heading}</h1>
+  <p class="lead">{text.intro}</p>
+  <div class="plans">
+    <article class="plan">
+      <h2>{text.freeName}</h2>
+      <p class="price">{text.freePrice}</p>
+      <p class="note">{text.freeNote}</p>
+      <ul>{text.freeFeatures.map((item) => <li>{item}</li>)}</ul>
+      <a class="button" href={RELEASED ? DOWNLOAD_MAC : localePath("/download", locale)}>{text.getApp}</a>
+    </article>
+    <article class="plan featured">
+      <h2>{text.remoteName}</h2>
+      <p class="price">{text.remotePrice}</p>
+      <p class="note">{text.remoteNote}</p>
+      <ul>{text.remoteFeatures.map((item) => <li>{item}</li>)}</ul>
+      <a class="button secondary" href={localePath("/contact", locale)}>{text.notify}</a>
+    </article>
+  </div>
+  <p class="footnote">{text.note}</p>
+</section>
+<style>
+  .page { padding-top: 72px; text-align: center; }
+  h1 { font-size: clamp(40px, 6vw, 60px); }
+  .lead { max-width: 640px; margin-left: auto; margin-right: auto; }
+  .plans { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin: 56px auto 0; max-width: 860px; text-align: left; }
+  .plan { padding: 32px; border-radius: var(--radius); background: var(--surface); border: 0.5px solid var(--border); display: flex; flex-direction: column; }
+  .plan.featured { border: 1.5px solid var(--accent); }
+  .plan h2 { font-size: 22px; }
+  .price { font-size: 40px; font-weight: 700; letter-spacing: -0.03em; margin: 12px 0 0; }
+  .note { color: var(--text-secondary); margin: 2px 0 20px; font-size: 15px; }
+  ul { padding-left: 20px; margin: 0 0 28px; flex: 1; }
+  li { margin: 8px 0; }
+  .plan .button { align-self: flex-start; }
+  .footnote { color: var(--text-secondary); font-size: 15px; margin-top: 32px; }
+  @media (max-width: 720px) { .plans { grid-template-columns: 1fr; } }
+</style>

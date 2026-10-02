@@ -1,0 +1,44 @@
+---
+import { t } from "../i18n";
+import { DOWNLOAD_MAC, RELEASED, RELEASES, REPOSITORY, VERSION, type Locale } from "../site";
+
+interface Props { locale: Locale }
+const text = t(Astro.props.locale).download;
+---
+<section class="wrap page">
+  <h1>{text.heading}</h1>
+  <p class="lead">{text.intro}</p>
+  {RELEASED ? (
+    <div class="actions">
+      <a class="button" href={DOWNLOAD_MAC}>{text.button}</a>
+      <span class="version">{text.version} {VERSION}</span>
+    </div>
+  ) : (
+    <>
+      <p class="notice">{text.notYet}</p>
+      <div class="actions"><a class="button secondary" href={`${REPOSITORY}#getting-started`}>{text.fromSource}</a></div>
+    </>
+  )}
+  <div class="columns">
+    <div>
+      <h2>{text.requirementsTitle}</h2>
+      <ul>{text.requirements.map((item) => <li>{item}</li>)}</ul>
+    </div>
+    <div>
+      <h2>{text.stepsTitle}</h2>
+      <ol>{text.steps.map((item) => <li>{item}</li>)}</ol>
+      <p class="muted">{text.updates}</p>
+    </div>
+  </div>
+  <p><a href={RELEASES}>{text.allReleases} →</a></p>
+</section>
+<style>
+  .page { padding-top: 72px; max-width: 900px; }
+  h1 { font-size: clamp(40px, 6vw, 60px); }
+  .version { align-self: center; color: var(--text-secondary); font-size: 15px; }
+  .columns { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin: 56px 0 32px; }
+  h2 { font-size: 22px; margin-bottom: 12px; }
+  li { margin: 8px 0; }
+  .muted { color: var(--text-secondary); font-size: 15px; }
+  @media (max-width: 720px) { .columns { grid-template-columns: 1fr; } }
+</style>

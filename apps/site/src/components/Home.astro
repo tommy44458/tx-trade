@@ -1,0 +1,149 @@
+---
+import { t } from "../i18n";
+import { DOWNLOAD_MAC, RELEASED, REPOSITORY, localePath, type Locale } from "../site";
+
+interface Props { locale: Locale }
+const { locale } = Astro.props;
+const text = t(locale).home;
+const download = RELEASED ? DOWNLOAD_MAC : localePath("/download", locale);
+
+// The headline rises word by word; the two product names carry the logo's shine.
+const names = /(Claude Code|Codex)/;
+const segmenter = new Intl.Segmenter(locale, { granularity: "word" });
+const words = text.heroTitle.split(names).flatMap((part) =>
+  names.test(part)
+    ? [{ text: part, shine: true }]
+    : [...segmenter.segment(part)].map((piece) => ({ text: piece.segment, shine: false })),
+).filter((word) => word.text.length);
+---
+<section class="hero">
+  <div class="glow" aria-hidden="true"></div>
+  <h1 class="wrap" aria-label={text.heroTitle}>
+    {words.map((word, index) => (
+      word.text.trim()
+        ? <span class="word" aria-hidden="true" style={`--i:${index}`}><span class={word.shine ? "shine" : undefined}>{word.text}</span></span>
+        : <span aria-hidden="true">{word.text}</span>
+    ))}
+  </h1>
+  <p class="lead wrap fade" style="--d:0.35s">{text.heroSubtitle}</p>
+  <div class="actions fade" style="--d:0.5s">
+    <a class="button" href={download}>{RELEASED ? text.download : text.comingSoon}</a>
+    <a class="button secondary" href={REPOSITORY}>{text.github} <span class="arrow" aria-hidden="true">↗</span></a>
+  </div>
+  <p class="caption fade" style="--d:0.6s">{text.caption}</p>
+</section>
+
+<section class="stage">
+  <figure class="frame">
+    <video data-video autoplay muted loop playsinline preload="metadata" poster="/video/promo-v3-16x9.webp" aria-label={text.videoLabel}>
+      <source src="/video/promo-v3-9x16.mp4" type="video/mp4" media="(max-width: 700px)" />
+      <source src="/video/promo-v3-16x9.mp4" type="video/mp4" />
+    </video>
+    <button type="button" class="toggle" data-toggle data-pause={text.pause} data-play={text.play} aria-label={text.pause}>
+      <svg class="icon-pause" viewBox="0 0 16 16" aria-hidden="true"><rect x="4" y="3" width="2.6" height="10" rx="1" /><rect x="9.4" y="3" width="2.6" height="10" rx="1" /></svg>
+      <svg class="icon-play" viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3.2v9.6a.8.8 0 0 0 1.2.7l7.6-4.8a.8.8 0 0 0 0-1.4L6.2 2.5A.8.8 0 0 0 5 3.2Z" /></svg>
+    </button>
+  </figure>
+</section>
+
+<ol class="points wrap">
+  {text.points.map(([title, body], index) => (
+    <li>
+      <span class="index">{String(index + 1).padStart(2, "0")}</span>
+      <strong>{title}</strong>
+      <span>{body}</span>
+    </li>
+  ))}
+</ol>
+
+<script>
+  const video = document.querySelector<HTMLVideoElement>("[data-video]");
+  const toggle = document.querySelector<HTMLButtonElement>("[data-toggle]");
+  if (video && toggle) {
+    const sync = () => {
+      const paused = video.paused;
+      toggle.classList.toggle("paused", paused);
+      toggle.setAttribute("aria-label", (paused ? toggle.dataset.play : toggle.dataset.pause) ?? "");
+    };
+    toggle.addEventListener("click", () => { if (video.paused) void video.play(); else video.pause(); });
+    video.addEventListener("play", sync);
+    video.addEventListener("pause", sync);
+    // Respect reduced motion: start on a still frame; the button plays it.
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      video.removeAttribute("autoplay");
+      video.pause();
+    }
+    sync();
+  }
+</script>
+
+<style>
+  .hero { position: relative; padding: clamp(72px, 12vh, 140px) 0 0; text-align: center; }
+  .glow {
+    position: absolute; inset: -10% 0 auto; height: 900px; z-index: -1; pointer-events: none;
+    background: radial-gradient(50% 45% at 50% 70%, var(--glow), transparent 70%);
+  }
+  h1 { font-size: clamp(40px, 7.4vw, 96px); line-height: 1.02; letter-spacing: -0.045em; max-width: 15ch; }
+  /* CJK glyphs carry more visual weight: a smaller size and looser tracking balance the Latin names. */
+  :global(html[lang="zh-Hant-TW"]) h1 { font-size: clamp(34px, 5.6vw, 76px); max-width: 12em; letter-spacing: -0.015em; line-height: 1.16; }
+  .word { display: inline-block; animation: rise 1s var(--ease) both; animation-delay: calc(var(--i) * 45ms); }
+  .shine {
+    background: var(--shine); background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent;
+    animation: shine 6s ease-in-out 1.2s infinite;
+  }
+  .hero .lead { max-width: 36em; margin: 32px auto 0; }
+  .hero .actions { justify-content: center; }
+  .caption { margin: 18px 0 0; color: var(--text-tertiary); font-size: 13px; letter-spacing: 0; }
+  .fade { animation: rise 1s var(--ease) both; animation-delay: var(--d); }
+  @keyframes rise { from { opacity: 0; transform: translateY(0.4em); filter: blur(6px); } }
+  @keyframes shine { 0%, 100% { background-position: 100% 0; } 50% { background-position: 0 0; } }
+
+  .stage { margin-top: clamp(56px, 9vh, 96px); padding: 0 24px; }
+  .frame {
+    position: relative; margin: 0 auto; width: min(1200px, 100%);
+    /* A graphite display bezel in both themes, so the video reads as a screen. */
+    padding: 9px; border-radius: 30px;
+    background: linear-gradient(180deg, #2c2c2f, #141416);
+    box-shadow: inset 0 0.5px 0 rgba(255, 255, 255, 0.22), inset 0 0 0 0.5px rgba(255, 255, 255, 0.08), var(--shadow);
+    animation: rise 1.2s var(--ease) 0.5s both;
+  }
+  .frame video { width: 100%; aspect-ratio: 16 / 9; border-radius: 22px; background: #000; object-fit: cover; }
+  @supports (animation-timeline: view()) {
+    @media (prefers-reduced-motion: no-preference) {
+      .frame { animation: grow linear both; animation-timeline: view(); animation-range: entry 10% cover 35%; }
+      @keyframes grow { from { transform: scale(0.9); opacity: 0.4; } to { transform: scale(1); opacity: 1; } }
+    }
+  }
+  .toggle {
+    position: absolute; right: 24px; bottom: 24px; width: 36px; height: 36px; border-radius: 50%;
+    display: grid; place-items: center; border: 0; cursor: pointer; color: #fff;
+    background: rgba(30, 30, 32, 0.55); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+    box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.25); opacity: 0.75; transition: opacity 0.3s, transform 0.3s var(--ease);
+  }
+  .toggle:hover { opacity: 1; transform: scale(1.06); }
+  .toggle svg { width: 14px; height: 14px; fill: currentColor; }
+  .toggle .icon-play, .toggle.paused .icon-pause { display: none; }
+  .toggle.paused .icon-play { display: block; }
+
+  .points { list-style: none; padding: 0; margin: clamp(72px, 10vh, 120px) auto 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; }
+  .points li { display: grid; gap: 8px; padding-top: 24px; box-shadow: 0 -0.5px 0 var(--border); }
+  .index { font: 12px var(--mono); color: var(--accent); letter-spacing: 0.06em; margin-bottom: 10px; }
+  .points strong { font-size: clamp(21px, 2.2vw, 24px); font-weight: 600; letter-spacing: -0.025em; }
+  @supports (animation-timeline: view()) {
+    @media (prefers-reduced-motion: no-preference) {
+      .points li { animation: rise linear both; animation-timeline: view(); animation-range: entry 0% entry 60%; }
+    }
+  }
+  .points span:last-child { color: var(--text-secondary); font-size: 15px; }
+
+  @media (max-width: 700px) {
+    .stage { padding: 0 16px; }
+    .frame { padding: 6px; border-radius: 26px; }
+    .frame video { aspect-ratio: 9 / 16; border-radius: 20px; }
+    .toggle { right: 18px; bottom: 18px; }
+    .points { grid-template-columns: 1fr; gap: 28px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .word, .fade, .frame, .shine { animation: none; }
+  }
+</style>

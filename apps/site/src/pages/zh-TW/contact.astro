@@ -1,0 +1,15 @@
+---
+import Base from "../../layouts/Base.astro";
+import Prose from "../../components/Prose.astro";
+import { t } from "../../i18n";
+import { CONTACT_EMAIL, REPOSITORY } from "../../site";
+const locale = "zh-TW";
+const text = t(locale).contact;
+---
+<Base locale={locale} title={text.title} description={text.text}>
+  <Prose>
+    <h1>{text.heading}</h1>
+    <p>{text.text} <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a></p>
+    <p><a href={`${REPOSITORY}/issues`}>{text.issues}</a></p>
+  </Prose>
+</Base>

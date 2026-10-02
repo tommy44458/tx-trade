@@ -1,0 +1,10 @@
+---
+import Base from "../layouts/Base.astro";
+import Pricing from "../components/Pricing.astro";
+import { t } from "../i18n";
+const locale = "en";
+const text = t(locale).pricing;
+---
+<Base locale={locale} title={text.title} description={text.description}>
+  <Pricing locale={locale} />
+</Base>

@@ -1,0 +1,14 @@
+---
+import Base from "../layouts/Base.astro";
+import Prose from "../components/Prose.astro";
+import { changelogHtml } from "../changelog";
+import { t } from "../i18n";
+const locale = "en";
+const text = t(locale).changelog;
+---
+<Base locale={locale} title={text.title} description={text.description}>
+  <Prose>
+    <h1>{text.heading}</h1>
+    <Fragment set:html={changelogHtml(locale)} />
+  </Prose>
+</Base>

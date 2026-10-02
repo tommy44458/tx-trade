@@ -1,0 +1,10 @@
+---
+import Base from "../../layouts/Base.astro";
+import Download from "../../components/Download.astro";
+import { t } from "../../i18n";
+const locale = "zh-TW";
+const text = t(locale).download;
+---
+<Base locale={locale} title={text.title} description={text.description}>
+  <Download locale={locale} />
+</Base>

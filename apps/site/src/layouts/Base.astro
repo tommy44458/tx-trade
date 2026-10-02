@@ -1,0 +1,109 @@
+---
+import "../styles.css";
+import { t } from "../i18n";
+import { CONTACT_EMAIL, LOCALES, REPOSITORY, WEB_APP, localePath, type Locale } from "../site";
+
+interface Props {
+  locale: Locale;
+  title: string;
+  description: string;
+}
+const { locale, title, description } = Astro.props;
+const text = t(locale);
+// Pages build to files (pricing.html) but are served without the extension.
+const path = Astro.url.pathname.replace(/\.html$/, "").replace(/\/index$/, "") || "/";
+const other: Locale = locale === "en" ? "zh-TW" : "en";
+const link = (target: string) => localePath(target, locale);
+const canonical = new URL(path, Astro.site).href;
+---
+<!doctype html>
+<html lang={text.lang}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    {LOCALES.map((item) => (
+      <link rel="alternate" hreflang={item} href={new URL(localePath(path, item), Astro.site).href} />
+    ))}
+    <link rel="alternate" hreflang="x-default" href={new URL(localePath(path, "en"), Astro.site).href} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="theme-color" content="#f5f5f7" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="txinTrade" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={new URL("/og.png", Astro.site).href} />
+    <meta property="og:locale" content={locale === "en" ? "en_US" : "zh_TW"} />
+    <meta name="twitter:card" content="summary_large_image" />
+  </head>
+  <body>
+    <a class="skip" href="#main">{locale === "en" ? "Skip to content" : "跳至內容"}</a>
+    <header class="site-header">
+      <nav class="wrap nav" aria-label="txinTrade">
+        <a class="wordmark" href={link("/")}>txin<strong>Trade</strong></a>
+        <div class="nav-links">
+          <a class="nav-language" href={localePath(path, other)} hreflang={other} lang={other === "en" ? "en" : "zh-Hant-TW"}>{text.switchTo}</a>
+          <a class="nav-download" href={link("/download")}>{text.nav.download}</a>
+        </div>
+      </nav>
+    </header>
+    <main id="main">
+      <slot />
+    </main>
+    <footer class="site-footer">
+      <div class="wrap footer-row">
+        <a class="wordmark" href={link("/")}>txin<strong>Trade</strong></a>
+        <nav class="footer-links" aria-label={text.footer.product}>
+          <a href={link("/download")}>{text.nav.download}</a>
+          <a href={link("/pricing")}>{text.nav.pricing}</a>
+          <a href={link("/changelog")}>{text.nav.changelog}</a>
+          <a href={WEB_APP}>{text.nav.webApp}</a>
+          <a href={REPOSITORY}>{text.footer.source}</a>
+          <a href={link("/privacy")}>{text.footer.privacy}</a>
+          <a href={link("/terms")}>{text.footer.terms}</a>
+          <a href={link("/refund")}>{text.footer.refund}</a>
+          <a href={link("/contact")}>{text.footer.contact}</a>
+        </nav>
+      </div>
+      <div class="wrap footer-meta">
+        <p>{text.footer.disclaimer}</p>
+        <p>© {new Date().getFullYear()} txinTrade · <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a></p>
+      </div>
+    </footer>
+  </body>
+</html>
+
+<style>
+  .skip { position: absolute; left: 16px; top: -48px; z-index: 20; padding: 8px 14px; border-radius: 999px; background: var(--button); color: var(--button-text); }
+  .skip:focus { top: 12px; }
+  .site-header {
+    position: sticky; top: 0; z-index: 10;
+    background: color-mix(in srgb, var(--canvas) 86%, transparent);
+    -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px);
+    box-shadow: 0 0.5px 0 var(--hairline);
+  }
+  .nav { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 56px; }
+  .wordmark { color: var(--text); font-size: 20px; letter-spacing: -0.04em; font-weight: 400; white-space: nowrap; }
+  .wordmark strong { font-weight: 700; }
+  .wordmark:hover { text-decoration: none; }
+  .nav-links { display: flex; align-items: center; gap: 20px; font-size: 13px; }
+  .nav-language { color: var(--text-secondary); }
+  .nav-language:hover { color: var(--text); text-decoration: none; }
+  .nav-download { padding: 6px 14px; border-radius: 999px; background: var(--button); color: var(--button-text); font-weight: 500; transition: opacity 0.3s; }
+  .nav-download:hover { text-decoration: none; opacity: 0.85; }
+  .site-footer { margin-top: 160px; padding: 40px 0 36px; box-shadow: 0 -0.5px 0 var(--hairline); font-size: 13px; }
+  .footer-row { display: flex; align-items: baseline; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
+  .footer-row .wordmark { font-size: 17px; }
+  .footer-links { display: flex; flex-wrap: wrap; gap: 8px 22px; }
+  .footer-links a { color: var(--text-secondary); transition: color 0.2s; }
+  .footer-links a:hover { color: var(--text); text-decoration: none; }
+  .footer-meta { margin-top: 28px; display: flex; justify-content: space-between; gap: 24px; flex-wrap: wrap; color: var(--text-tertiary); font-size: 12px; line-height: 1.6; }
+  .footer-meta p { margin: 0; max-width: 640px; }
+  .footer-meta a { color: inherit; }
+  @media (max-width: 720px) { .footer-row { flex-direction: column; gap: 16px; } }
+</style>
