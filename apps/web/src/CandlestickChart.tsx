@@ -6,15 +6,21 @@ import {
   ColorType,
   CrosshairMode,
   HistogramSeries,
+  LineSeries,
   LineStyle,
   createChart,
+  createSeriesMarkers,
   type AutoscaleInfo,
   type IChartApi,
   type IPriceLine,
   type IPrimitivePaneRenderer,
   type IPrimitivePaneView,
   type ISeriesApi,
+  type ISeriesMarkersPluginApi,
   type ISeriesPrimitive,
+  type SeriesMarker,
+  type SeriesType,
+  type Time,
   type SeriesAttachedParameter,
   type UTCTimestamp,
 } from "lightweight-charts";
@@ -32,7 +38,11 @@ import {
   type ChartZone,
   type NormalizedCandle,
 } from "./candlestickData";
+import { indicatorLines, swingMarkers, type IndicatorKey, type IndicatorSpec } from "./chartIndicators";
 import "./CandlestickChart.css";
+
+const MAIN_PANE_HEIGHT = 320;
+const INDICATOR_PANE_HEIGHT = 110;
 
 export type { ChartCandle, ChartLevel } from "./candlestickData";
 
@@ -44,6 +54,8 @@ export type CandlestickChartProps = {
   levelsLoading?: boolean;
   marketId: string;
   timeframe: string;
+  /** Indicators the analysis report used; each can be toggled on the chart. */
+  indicators?: IndicatorSpec[];
 };
 
 type ChartTheme = {
@@ -53,6 +65,7 @@ type ChartTheme = {
   positive: string;
   negative: string;
   accent: string;
+  warning: string;
 };
 
 function readTheme(element: HTMLElement): ChartTheme {
@@ -66,7 +79,58 @@ function readTheme(element: HTMLElement): ChartTheme {
     positive: read("--positive", "#14774a"),
     negative: read("--negative", "#c13543"),
     accent: read("--accent", "#0066cc"),
+    warning: read("--warning", "#875200"),
   };
+}
+
+// Fixed hues complement the theme tokens and stay legible on both backgrounds.
+const PURPLE = "#8e5cd9";
+const TEAL = "#1a9c9c";
+const ORANGE = "#c26a1e";
+const SLATE = "#7a7f8c";
+
+function indicatorColor(key: IndicatorKey, id: string, theme: ChartTheme): string {
+  switch (key) {
+    case "ema": return id === "ema20" ? theme.accent : theme.warning;
+    case "vwap": return PURPLE;
+    case "bollinger": return TEAL;
+    case "keltner": return ORANGE;
+    case "donchian": return SLATE;
+    case "fibonacci": return theme.warning;
+    case "swing": return theme.text;
+    case "rsi": return PURPLE;
+    case "macd": return id === "macd" ? theme.accent : id === "signal" ? theme.warning : SLATE;
+    case "atr": return TEAL;
+    case "obv": return theme.accent;
+    case "adx": return id === "adx" ? theme.text : id === "plus" ? theme.positive : theme.negative;
+    case "stochastic": return id === "k" ? theme.accent : theme.warning;
+  }
+}
+
+// Pane lines name themselves on the price axis, since their pane has no other legend.
+const PANE_TITLES: Record<string, string> = { rsi: "RSI", macd: "MACD", signal: "Signal", histogram: "Hist",
+  atr: "ATR", obv: "OBV", adx: "ADX", plus: "+DI", minus: "−DI", k: "%K", d: "%D" };
+
+// The toggle's color dot matches the indicator's main line.
+const LEAD_LINE: Partial<Record<IndicatorKey, string>> = { ema: "ema20", macd: "macd", adx: "adx", stochastic: "k" };
+
+function indicatorLabel(spec: IndicatorSpec): string {
+  const p = spec.params;
+  switch (spec.key) {
+    case "ema": return `EMA ${p.fast}/${p.slow}`;
+    case "vwap": return `VWAP ${p.period}`;
+    case "bollinger": return `${uiText("布林通道")} ${p.period}, ${p.multiplier}`;
+    case "keltner": return `Keltner ${p.period}`;
+    case "donchian": return `Donchian ${p.period}`;
+    case "fibonacci": return uiText("Fibonacci 回撤");
+    case "swing": return uiText("轉折點");
+    case "rsi": return `RSI ${p.period}`;
+    case "macd": return `MACD ${p.fast}/${p.slow}/${p.signal}`;
+    case "atr": return `ATR ${p.period}`;
+    case "obv": return "OBV";
+    case "adx": return `ADX/DMI ${p.period}`;
+    case "stochastic": return `${uiText("隨機指標")} ${p.period}`;
+  }
 }
 
 function volumeData(candle: NormalizedCandle, theme: ChartTheme) {
@@ -188,6 +252,7 @@ export default function CandlestickChart({
   levelsLoading = false,
   marketId,
   timeframe,
+  indicators = [],
 }: CandlestickChartProps) {
   const locale = useUiLocale();
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -204,6 +269,18 @@ export default function CandlestickChart({
   const [showResistance, setShowResistance] = useState(true);
   const [showVolume, setShowVolume] = useState(true);
   const [hovered, setHovered] = useState<NormalizedCandle | null>(null);
+  const indicatorSignature = indicators.map((spec) => spec.key).join(",");
+  const [enabledState, setEnabledState] = useState<{ signature: string; keys: Set<IndicatorKey> }>(
+    { signature: "", keys: new Set() });
+  // A different report starts from its own defaults instead of the previous toggles.
+  const enabled = enabledState.signature === indicatorSignature ? enabledState.keys
+    : new Set(indicators.filter((spec) => spec.defaultOn).map((spec) => spec.key));
+  const enabledSignature = [...enabled].sort().join(",");
+  const paneCount = indicators.filter((spec) => spec.pane && enabled.has(spec.key)).length;
+  const [themeVersion, setThemeVersion] = useState(0);
+  const indicatorSeries = useRef<ISeriesApi<SeriesType>[]>([]);
+  const fibLines = useRef<IPriceLine[]>([]);
+  const swingRef = useRef<ISeriesMarkersPluginApi<Time> | null>(null);
   const [openedAt] = useState(() => Date.now() / 1000);
   const dataRef = useRef(data);
   const priceRef = useRef(price);
@@ -255,6 +332,7 @@ export default function CandlestickChart({
         fontSize: 11,
         // Required by the Lightweight Charts license: links to tradingview.com.
         attributionLogo: true,
+        panes: { separatorColor: theme.grid, separatorHoverColor: theme.grid },
       },
       grid: { vertLines: { color: theme.grid }, horzLines: { color: theme.grid } },
       rightPriceScale: { borderColor: theme.grid, scaleMargins: { top: 0.08, bottom: 0.23 } },
@@ -328,7 +406,8 @@ export default function CandlestickChart({
       const range = chart.timeScale().getVisibleLogicalRange();
       theme = readTheme(element);
       chart.applyOptions({
-        layout: { background: { type: ColorType.Solid, color: theme.background }, textColor: theme.text },
+        layout: { background: { type: ColorType.Solid, color: theme.background }, textColor: theme.text,
+          panes: { separatorColor: theme.grid, separatorHoverColor: theme.grid } },
         grid: { vertLines: { color: theme.grid }, horzLines: { color: theme.grid } },
         rightPriceScale: { borderColor: theme.grid },
         timeScale: { borderColor: theme.grid },
@@ -337,6 +416,7 @@ export default function CandlestickChart({
       volumeSeries.setData(dataRef.current.map(candle => volumeData(candle, theme)));
       priceLineRef.current?.applyOptions({ color: theme.accent });
       bands.update(zonesRef.current, theme);
+      setThemeVersion((version) => version + 1);
       if (range) chart.timeScale().setVisibleLogicalRange(range);
     };
     window.addEventListener(UI_THEME_CHANGE_EVENT, onThemeChange);
@@ -348,6 +428,9 @@ export default function CandlestickChart({
       chart.unsubscribeCrosshairMove(onCrosshair);
       series.detachPrimitive(bands);
       chart.remove();
+      indicatorSeries.current = [];
+      fibLines.current = [];
+      swingRef.current = null;
       chartRef.current = null;
       candleRef.current = null;
       volumeRef.current = null;
@@ -414,6 +497,65 @@ export default function CandlestickChart({
   }, [locale]);
 
   useEffect(() => {
+    const chart = chartRef.current;
+    const candleSeries = candleRef.current;
+    if (!chart || !candleSeries) return;
+    const theme = readTheme(canvasRef.current!);
+    for (const series of indicatorSeries.current) chart.removeSeries(series);
+    for (const line of fibLines.current) candleSeries.removePriceLine(line);
+    indicatorSeries.current = [];
+    fibLines.current = [];
+    while (chart.panes().length > 1) chart.removePane(chart.panes().length - 1);
+    const markers: SeriesMarker<Time>[] = [];
+    let pane = 0;
+    for (const spec of indicators) {
+      if (!enabled.has(spec.key)) continue;
+      if (spec.key === "fibonacci") {
+        for (const level of spec.fibLevels ?? []) fibLines.current.push(candleSeries.createPriceLine({
+          price: level.price, color: indicatorColor("fibonacci", level.ratio, theme), lineWidth: 1,
+          lineStyle: LineStyle.Dotted, axisLabelVisible: false, title: level.ratio,
+        }));
+        continue;
+      }
+      if (spec.key === "swing") {
+        for (const point of swingMarkers(data, spec.params.width)) markers.push({
+          time: point.time as UTCTimestamp, position: point.kind === "high" ? "aboveBar" : "belowBar",
+          shape: point.kind === "high" ? "arrowDown" : "arrowUp",
+          color: point.kind === "high" ? theme.negative : theme.positive, size: 0.5,
+        });
+        continue;
+      }
+      const index = spec.pane ? ++pane : 0;
+      for (const line of indicatorLines(spec, data)) {
+        const color = indicatorColor(spec.key, line.id, theme);
+        const common = { color, priceLineVisible: false, lastValueVisible: spec.pane,
+          title: spec.pane ? PANE_TITLES[line.id] ?? "" : "" };
+        const series = line.id === "histogram"
+          ? chart.addSeries(HistogramSeries, common, index)
+          : chart.addSeries(LineSeries, { ...common, lineWidth: 1, crosshairMarkerVisible: false,
+            lineStyle: line.id === "middle" ? LineStyle.Dashed : LineStyle.Solid }, index);
+        series.setData(line.points.map((point) => ({ time: point.time as UTCTimestamp, value: point.value })));
+        indicatorSeries.current.push(series);
+      }
+    }
+    // Stretch factors keep the price chart and each indicator pane at fixed proportions.
+    chart.panes().forEach((item, index) => item.setStretchFactor(index === 0 ? MAIN_PANE_HEIGHT : INDICATOR_PANE_HEIGHT));
+    if (swingRef.current) swingRef.current.setMarkers(markers);
+    else if (markers.length) swingRef.current = createSeriesMarkers(candleSeries, markers);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- enabledSignature captures the toggle set.
+  }, [indicators, enabledSignature, data, themeVersion, marketId, timeframe]);
+
+  // Read on every render; a theme change re-renders through themeVersion.
+  const chipTheme = readTheme(document.documentElement);
+
+  function toggleIndicator(key: IndicatorKey) {
+    const keys = new Set(enabled);
+    if (keys.has(key)) keys.delete(key);
+    else keys.add(key);
+    setEnabledState({ signature: indicatorSignature, keys });
+  }
+
+  useEffect(() => {
     volumeRef.current?.applyOptions({ visible: showVolume && hasVolume });
     chartRef.current?.priceScale("right").applyOptions({ scaleMargins: { top: 0.08, bottom: showVolume && hasVolume ? 0.23 : 0.08 } });
   }, [showVolume, hasVolume, marketId, timeframe]);
@@ -446,6 +588,17 @@ export default function CandlestickChart({
           <button type="button" disabled={!data.length} onClick={resetView}>{uiText("重設視圖")}</button>
         </div>
       </div>
+      {indicators.length > 0 && (
+        <div className="candlestick-indicators" role="group" aria-label={uiText("AI 使用的指標")}>
+          <span className="candlestick-indicators-label">{uiText("AI 使用的指標")}</span>
+          {indicators.map((spec) => (
+            <button key={spec.key} type="button" aria-pressed={enabled.has(spec.key)} onClick={() => toggleIndicator(spec.key)}>
+              <i aria-hidden="true" style={{ background: indicatorColor(spec.key, LEAD_LINE[spec.key] ?? spec.key, chipTheme) }} />
+              {indicatorLabel(spec)}
+            </button>
+          ))}
+        </div>
+      )}
       <div className="candlestick-readout" aria-label={uiText("K 線數值")}>
         <span className="candlestick-time">{selected ? candleDate(selected.time) : "—"} <small>{selected ? (selected.closed ?? selected.closeTime <= openedAt) ? uiText("已收盤") : uiText("未收盤") : uiText("K 線時間")}</small></span>
         {[ [uiText("開"), selected?.open], [locale === "en-US" ? "H" : uiText("高"), selected?.high], [locale === "en-US" ? "L" : uiText("低"), selected?.low], [uiText("收"), selected?.close] ].map(([label, value]) => (
@@ -455,6 +608,7 @@ export default function CandlestickChart({
       </div>
       <div
         className="candlestick-canvas-shell"
+        style={paneCount ? { height: MAIN_PANE_HEIGHT + paneCount * INDICATOR_PANE_HEIGHT } : undefined}
         tabIndex={0}
         role="group"
         aria-label={uiText("{{p0}} K 線圖，可拖曳平移、滾輪縮放；方向鍵平移，加減號縮放，Home 重設", { p0: timeframe.toUpperCase() })}

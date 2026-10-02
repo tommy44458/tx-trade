@@ -37,6 +37,7 @@ import DiscussionSidebar from "./DiscussionSidebar";
 import type { AnalysisDiscussionProps } from "./AnalysisDiscussion";
 import LeverageControl from "./LeverageControl";
 import { sessionAccount, type SessionInfo } from "./sessionIdentity";
+import { reportIndicators, type IndicatorReport } from "./chartIndicators";
 import { ANALYSIS_TIMEFRAMES, isAnalysisTimeframe, timeframeCode, timeframeLabel, type AnalysisTimeframe } from "./timeframes";
 import AnalysisProgress, {
   AnalysisSpinner,
@@ -506,6 +507,8 @@ function App() {
     submittingKind !== "positions" && job?.report?.market_id === marketId && job.report.timeframe === timeframe
       ? job.report
       : null;
+  // Indicators the report used, drawn only on the chart of that same timeframe.
+  const chartIndicators = useMemo(() => reportIndicators(report as IndicatorReport | null), [report]);
   const jobId = pendingJob?.id;
   const jobStatus = pendingJob?.status;
   const positionChartId = view === "positions" && job?.submitted_input.kind === "positions" &&
@@ -1192,7 +1195,7 @@ function App() {
                         </div>
                         <CandlestickChart candles={chartCandles} levels={chartLevels} quotePrice={quote?.price}
                           marketId={marketId} timeframe={timeframe} loading={marketLoading && !currentMarketData}
-                          levelsLoading={marketLoading} />
+                          levelsLoading={marketLoading} indicators={chartIndicators} />
                         <div className="chart-foot">
                           <span>{formingCandle ? uiText("含當前未收盤 K 線；區間只依已收盤資料計算") : uiText("圖表顯示已收盤 K 線")}</span>
                           <span>
@@ -1640,6 +1643,7 @@ function App() {
                       timeframe={report.timeframe}
                       observedAt={report.quote.observed_at}
                       algorithmVersion={report.metrics.level_algorithm_version}
+                      indicators={chartIndicators}
                     />
                   )}{" "}
                 {report && job?.submitted_input.kind === "positions" && (

@@ -1,6 +1,7 @@
 import { uiText, uiLocale } from "./i18n/index.ts";
 import "./PositionLevels.css";
 import { levelLocationLabel, type LevelLocation } from "./levelLocation";
+import type { IndicatorSpec } from "./chartIndicators";
 import CandlestickChart from "./CandlestickChart";
 import { timeframeLabel } from "./timeframes";
 import {
@@ -41,7 +42,9 @@ export default function PositionLevels({
   chartLoading = false,
   chartError,
   onRetryChart,
+  indicators,
 }: {
+  indicators?: IndicatorSpec[];
   levels: Level[];
   quotePrice: string;
   timeframe: string;
@@ -101,6 +104,7 @@ export default function PositionLevels({
           levels={levels}
           quotePrice={quotePrice}
           loading={chartLoading && !matching}
+          indicators={indicators}
         />
       </div>
       {levels.length ? (
