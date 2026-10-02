@@ -19,7 +19,7 @@ const text = t(locale).pricing;
     </article>
     <article class="plan featured">
       <h2>{text.remoteName}</h2>
-      <p class="price">{text.remotePrice}</p>
+      <p class="price">{text.remotePrice}<span class="period">{text.remotePeriod}</span></p>
       <p class="note">{text.remoteNote}</p>
       <ul>{text.remoteFeatures.map((item) => <li>{item}</li>)}</ul>
       <a class="button secondary" href={localePath("/contact", locale)}>{text.notify}</a>
@@ -36,6 +36,7 @@ const text = t(locale).pricing;
   .plan.featured { border: 1.5px solid var(--accent); }
   .plan h2 { font-size: 22px; }
   .price { font-size: 40px; font-weight: 700; letter-spacing: -0.03em; margin: 12px 0 0; }
+  .period { margin-left: 4px; font-size: 17px; font-weight: 500; letter-spacing: 0; color: var(--text-secondary); }
   .note { color: var(--text-secondary); margin: 2px 0 20px; font-size: 15px; }
   ul { padding-left: 20px; margin: 0 0 28px; flex: 1; }
   li { margin: 8px 0; }
