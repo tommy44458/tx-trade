@@ -8,7 +8,9 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "dev:remote": "vite --config vite.remote.config.ts",
+    "build:remote": "tsc -b && vite build --config vite.remote.config.ts"
   },
   "dependencies": {
     "i18next": "^26.4.2",

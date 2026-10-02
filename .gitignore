@@ -46,6 +46,7 @@ __pycache__/
 *.egg-info/
 node_modules/
 dist/
+dist-remote/
 *.tsbuildinfo
 apps/desktop/build/
 apps/desktop/release/
