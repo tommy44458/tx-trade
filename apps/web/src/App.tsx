@@ -1046,6 +1046,9 @@ function App() {
             <SettingsPanel
               initialSettings={localSettings}
               onChanged={refreshLocalSettings}
+              onCloudAccountChanged={() => {
+                api<SessionInfo>("/session").then(setSession).catch(() => {});
+              }}
             />
           )}
           {view === "market" && (

@@ -19,3 +19,11 @@ test('remote sessions show the signed-in name with its email', () => {
   assert.equal(sessionAccount({ mode: 'remote', user_id: 'google-oauth2|123' }), null);
   assert.equal(sessionAccount({ mode: 'remote', user_id: 'u1', display_name: '黃欣傳' }).initial, '黃');
 });
+
+test('a local workspace signed in to the txinTrade cloud shows that account, never its internal owner', () => {
+  assert.deepEqual(
+    sessionAccount({ mode: 'local', user_id: 'local-demo', cloud_account: { email: 'me@gmail.com', display_name: 'Tommy' } }),
+    { initial: 'T', name: 'Tommy', detail: 'me@gmail.com' });
+  assert.equal(sessionAccount({ mode: 'local', user_id: 'local-demo', cloud_account: null }), null);
+  assert.equal(sessionAccount({ mode: 'local', user_id: 'local-demo', cloud_account: { email: ' ' } }), null);
+});

@@ -417,7 +417,8 @@ app.whenReady().then(async () => {
   });
   ipcMain.handle("desktop:open-external", async (event, url) => {
     trustedSender(event);
-    await shell.openExternal(externalUrl(url));
+    await shell.openExternal(externalUrl(url, {
+      developmentOrigin: app.isPackaged ? undefined : process.env.TXINTRADE_CLOUD_ORIGIN }));
   });
   ipcMain.handle("desktop:retry-startup", async event => {
     trustedSender(event);

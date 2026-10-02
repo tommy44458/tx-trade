@@ -1,4 +1,5 @@
 import { uiText, useUiLocale, setUiLocale, isUiLocale, type UiLocale } from "./i18n/index.ts";
+import CloudAccountSection from "./CloudAccountSection";
 import { useEffect, useRef, useState } from "react";
 import { AnalysisSpinner } from "./AnalysisProgress";
 import SelectControl from "./SelectControl";
@@ -54,9 +55,11 @@ type SettingsUpdate = {
 export default function SettingsPanel({
   initialSettings,
   onChanged,
+  onCloudAccountChanged,
 }: {
   initialSettings: LocalSettings | null;
   onChanged: () => Promise<void>;
+  onCloudAccountChanged: () => void;
 }) {
   const locale = useUiLocale();
   const [settings, setSettings] = useState<LocalSettings | null>(
@@ -487,6 +490,7 @@ export default function SettingsPanel({
             <p className="settings-help">{uiText("介面與新分析使用所選語言；既有報告及追問保留原語言。")}</p>
             {busy === "language" && <p role="status"><AnalysisSpinner /> {uiText("正在儲存語言…")}</p>}
           </section>
+          <CloudAccountSection onChanged={onCloudAccountChanged} />
           <section
             className="panel settings-section"
             aria-labelledby="settings-model-title"

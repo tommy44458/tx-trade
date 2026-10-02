@@ -106,8 +106,12 @@ export async function stopBackend(child) {
   }
 }
 
-export function externalUrl(raw) {
+export function externalUrl(raw, { developmentOrigin } = {}) {
   const parsed = new URL(raw);
+  // An unpackaged build may open its explicitly configured local cloud Worker.
+  if (developmentOrigin && !parsed.username && !parsed.password
+    && parsed.origin === new URL(developmentOrigin).origin
+    && /^(localhost|127\.0\.0\.1)$/.test(parsed.hostname)) return parsed.href;
   if (parsed.protocol !== "https:" || parsed.username || parsed.password
     || /^(localhost|127\.|\[?::1\]?)/i.test(parsed.hostname)) {
     throw new Error("只能開啟外部 HTTPS 網址。");

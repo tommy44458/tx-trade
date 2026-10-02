@@ -399,3 +399,26 @@
     gap: 8px;
   }
 }
+
+.settings-cloud-identity {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0 0 var(--space-3);
+  min-width: 0;
+}
+.settings-cloud-identity > span:last-child {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.settings-cloud-identity strong,
+.settings-cloud-identity small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.settings-cloud-identity small {
+  color: var(--text-secondary);
+  font-size: 12px;
+}

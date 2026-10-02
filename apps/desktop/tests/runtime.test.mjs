@@ -70,6 +70,17 @@ test("external links reject executable protocols, embedded passwords and loopbac
     "https://auth.openai.com/authorize?state=x");
 });
 
+test("only the configured development cloud origin may open over loopback HTTP", () => {
+  const developmentOrigin = "http://localhost:8787";
+  assert.equal(externalUrl("http://localhost:8787/auth/google/start?client=desktop", { developmentOrigin }),
+    "http://localhost:8787/auth/google/start?client=desktop");
+  for (const value of ["http://localhost:9999/x", "http://127.0.0.1:8787/x", "http://user:pw@localhost:8787/x",
+    "file:///etc/passwd", "http://evil.test/x"]) assert.throws(() => externalUrl(value, { developmentOrigin }));
+  // A non-loopback development origin never weakens the HTTPS rule.
+  assert.throws(() => externalUrl("http://cloud.test/x", { developmentOrigin: "http://cloud.test" }));
+  assert.throws(() => externalUrl("http://localhost:8787/x"));
+});
+
 test("desktop chooses a free loopback port instead of fixed development ports", async () => {
   const port = await availablePort();
   assert.ok(port > 0 && port <= 65535);
