@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { uiText } from "./i18n/index.ts";
 import { remoteView, type RemoteStatus } from "./remoteAccess.ts";
+import { openAuthorization } from "./desktop";
 import { apiFetch } from "./transport.ts";
 
 /** Account menu items on the computer: remote access at a glance, and cloud sign-out. */
@@ -9,6 +10,7 @@ export default function LocalCloudMenu({ onOpenSettings, onChanged }: {
   onChanged: () => void;
 }) {
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
+  const [webUrl, setWebUrl] = useState<string | null>(null);
   const [remote, setRemote] = useState<RemoteStatus | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -17,7 +19,11 @@ export default function LocalCloudMenu({ onOpenSettings, onChanged }: {
     let active = true;
     const read = () => {
       apiFetch("/api/v1/cloud-account").then((response) => response.ok ? response.json() : null)
-        .then((value) => { if (active && value) setSignedIn(!!value.signed_in); }).catch(() => {});
+        .then((value) => {
+          if (!active || !value) return;
+          setSignedIn(!!value.signed_in);
+          setWebUrl(typeof value.web_url === "string" ? value.web_url : null);
+        }).catch(() => {});
       apiFetch("/api/v1/cloud-account/remote").then((response) => response.ok ? response.json() : null)
         .then((value) => { if (active && value) setRemote(value); }).catch(() => {});
     };
@@ -72,6 +78,11 @@ export default function LocalCloudMenu({ onOpenSettings, onChanged }: {
           <span className="cloud-switch-thumb" aria-hidden="true" />
         </button>
       </div>
+      {webUrl && (
+        <button type="button" className="account-menu-item" data-menu-close onClick={() => void openAuthorization(webUrl)}>
+          <span className="account-menu-item-copy">{uiText("開啟遠端網頁")}<small>{new URL(webUrl).host}</small></span>
+        </button>
+      )}
       <hr className="account-menu-separator" />
       <button type="button" className="account-menu-item destructive" data-menu-close disabled={busy} onClick={() => void signOut()}>
         {uiText("登出雲端帳戶")}

@@ -654,3 +654,17 @@
     animation: none;
   }
 }
+
+/* The remote page address: selectable, with its actions at the right of the row. */
+.cloud-web-url {
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  user-select: text;
+}
+.cloud-row-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin-left: auto;
+  flex: none;
+}

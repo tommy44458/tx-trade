@@ -172,3 +172,16 @@ def test_cloud_routes_are_left_out_of_api_documentation():
     paths = TestClient(app).get("/openapi.json").json()["paths"]
     assert not [path for path in paths if path.startswith("/api/v1/cloud-account")]
     assert "/api/v1/settings" in paths
+
+
+def test_the_remote_web_page_address_follows_the_cloud(monkeypatch):
+    monkeypatch.delenv("TXINTRADE_CLOUD_ORIGIN", raising=False)
+    monkeypatch.delenv("TXINTRADE_WEB_ORIGIN", raising=False)
+    assert cloud_account.status()["web_url"] == "https://app.txintrade.com"
+    # A development cloud has no remote page unless one is configured, and only over HTTPS.
+    monkeypatch.setenv("TXINTRADE_CLOUD_ORIGIN", "http://localhost:8787")
+    assert cloud_account.status()["web_url"] is None
+    monkeypatch.setenv("TXINTRADE_WEB_ORIGIN", "https://remote.example.test")
+    assert cloud_account.status()["web_url"] == "https://remote.example.test"
+    monkeypatch.setenv("TXINTRADE_WEB_ORIGIN", "http://remote.example.test")
+    assert cloud_account.status()["web_url"] is None

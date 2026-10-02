@@ -1,6 +1,6 @@
 ---
 import { t } from "../i18n";
-import { DOWNLOAD_MAC, RELEASED, RELEASES, REPOSITORY, VERSION, type Locale } from "../site";
+import { DOWNLOAD_MAC, RELEASED, RELEASES, REPOSITORY, VERSION, WEB_APP, type Locale } from "../site";
 
 interface Props { locale: Locale }
 const text = t(Astro.props.locale).download;
@@ -30,11 +30,14 @@ const text = t(Astro.props.locale).download;
       <p class="muted">{text.updates}</p>
     </div>
   </div>
+  <p class="remote">{text.remote} <a href={WEB_APP}>{new URL(WEB_APP).host} ↗</a></p>
   <p><a href={RELEASES}>{text.allReleases} →</a></p>
 </section>
 <style>
   .page { padding-top: 72px; max-width: 900px; }
   h1 { font-size: clamp(40px, 6vw, 60px); }
+  .remote { padding: 14px 18px; border-radius: 14px; background: var(--surface-subtle); color: var(--text-secondary); }
+  .remote a { font-weight: 500; }
   .version { align-self: center; color: var(--text-secondary); font-size: 15px; }
   .columns { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin: 56px 0 32px; }
   h2 { font-size: 22px; margin-bottom: 12px; }

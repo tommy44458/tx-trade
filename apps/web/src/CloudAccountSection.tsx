@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { uiText } from "./i18n/index.ts";
+import { copyText } from "./copyText";
 import { openAuthorization } from "./desktop";
 import { AnalysisSpinner } from "./AnalysisProgress";
 import GoogleMark from "./GoogleMark";
@@ -13,6 +14,8 @@ type CloudAccountStatus = {
   error: string | null;
   profile: { email: string | null; display_name: string | null; picture_url: string | null } | null;
   expires_at: number | null;
+  /** The remote web page for this cloud, e.g. https://app.txintrade.com. */
+  web_url?: string | null;
 };
 
 const SIGN_IN_POLL_MS = 1000;
@@ -33,6 +36,29 @@ async function readRemote(): Promise<RemoteStatus | null> {
 }
 
 /** Optional Google sign-in for the txinTrade cloud; local analysis never depends on it. */
+/** Where to use txinTrade remotely: the address to open on any device, with Open and Copy. */
+function RemoteWebRow({ url }: { url: string }) {
+  const [copied, setCopied] = useState(false);
+  const host = new URL(url).host;
+  return (
+    <div className="cloud-group">
+      <div className="cloud-row">
+        <span className="cloud-row-copy">
+          <span>{uiText("遠端網頁")}</span>
+          <small className="cloud-web-url">{host}</small>
+        </span>
+        <span className="cloud-row-actions">
+          <button type="button" className="cloud-link-button" onClick={() => void copyText(url).then((done) => {
+            setCopied(done);
+            if (done) window.setTimeout(() => setCopied(false), 2000);
+          })}>{copied ? uiText("已複製") : uiText("複製網址")}</button>
+          <button type="button" className="cloud-link-button" onClick={() => void openAuthorization(url)}>{uiText("開啟")}</button>
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export default function CloudAccountSection({ onChanged }: { onChanged: () => void }) {
   const [status, setStatus] = useState<CloudAccountStatus | null>(null);
   const [busy, setBusy] = useState<"" | "sign-in" | "sign-out" | "cancel" | "reopen">("");
@@ -169,6 +195,7 @@ export default function CloudAccountSection({ onChanged }: { onChanged: () => vo
                 </button>
               </div>
             </div>
+            {status.web_url && <RemoteWebRow url={status.web_url} />}
             <p className="cloud-footnote" id="cloud-remote-purpose">
               {uiText("只允許查看狀態、持倉與分析報告，以及發起市場分析；不會讀取金鑰、檔案或修改設定。App 需保持開啟，電腦主動連線到雲端，不開放任何連入的通訊埠。")}
             </p>

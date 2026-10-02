@@ -4,6 +4,11 @@ The product version is managed in `version.json`. Dates record release preparati
 
 ## [Unreleased]
 
+### Changed
+
+- Once signed in to the cloud, Settings → Cloud account shows the remote web page address (app.txintrade.com) to open or copy, and the account menu adds Open the remote web page.
+- When an account has never connected a computer, the remote web page walks through three steps instead: open txinTrade on the computer, sign in with the same Google account, and turn on Remote access, with a download link.
+
 ## [1.0.2] - 2026-10-02
 
 ### Changed

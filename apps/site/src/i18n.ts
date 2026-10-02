@@ -5,10 +5,10 @@ export const copy = {
   en: {
     lang: "en",
     languageName: "English",
-    switchTo: "繁體中文",
-    nav: { features: "Features", download: "Download", pricing: "Pricing", changelog: "What's new", webApp: "Open web app" },
+    switchTo: "繁體中文", switchShort: "中文",
+    nav: { features: "Features", download: "Download", pricing: "Pricing", changelog: "What's new", webApp: "Open web app", webShort: "Web app" },
     footer: {
-      tagline: "Claude Code and Codex as your trading assistant.",
+      tagline: "Every trade deserves the best AI there is.",
       product: "Product", legal: "Legal", project: "Project",
       privacy: "Privacy", terms: "Terms", refund: "Refunds", contact: "Contact", source: "Source code",
       disclaimer: "txinTrade provides analysis only and never places trades. Nothing on this site or in the app is financial advice. Trading crypto futures carries a high risk of loss.",
@@ -43,6 +43,7 @@ export const copy = {
       steps: ["Open the downloaded file and drag txinTrade to Applications.", "Open txinTrade, then connect Claude Code or Codex in Settings.", "Pick a market and start your first analysis."],
       updates: "txinTrade checks for updates and installs them for you, after backing up your data.",
       allReleases: "All releases and notes",
+      remote: "Turned on remote access on your computer? Use txinTrade from any browser at",
     },
     pricing: {
       title: "Pricing — txinTrade",
@@ -53,7 +54,7 @@ export const copy = {
       freeFeatures: ["Market and position analysis", "Charts with AI indicators", "Economic data interpretation", "AI follow-up questions", "Full analysis history", "Uses your own Claude or ChatGPT plan"],
       remoteName: "Remote access", remotePrice: "US$3.99", remotePeriod: "/ month", remoteNote: "Billed monthly in US dollars. Cancel anytime.",
       remoteFeatures: ["Everything in txinTrade", "Use it from any browser", "Start analyses remotely", "Live follow-up replies", "Analysis stays on your computer"],
-      getApp: "Download", notify: "Contact us",
+      getApp: "Download", openWeb: "Open web app",
       note: "The AI runs on your own Claude or ChatGPT plan in both cases; txinTrade never charges for AI usage.",
     },
     changelog: { title: "What's new — txinTrade", description: "Release notes for txinTrade.", heading: "What's new" },
@@ -63,10 +64,10 @@ export const copy = {
   "zh-TW": {
     lang: "zh-Hant-TW",
     languageName: "繁體中文",
-    switchTo: "English",
-    nav: { features: "功能", download: "下載", pricing: "價格", changelog: "更新紀錄", webApp: "開啟網頁版" },
+    switchTo: "English", switchShort: "EN",
+    nav: { features: "功能", download: "下載", pricing: "價格", changelog: "更新紀錄", webApp: "開啟網頁版", webShort: "網頁版" },
     footer: {
-      tagline: "讓 Claude Code 與 Codex 成為你的交易助手。",
+      tagline: "每一筆交易，都值得最頂尖的 AI。",
       product: "產品", legal: "法律條款", project: "專案",
       privacy: "隱私權政策", terms: "服務條款", refund: "退款政策", contact: "聯絡我們", source: "原始碼",
       disclaimer: "txinTrade 只提供分析，不會下單。本網站與 App 的內容都不構成投資建議。加密貨幣合約交易具有高度虧損風險。",
@@ -101,6 +102,7 @@ export const copy = {
       steps: ["打開下載的檔案，把 txinTrade 拖到「應用程式」。", "開啟 txinTrade，在設定連結 Claude Code 或 Codex。", "選一個交易對，開始第一次分析。"],
       updates: "txinTrade 會自動檢查並安裝更新，安裝前會先備份你的資料。",
       allReleases: "所有版本與說明",
+      remote: "已在電腦上打開遠端存取？用任何裝置的瀏覽器開啟",
     },
     pricing: {
       title: "價格 — txinTrade",
@@ -111,7 +113,7 @@ export const copy = {
       freeFeatures: ["市場與持倉分析", "附 AI 指標的圖表", "經濟數據解讀", "AI 追問", "完整分析紀錄", "使用你自己的 Claude 或 ChatGPT 方案"],
       remoteName: "遠端存取", remotePrice: "US$3.99", remotePeriod: "／月", remoteNote: "以美元按月計費，隨時可取消。",
       remoteFeatures: ["包含 txinTrade 所有功能", "用任何裝置的瀏覽器使用", "遠端發起分析", "追問即時逐字回覆", "分析仍在你的電腦上執行"],
-      getApp: "下載", notify: "聯絡我們",
+      getApp: "下載", openWeb: "開啟網頁版",
       note: "兩種方案的 AI 都使用你自己的 Claude 或 ChatGPT 方案，txinTrade 不會向你收取 AI 使用費用。",
     },
     changelog: { title: "更新紀錄 — txinTrade", description: "txinTrade 的版本更新紀錄。", heading: "更新紀錄" },

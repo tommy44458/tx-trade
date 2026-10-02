@@ -84,6 +84,19 @@ def cloud_origin() -> str:
     return origin
 
 
+# The remote web page for each cloud: production's, or an explicitly configured one for development.
+WEB_ORIGINS = {DEFAULT_ORIGIN: "https://app.txintrade.com"}
+
+
+def web_url(origin: str) -> str | None:
+    """Where to open txinTrade remotely in a browser, shown on the computer; None when unknown."""
+    configured = os.getenv("TXINTRADE_WEB_ORIGIN", "").rstrip("/")
+    if configured:
+        parsed = urlsplit(configured)
+        return configured if parsed.scheme == "https" and parsed.hostname and not parsed.path else None
+    return WEB_ORIGINS.get(origin)
+
+
 @dataclass
 class SignIn:
     state: str
@@ -151,7 +164,7 @@ def status() -> dict:
     signed_in = bool(metadata.get("signed_in")) and isinstance(metadata.get("expires_at"), int) \
         and metadata["expires_at"] > time.time() * 1000 and metadata.get("origin") == origin
     profile = {key: metadata.get(key) for key in ("email", "display_name", "picture_url")} if signed_in else None
-    return {"configured": True, "origin": origin, "signed_in": signed_in, "pending": pending,
+    return {"configured": True, "origin": origin, "web_url": web_url(origin), "signed_in": signed_in, "pending": pending,
             "error": error, "profile": profile,
             "expires_at": metadata.get("expires_at") if signed_in else None}
 

@@ -1,6 +1,6 @@
 ---
 import { t } from "../i18n";
-import { DOWNLOAD_MAC, RELEASED, localePath, type Locale } from "../site";
+import { DOWNLOAD_MAC, RELEASED, WEB_APP, localePath, type Locale } from "../site";
 
 interface Props { locale: Locale }
 const { locale } = Astro.props;
@@ -22,7 +22,7 @@ const text = t(locale).pricing;
       <p class="price">{text.remotePrice}<span class="period">{text.remotePeriod}</span></p>
       <p class="note">{text.remoteNote}</p>
       <ul>{text.remoteFeatures.map((item) => <li>{item}</li>)}</ul>
-      <a class="button secondary" href={localePath("/contact", locale)}>{text.notify}</a>
+      <a class="button secondary" href={WEB_APP}>{text.openWeb} <span aria-hidden="true">↗</span></a>
     </article>
   </div>
   <p class="footnote">{text.note}</p>
