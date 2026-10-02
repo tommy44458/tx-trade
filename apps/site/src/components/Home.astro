@@ -28,7 +28,7 @@ const words = text.heroTitle.split(names).flatMap((part) =>
   <p class="lead wrap fade" style="--d:0.35s">{text.heroSubtitle}</p>
   <div class="actions fade" style="--d:0.5s">
     <a class="button" href={download}>{RELEASED ? text.download : text.comingSoon}</a>
-    <a class="button secondary" href={REPOSITORY}>{text.github} <span class="arrow" aria-hidden="true">↗</span></a>
+    <a class="button secondary" href={REPOSITORY} target="_blank" rel="noopener">{text.github} <span class="arrow" aria-hidden="true">↗</span></a>
   </div>
   <p class="caption fade" style="--d:0.6s">{text.caption}</p>
 </section>

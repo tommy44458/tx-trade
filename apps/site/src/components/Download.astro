@@ -30,7 +30,7 @@ const text = t(Astro.props.locale).download;
       <p class="muted">{text.updates}</p>
     </div>
   </div>
-  <p class="remote">{text.remote} <a href={WEB_APP}>{new URL(WEB_APP).host} ↗</a></p>
+  <p class="remote">{text.remote} <a href={WEB_APP} target="_blank" rel="noopener">{new URL(WEB_APP).host} ↗</a></p>
   <p><a href={RELEASES}>{text.allReleases} →</a></p>
 </section>
 <style>

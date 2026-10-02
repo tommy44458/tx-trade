@@ -48,7 +48,7 @@ const canonical = new URL(path, Astro.site).href;
         <a class="wordmark" href={link("/")}>txin<strong>Trade</strong></a>
         <div class="nav-links">
           <a class="nav-language" href={localePath(path, other)} hreflang={other} lang={other === "en" ? "en" : "zh-Hant-TW"} aria-label={text.switchTo}><span class="long">{text.switchTo}</span><span class="short" aria-hidden="true">{text.switchShort}</span></a>
-          <a class="nav-web" href={WEB_APP}>{text.nav.webShort}<span aria-hidden="true">↗</span></a>
+          <a class="nav-web" href={WEB_APP} target="_blank" rel="noopener">{text.nav.webShort}<span aria-hidden="true">↗</span></a>
           <a class="nav-download" href={link("/download")}>{text.nav.download}</a>
         </div>
       </nav>
@@ -66,7 +66,7 @@ const canonical = new URL(path, Astro.site).href;
           <a href={link("/download")}>{text.nav.download}</a>
           <a href={link("/pricing")}>{text.nav.pricing}</a>
           <a href={link("/changelog")}>{text.nav.changelog}</a>
-          <a href={WEB_APP}>{text.nav.webApp}</a>
+          <a href={WEB_APP} target="_blank" rel="noopener">{text.nav.webApp}</a>
           <a href={REPOSITORY}>{text.footer.source}</a>
           <a href={link("/privacy")}>{text.footer.privacy}</a>
           <a href={link("/terms")}>{text.footer.terms}</a>
