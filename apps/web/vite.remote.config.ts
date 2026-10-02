@@ -26,7 +26,9 @@ const remoteIndex = (): Plugin => ({
     ].join('; ')
     writeFileSync(resolve(OUT_DIR, '_headers'), [
       '/*', `  Content-Security-Policy: ${csp}`, '  X-Content-Type-Options: nosniff',
-      '  Referrer-Policy: no-referrer', '  Permissions-Policy: camera=(), microphone=(), geolocation=()', '',
+      '  Referrer-Policy: no-referrer', '  Permissions-Policy: camera=(), microphone=(), geolocation=()',
+      // The default revalidation, plus no-transform: Cloudflare must not inject its analytics beacon.
+      '  Cache-Control: public, max-age=0, must-revalidate, no-transform', '',
     ].join('\n'))
   },
 })
