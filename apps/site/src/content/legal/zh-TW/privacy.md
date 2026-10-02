@@ -29,11 +29,13 @@ txinTrade 桌面 App 會把你的持倉、偏好設定、分析紀錄、對話�
 
 ## Cookie
 
-本網站不使用 cookie，也沒有追蹤機制。雲端服務會在 `api.txintrade.com` 設定一個維持登入狀態所必需的 cookie，以及 Google 登入過程中的一個短效 cookie，兩者都不用於廣告或分析。
+本網站（txintrade.com）不使用 cookie。為了了解哪些頁面有幫助，本網站使用 Cloudflare Web Analytics 統計彙總的造訪數據：造訪的頁面、來源網站、國家，以及瀏覽器與裝置類型。它不使用 cookie、不在你的裝置存放任何資料、不建立你的個人輪廓，也不會跨網站追蹤你。遠端網頁（`app.txintrade.com`）不使用任何分析工具。
+
+雲端服務會在 `api.txintrade.com` 設定一個維持登入狀態所必需的 cookie，以及 Google 登入過程中的一個短效 cookie，兩者都不用於廣告或分析。
 
 ## 服務供應商
 
-雲端服務架設在 Cloudflare 上，Cloudflare 會為了傳送與防護服務而處理 IP 位址等網路資料；登入由 Google 提供。
+本網站與雲端服務架設在 Cloudflare 上，Cloudflare 會為了傳送與防護而處理 IP 位址等網路資料，並提供本網站的流量分析；登入由 Google 提供。
 
 ## 資料保存與刪除
 

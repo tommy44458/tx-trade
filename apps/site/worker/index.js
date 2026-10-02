@@ -6,11 +6,7 @@ export default {
       url.hostname = "txintrade.com";
       return Response.redirect(url.toString(), 301);
     }
-    const response = await env.ASSETS.fetch(request);
-    if (!response.headers.get("Content-Type")?.startsWith("text/html")) return response;
-    // The site promises no tracking: no-transform keeps Cloudflare from injecting its analytics beacon.
-    const page = new Response(response.body, response);
-    page.headers.set("Cache-Control", "public, max-age=0, must-revalidate, no-transform");
-    return page;
+    // Pages pass through unchanged, so Cloudflare Web Analytics (cookieless) can add its beacon.
+    return env.ASSETS.fetch(request);
   },
 };

@@ -29,11 +29,13 @@ Payments are processed by our third-party payment provider, which handles paymen
 
 ## Cookies
 
-This website uses no cookies and no tracking. The cloud service sets one essential cookie on `api.txintrade.com` to keep you signed in, and a short-lived one during Google sign-in. Neither is used for advertising or analytics.
+This website (txintrade.com) uses no cookies. To understand which pages are useful, it uses Cloudflare Web Analytics, which counts visits in aggregate: the page, the referring site, the country, and the browser and device type. It does not use cookies or store anything on your device, does not build a profile of you, and does not track you across other sites. The remote web page (`app.txintrade.com`) uses no analytics.
+
+The cloud service sets one essential cookie on `api.txintrade.com` to keep you signed in, and a short-lived one during Google sign-in. Neither is used for advertising or analytics.
 
 ## Service providers
 
-The cloud service runs on Cloudflare, which processes network data such as IP addresses to deliver and protect it. Google provides sign-in.
+The website and the cloud service run on Cloudflare, which processes network data such as IP addresses to deliver and protect them, and provides the website's analytics. Google provides sign-in.
 
 ## Keeping and deleting your data
 
