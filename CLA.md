@@ -1,6 +1,6 @@
-# txTrade Individual Contributor License Agreement
+# txinTrade Individual Contributor License Agreement
 
-Thank you for contributing to txTrade (the "Project"). This Contributor License
+Thank you for contributing to txinTrade (the "Project"). This Contributor License
 Agreement ("Agreement") clarifies the rights you grant to Hsin Chuan Huang (the
 "Maintainer") for your Contributions. It does not transfer ownership: you keep
 the copyright in your Contributions.

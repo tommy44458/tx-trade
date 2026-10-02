@@ -47,7 +47,7 @@ def desktop_mode() -> bool:
 def data_directory() -> Path:
     directory = os.getenv("APP_DATA_DIR")
     return (Path(directory).expanduser() if directory else
-            Path.home() / "Library" / "Application Support" / "txTrade")
+            Path.home() / "Library" / "Application Support" / "txinTrade")
 
 
 def _ensure_database() -> None:

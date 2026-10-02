@@ -1,13 +1,13 @@
-# Contributing to txTrade
+# Contributing to txinTrade
 
-Thank you for helping improve txTrade. Bug reports, reproducible issues, and
+Thank you for helping improve txinTrade. Bug reports, reproducible issues, and
 focused pull requests are welcome.
 
 ## Before you start
 
 - For larger changes, open an issue first so the approach can be agreed before
   you spend time on it.
-- txTrade provides analysis and read-only position imports. Changes that place
+- txinTrade provides analysis and read-only position imports. Changes that place
   orders, move funds, or weaken credential protection will not be accepted.
 - Never include API keys, exchange credentials, model account tokens, local
   databases, or personal trading data in issues, commits, or test fixtures.
@@ -39,5 +39,5 @@ you change, and keep Traditional Chinese and English UI text in sync
 
 By contributing, you agree that your contributions are licensed as described in
 the CLA, and that the project is distributed under the
-[GNU Affero General Public License v3](LICENSE). The txTrade name and logos are
+[GNU Affero General Public License v3](LICENSE). The txinTrade name and logos are
 covered by the [trademark policy](TRADEMARKS.md).

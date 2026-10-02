@@ -22,5 +22,5 @@
   <rect x="101" y="101" width="822" height="822" rx="184" fill="none" stroke="url(#rim)" stroke-width="2"/>
   <text x="512" y="512" dominant-baseline="central" text-anchor="middle" fill="url(#shine)"
         font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif"
-        font-size="196" letter-spacing="-7"><tspan font-weight="400">tx</tspan><tspan font-weight="700">Trade</tspan></text>
+        font-size="172" letter-spacing="-6"><tspan font-weight="400">txin</tspan><tspan font-weight="700">Trade</tspan></text>
 </svg>

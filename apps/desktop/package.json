@@ -4,7 +4,7 @@
   "license": "AGPL-3.0-only",
   "description": "Local AI trading analysis application",
   "private": true,
-  "author": "txTrade",
+  "author": "txinTrade",
   "type": "module",
   "main": "main.mjs",
   "scripts": {
@@ -20,8 +20,8 @@
     "electron-builder": "26.15.3"
   },
   "build": {
-    "appId": "com.txtrade.desktop",
-    "productName": "txTrade",
+    "appId": "com.txintrade.desktop",
+    "productName": "txinTrade",
     "asar": true,
     "directories": {
       "output": "release"

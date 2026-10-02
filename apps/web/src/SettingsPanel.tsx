@@ -330,8 +330,8 @@ export default function SettingsPanel({
       if (value.cli_installed === false) {
         setCliSetup("install");
         setCliError(provider === "claude_code"
-          ? uiText("仍未偵測到 Claude Code CLI。安裝完成後，若剛修改過 PATH，請重新開啟 txTrade。")
-          : uiText("仍未偵測到 Codex CLI。安裝完成後，若剛修改過 PATH，請重新開啟 txTrade。"));
+          ? uiText("仍未偵測到 Claude Code CLI。安裝完成後，若剛修改過 PATH，請重新開啟 txinTrade。")
+          : uiText("仍未偵測到 Codex CLI。安裝完成後，若剛修改過 PATH，請重新開啟 txinTrade。"));
       } else if (value.authenticated) {
         setCliSetup(null);
         setNotice(uiText("帳號已連線。"));

@@ -1,6 +1,6 @@
 {
   "extends": "./electron-builder.base.cjs",
-  "artifactName": "txTrade-${version}-${os}-${arch}.${ext}",
+  "artifactName": "txinTrade-${version}-${os}-${arch}.${ext}",
   "forceCodeSigning": true,
   "generateUpdatesFilesForAllChannels": false,
   "publish": {

@@ -23,7 +23,7 @@ from .macro_actuals import (
 def sync_once(post_bls=None, get_bea=None) -> dict[str, dict]:
     if post_bls is None or get_bea is None:
         with httpx.Client(timeout=20, follow_redirects=True,
-                          headers={"User-Agent": "txTrade/0.1 official macro research"}) as client:
+                          headers={"User-Agent": "txinTrade/0.1 official macro research"}) as client:
             return sync_once(
                 lambda: client.post(BLS_API, json={"seriesid": list(BLS_SERIES)}).raise_for_status().json(),
                 lambda url: client.get(url).raise_for_status().text,

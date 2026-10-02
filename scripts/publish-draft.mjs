@@ -15,10 +15,10 @@ if (info.version !== state.version || info.channel !== state.channel || info.tag
   throw new Error("Downloaded assets do not match this signed release, tag, and commit.");
 }
 const expected = new Set([
-  `txTrade-${state.version}-mac-arm64.dmg`,
-  `txTrade-${state.version}-mac-arm64.zip`,
-  `txTrade-${state.version}-mac-arm64.dmg.blockmap`,
-  `txTrade-${state.version}-mac-arm64.zip.blockmap`,
+  `txinTrade-${state.version}-mac-arm64.dmg`,
+  `txinTrade-${state.version}-mac-arm64.zip`,
+  `txinTrade-${state.version}-mac-arm64.dmg.blockmap`,
+  `txinTrade-${state.version}-mac-arm64.zip.blockmap`,
   `${state.channel === "beta" ? "beta" : "latest"}-mac.yml`, "SHA256SUMS.txt",
 ]);
 const assetPaths = info.assets.map(asset => {
@@ -53,12 +53,12 @@ if (matches.length > 1) throw new Error("Multiple releases use this tag; resolve
 const existing = matches[0];
 if (existing) {
   if (!existing.draft) throw new Error("This tag already has a published release; published assets will not be overwritten.");
-  gh(["release", "edit", tag, "--repo", repo, "--draft", "--title", `txTrade ${state.version}`,
+  gh(["release", "edit", tag, "--repo", repo, "--draft", "--title", `txinTrade ${state.version}`,
     "--notes-file", notesPath, ...(state.channel === "beta" ? ["--prerelease"] : ["--prerelease=false"])]);
   gh(["release", "upload", tag, ...assetPaths, "--repo", repo, "--clobber"]);
 } else {
   gh(["release", "create", tag, ...assetPaths, "--repo", repo, "--verify-tag", "--draft",
-    "--title", `txTrade ${state.version}`, "--notes-file", notesPath,
+    "--title", `txinTrade ${state.version}`, "--notes-file", notesPath,
     ...(state.channel === "beta" ? ["--prerelease"] : [])]);
 }
 console.log(`Draft ${tag} is ready for review. It remains unpublished.`);

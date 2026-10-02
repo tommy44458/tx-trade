@@ -5,7 +5,7 @@ import { DatabaseSync } from "node:sqlite";
 export const NATIVE_STRINGS = Object.freeze({
   "zh-TW": {
     settings: "設定", openData: "開啟資料目錄", openLog: "開啟後端記錄",
-    about: "關於 txTrade", changelog: "版本變更紀錄", close: "關閉",
+    about: "關於 txinTrade", changelog: "版本變更紀錄", close: "關閉",
     releaseChannel: "更新渠道", stableChannel: "正式版", betaChannel: "測試版",
     unreleasedBuild: "此為開發版本。", noReleaseNotes: "此版本未附變更紀錄。",
     checkUpdates: "檢查更新", updateStatus: "更新狀態", installUpdate: "安裝更新",
@@ -30,7 +30,7 @@ export const NATIVE_STRINGS = Object.freeze({
   },
   "en-US": {
     settings: "Settings", openData: "Open Data Folder", openLog: "Open Backend Log",
-    about: "About txTrade", changelog: "Changelog", close: "Close",
+    about: "About txinTrade", changelog: "Changelog", close: "Close",
     releaseChannel: "Release channel", stableChannel: "Stable", betaChannel: "Beta",
     unreleasedBuild: "This is a development build.", noReleaseNotes: "No release notes are included for this version.",
     checkUpdates: "Check for Updates", updateStatus: "Update Status", installUpdate: "Install Update",

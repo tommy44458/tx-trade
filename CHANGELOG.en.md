@@ -24,14 +24,14 @@ The product version is managed in `version.json`. Dates record release preparati
 - Added macOS Apple Silicon installer builds in GitHub Actions and a signed draft release workflow; public distribution still requires Apple credentials and installation acceptance.
 - Added native update checks, downloads, progress, and installation controls. Release updates wait for model work to finish and back up local data; test packages keep updates disabled.
 - Licensed the source code under the GNU AGPL v3 only, and added a Contributor License Agreement (CLA), a trademark policy, and third-party notices. Candlestick charts show the TradingView attribution required by the Lightweight Charts license.
-- Added Claude Code as an AI analysis source. It binds to the locally installed, signed-in Claude Code CLI for strategy analysis, macro interpretation, translation, and streamed follow-ups. The app never reads or stores Claude credentials, and the model can use only txTrade's registered indicator tools.
+- Added Claude Code as an AI analysis source. It binds to the locally installed, signed-in Claude Code CLI for strategy analysis, macro interpretation, translation, and streamed follow-ups. The app never reads or stores Claude credentials, and the model can use only txinTrade's registered indicator tools.
 - Settings now detect whether the Codex and Claude Code CLIs are installed, and offer copyable install and sign-in commands when a CLI is missing or signed out. When the app is opened from Finder, common install locations such as Homebrew, npm, Volta, Bun, and nvm are also checked.
-- Added a txTrade wordmark app icon.
+- Added a txinTrade wordmark app icon.
 
 ### Changed
 
-- Renamed the product from the interim AI Trade Helper to txTrade across the application, installers, menus, and the `tommy44458/tx-trade` release repository. On first launch the existing `AI Trade Helper` data folder moves to `txTrade`; while an older build is still running, the original folder stays in use.
-- The startup page now presents an animated txTrade wordmark, shown for at least three seconds and faded out before the workspace loads; reduced motion is respected.
+- Renamed the product from the interim AI Trade Helper to txinTrade across the application, installers, menus, and the `tommy44458/tx-trade` release repository. On first launch the development-era `txTrade` or `AI Trade Helper` data folder moves to `txinTrade` (the newer `txTrade` when both exist); while an older build is still running, the original folder stays in use.
+- The startup page now presents an animated txinTrade wordmark, shown for at least three seconds and faded out before the workspace loads; reduced motion is respected.
 - The sidebar no longer shows the internal workspace ID (`local-demo`); local mode shows only "Local workspace".
 
 ### Removed

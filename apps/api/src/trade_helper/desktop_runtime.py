@@ -73,7 +73,7 @@ def monitor_services(children, server, stopped: threading.Event, failed: threadi
 
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--version", action="version", version=f"txTrade {product_version()}")
+    parser.add_argument("--version", action="version", version=f"txinTrade {product_version()}")
     parser.add_argument("--port", type=int, default=0)
     parser.add_argument("--web-dir", type=Path)
     parser.add_argument("--service", choices=SERVICES)

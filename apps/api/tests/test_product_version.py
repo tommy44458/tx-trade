@@ -44,4 +44,4 @@ def test_backend_version_command_does_not_require_a_desktop_session(monkeypatch,
     with pytest.raises(SystemExit) as exited:
         main(["--version"])
     assert exited.value.code == 0
-    assert capsys.readouterr().out == f"txTrade {product_metadata.product_version()}\n"
+    assert capsys.readouterr().out == f"txinTrade {product_metadata.product_version()}\n"

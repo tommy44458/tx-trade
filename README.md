@@ -1,8 +1,8 @@
-# txTrade
+# txinTrade
 
 A local desktop workspace for AI-assisted crypto futures analysis, built with Electron, React + Vite, and FastAPI. It combines current price action, support/resistance, technical indicators, and U.S. macroeconomic data to explain market and position decisions.
 
-txTrade provides analysis and read-only position imports. It does not place orders, close exchange positions, change leverage, transfer funds, or withdraw assets. AI output and support/resistance backtests do not establish profitable trading performance.
+txinTrade provides analysis and read-only position imports. It does not place orders, close exchange positions, change leverage, transfer funds, or withdraw assets. AI output and support/resistance backtests do not establish profitable trading performance.
 
 ## Features
 
@@ -75,19 +75,19 @@ Binance integration has automated and mocked UI coverage, but **has not yet been
 pnpm desktop:build
 ```
 
-Output goes to `apps/desktop/release/`. The package includes the frontend, Python runtime, dependencies, and SQLite; the Codex and Claude Code providers still need their installed CLIs. The native package and the interface are both named **txTrade**. On first launch, data from earlier builds under `~/Library/Application Support/AI Trade Helper` moves to `~/Library/Application Support/txTrade`.
+Output goes to `apps/desktop/release/`. The package includes the frontend, Python runtime, dependencies, and SQLite; the Codex and Claude Code providers still need their installed CLIs. The native package and the interface are both named **txinTrade**. On first launch, data from earlier builds under `~/Library/Application Support/txTrade` or `AI Trade Helper` moves to `~/Library/Application Support/txinTrade`.
 
 For the macOS Apple Silicon build:
 
 ```bash
-open "apps/desktop/release/mac-arm64/txTrade.app"
+open "apps/desktop/release/mac-arm64/txinTrade.app"
 ```
 
 macOS arm64 is the validated local target. The package uses ad-hoc signing; release signing/notarization and Windows/Linux distribution have not been validated.
 
 ### Product version and release notes
 
-`version.json` is the product version source for the desktop, web, and Python packages. Desktop startup and packaging check version consistency first. Use **Settings → About txTrade** to see the installed version, and **Settings → Changelog** for its bundled notes in the selected language.
+`version.json` is the product version source for the desktop, web, and Python packages. Desktop startup and packaging check version consistency first. Use **Settings → About txinTrade** to see the installed version, and **Settings → Changelog** for its bundled notes in the selected language.
 
 ```bash
 pnpm release:check
@@ -156,6 +156,6 @@ Broad licensed crypto-news coverage, consensus forecasts as strategy evidence, a
 
 ## License
 
-txTrade is licensed under the [GNU Affero General Public License v3.0 only](LICENSE) (`AGPL-3.0-only`). You may use, study, modify, and share it. If you distribute a modified version, or let others use a modified version over a network, you must make its complete source code available under the same license. Commercial licenses without these obligations are available from the copyright holder.
+txinTrade is licensed under the [GNU Affero General Public License v3.0 only](LICENSE) (`AGPL-3.0-only`). You may use, study, modify, and share it. If you distribute a modified version, or let others use a modified version over a network, you must make its complete source code available under the same license. Commercial licenses without these obligations are available from the copyright holder.
 
-Contributions require accepting the [Contributor License Agreement](CLA.md); see [CONTRIBUTING.md](CONTRIBUTING.md). The txTrade name and logos are not covered by the AGPL; see the [trademark policy](TRADEMARKS.md). Third-party attributions are listed in [NOTICE](NOTICE).
+Contributions require accepting the [Contributor License Agreement](CLA.md); see [CONTRIBUTING.md](CONTRIBUTING.md). The txinTrade name and logos are not covered by the AGPL; see the [trademark policy](TRADEMARKS.md). Third-party attributions are listed in [NOTICE](NOTICE).

@@ -30,7 +30,7 @@ let manualUpdateChecks = 0;
 let updateMenuKey;
 const updateNotices = new Set();
 
-app.setName("txTrade");
+app.setName("txinTrade");
 // Must run before the single-instance lock, which creates the new profile directory.
 const userData = resolveUserData({ appData: app.getPath("appData"), current: app.getPath("userData") });
 if (userData.path !== app.getPath("userData")) app.setPath("userData", userData.path);
@@ -53,14 +53,14 @@ function runUpdateAction(action) {
 // The startup page stays visible long enough for its one-time introduction to settle.
 const STARTUP_MINIMUM_MS = 3000;
 const STARTUP_EXIT_MS = 240;
-const STARTUP_LETTERS = [..."tx"].map(letter => [letter, false])
+const STARTUP_LETTERS = [..."txin"].map(letter => [letter, false])
   .concat([..."Trade"].map(letter => [letter, true]));
 
 function startupWordmark() {
   const letters = STARTUP_LETTERS.map(([letter, strong], index) =>
     `<span class="${strong ? "strong" : ""}" style="--i:${index}">${letter}</span>`).join("");
   // The shine layer repeats the same glyph boxes so one gradient travels across the whole word.
-  return `<div class="wordmark" role="img" aria-label="txTrade"><div class="letters">${letters}</div>
+  return `<div class="wordmark" role="img" aria-label="txinTrade"><div class="letters">${letters}</div>
     <div class="shine" aria-hidden="true">${letters}</div></div>`;
 }
 
@@ -73,7 +73,7 @@ function startupPage(failed = false) {
     : `<p class="status" role="status"><span class="sr">${title}. </span>${text.preparing}</p>`;
   return `<!doctype html><html lang="${uiLocale}"><head><meta charset="UTF-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
-  <title>txTrade</title><style>
+  <title>txinTrade</title><style>
   :root{color-scheme:light dark;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',system-ui,sans-serif;
     --canvas:light-dark(#f5f5f7,#151517);--text:light-dark(#1d1d1f,#f5f5f7);--muted:light-dark(#58585f,#a1a1ab);
     --accent:light-dark(#0066cc,#75b6ff);--danger:light-dark(#c13543,#ff98a3);--settle:cubic-bezier(.32,.72,0,1)}
@@ -134,14 +134,14 @@ function updateNativeMenu() {
       { label: text.about, click: () => {
         const info = releaseInfo();
         void dialog.showMessageBox(window, { type: "info", title: text.about,
-          message: `txTrade ${info.version}`, buttons: [text.close],
+          message: `txinTrade ${info.version}`, buttons: [text.close],
           detail: `${text.releaseChannel}: ${info.channel === "beta" ? text.betaChannel : text.stableChannel}`
             + (info.prepared ? "" : `\n${text.unreleasedBuild}`) });
       } },
       { label: text.changelog, click: () => {
         const info = releaseInfo();
         void dialog.showMessageBox(window, { type: "info", title: text.changelog,
-          message: `txTrade ${info.version}`, buttons: [text.close],
+          message: `txinTrade ${info.version}`, buttons: [text.close],
           detail: (info.prepared ? "" : `${text.unreleasedBuild}\n\n`)
             + (info.notes || text.noReleaseNotes) });
       } },
@@ -381,7 +381,7 @@ app.whenReady().then(async () => {
   nativeTheme.themeSource = readSavedTheme(join(app.getPath("userData"), "data"),
                                          process.env.APP_LOCAL_USER_ID || "local-demo");
   window = new BrowserWindow({ width: 1280, height: 900, minWidth: 840, minHeight: 640,
-    title: "txTrade", show: false,
+    title: "txinTrade", show: false,
     backgroundColor: nativeTheme.shouldUseDarkColors ? "#151517" : "#f5f5f7",
     webPreferences: { preload: join(dirname(fileURLToPath(import.meta.url)), "preload.cjs"),
       additionalArguments: [`--trade-helper-version=${app.getVersion()}`],

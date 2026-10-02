@@ -950,9 +950,9 @@ function App() {
             setManualPositionAnalysisId(null);
             setView("market");
           }}
-          aria-label={`txTrade · ${uiText("市場分析")}`}
+          aria-label={`txinTrade · ${uiText("市場分析")}`}
         >
-          <span className="brand-wordmark">tx<strong>Trade</strong></span>
+          <span className="brand-wordmark">txin<strong>Trade</strong></span>
         </a>
         <div className="nav-label">{uiText("工作空間")}</div>
         <nav aria-label={uiText("主要導覽")}>

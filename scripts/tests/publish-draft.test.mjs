@@ -30,7 +30,7 @@ function fixture() {
     cpSync(join(sourceRoot, name), join(root, "scripts", name));
   }
   const names = [".dmg", ".zip", ".dmg.blockmap", ".zip.blockmap"]
-    .map(suffix => `txTrade-1.2.3-mac-arm64${suffix}`);
+    .map(suffix => `txinTrade-1.2.3-mac-arm64${suffix}`);
   names.push("latest-mac.yml", "SHA256SUMS.txt");
   const assets = names.map(name => {
     const data = `test asset ${name}\n`;
@@ -40,7 +40,7 @@ function fixture() {
   const info = { version: "1.2.3", channel: "stable", tag: "v1.2.3", commit: "test-commit",
     signed: true, platform: "darwin", arch: "arm64", assets };
   put("assets/release-info.json", JSON.stringify(info));
-  put("assets/release-notes.md", "# txTrade 1.2.3\n\n## 繁體中文\n\n- Current release notes.\n\n## English\n\n- Current release notes.\n");
+  put("assets/release-notes.md", "# txinTrade 1.2.3\n\n## 繁體中文\n\n- Current release notes.\n\n## English\n\n- Current release notes.\n");
   put("bin/gh", '#!/usr/bin/env node\nconst fs = require("node:fs");\n'
     + 'fs.appendFileSync(process.env.TEST_CALLS, JSON.stringify(process.argv.slice(2)) + "\\n");\n'
     + 'process.stdout.write(process.argv[2] === "api" ? process.env.TEST_RELEASES : "{}");\n');

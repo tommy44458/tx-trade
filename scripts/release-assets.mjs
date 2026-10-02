@@ -42,7 +42,7 @@ export function releaseNotes(root = defaultRoot) {
     if (!release?.content) throw new Error(`${path} needs release notes for ${state.version}.`);
     return release.content;
   });
-  return `# txTrade ${state.version}\n\n## 繁體中文\n\n${notes[0]}\n\n## English\n\n${notes[1]}\n`;
+  return `# txinTrade ${state.version}\n\n## 繁體中文\n\n${notes[0]}\n\n## English\n\n${notes[1]}\n`;
 }
 
 export function validateUpdateMetadata(metadata, state, files) {
@@ -119,7 +119,7 @@ async function smokeTestBackend(root, app, version) {
     .map(name => [name, process.env[name]]));
   const resources = join(app, "Contents/Resources");
   const binary = join(resources, "backend/trade-helper-backend");
-  if (command(binary, ["--version"], { env: inherited }).trim() !== `txTrade ${version}`) {
+  if (command(binary, ["--version"], { env: inherited }).trim() !== `txinTrade ${version}`) {
     throw new Error("Packaged backend version does not match the release.");
   }
   const port = await availablePort();
@@ -155,7 +155,7 @@ export async function validateReleaseArtifacts(root = defaultRoot, { official = 
   const state = checkReleaseState(root, { requirePrepared: official });
   if (official) assertReleaseEnvironment(state, environment);
   const directory = join(root, "apps/desktop/release");
-  const stem = `txTrade-${state.version}-mac-arm64`;
+  const stem = `txinTrade-${state.version}-mac-arm64`;
   const assets = [`${stem}.dmg`, `${stem}.zip`, `${stem}.dmg.blockmap`, `${stem}.zip.blockmap`,
     `${state.channel === "beta" ? "beta" : "latest"}-mac.yml`];
   for (const asset of assets) {
@@ -172,7 +172,7 @@ export async function validateReleaseArtifacts(root = defaultRoot, { official = 
   const yaml = appBuilderRequire("js-yaml");
   const metadata = yaml.load(readFileSync(join(directory, assets[4]), "utf8"));
   validateUpdateMetadata(metadata, state, installers);
-  const app = join(directory, "mac-arm64/txTrade.app");
+  const app = join(directory, "mac-arm64/txinTrade.app");
   const backend = join(app, "Contents/Resources/backend");
   const executable = command("plutil", ["-extract", "CFBundleExecutable", "raw", "-o", "-",
     join(app, "Contents/Info.plist")]).trim();

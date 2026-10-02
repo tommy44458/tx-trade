@@ -75,7 +75,7 @@ def sync_once(fetch=None, *, checked: datetime | None = None) -> dict:
     if fetch is not None:
         return _sync(fetch, checked)
     with httpx.Client(timeout=15, follow_redirects=True,
-                      headers={"User-Agent": "txTrade/0.1 official news research"}) as client:
+                      headers={"User-Agent": "txinTrade/0.1 official news research"}) as client:
         return _sync(lambda url: client.get(url).raise_for_status().text, checked)
 
 
