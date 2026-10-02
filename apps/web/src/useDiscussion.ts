@@ -1,6 +1,7 @@
 import { uiText, type UiLocale } from "./i18n/index.ts";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { DiscussionLiveMarket } from "./discussionLiveMarket.ts";
+import { apiFetch, isRemoteMode } from "./transport.ts";
 
 export type DiscussionSubjectType = "analysis" | "macro";
 export type DiscussionMessage = {
@@ -61,7 +62,7 @@ class DiscussionRequestError extends Error {
 }
 
 async function request(path: string, options: RequestInit): Promise<DiscussionState> {
-  const response = await fetch(`/api/v1/discussions/${path}`, options);
+  const response = await apiFetch(`/api/v1/discussions/${path}`, options);
   const body = await response.json().catch(() => null);
   if (!response.ok) {
     throw new DiscussionRequestError(typeof body?.detail === "string" ? body.detail
@@ -160,7 +161,7 @@ export default function useDiscussion(type: DiscussionSubjectType, id: string, o
     };
     scopeRef.current = scope;
     stateRef.current = null;
-    void Promise.resolve().then(() => { setStreamFallback(false); return load(scope); });
+    void Promise.resolve().then(() => { setStreamFallback(isRemoteMode()); return load(scope); });
     return () => {
       scope.active = false;
       for (const controller of scope.controllers) controller.abort();

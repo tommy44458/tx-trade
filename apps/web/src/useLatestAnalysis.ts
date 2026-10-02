@@ -3,6 +3,7 @@ import { uiText } from "./i18n/index.ts";
 import {
   createPositionAnalysisLookup, isLatestAnalysis, type SavedAnalysisKind, type SavedPositionAnalysis,
 } from "./latestPositionAnalysis.ts";
+import { apiFetch } from "./transport.ts";
 
 type Scope = { active: boolean; marketId: string };
 type Result<T> = { scope: Scope; refreshVersion: number; status: "loaded" | "empty" | "error"; data: T | null; error: string };
@@ -38,7 +39,7 @@ export default function useLatestAnalysis<T extends SavedPositionAnalysis>(
     if (!active || !marketId) return;
     setResult(null);
     void lookup.current.read(async (signal) => {
-      const response = await fetch(`/api/v1/analyses/latest?kind=${kind}&market_id=${encodeURIComponent(marketId)}`, { signal });
+      const response = await apiFetch(`/api/v1/analyses/latest?kind=${kind}&market_id=${encodeURIComponent(marketId)}`, { signal });
       if (!response.ok) throw new Error(readFailed(kind, response.status));
       let body: unknown;
       try { body = await response.json(); }

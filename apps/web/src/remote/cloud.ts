@@ -76,3 +76,53 @@ export async function runCommand<T>(deviceId: string, command: Command): Promise
   }
   throw new CloudError("expired");
 }
+
+const RELAY_ERRORS = new Set([
+  "device_offline", "device_timeout", "device_disconnected", "local_unavailable", "local_error",
+  "unsupported_operation", "request_limit", "invalid_request", "subscription_required", "response_too_large",
+]);
+
+/**
+ * Reach the computer's local API through the relay: same paths, methods and bodies
+ * as the desktop app. Relay problems become `{detail}` errors the screens already show.
+ */
+export function relayTransport(
+  deviceId: string,
+  options: { describe: (code: string) => string; onSignedOut: () => void },
+): (path: string, init?: RequestInit) => Promise<Response> {
+  return async (path, init = {}) => {
+    const url = new URL(path, "http://local");
+    const headers = new Headers(init.headers);
+    const key = headers.get("Idempotency-Key");
+    const request = {
+      method: (init.method ?? "GET").toUpperCase(),
+      path: url.pathname,
+      query: url.search.slice(1),
+      ...(typeof init.body === "string" ? { body: JSON.parse(init.body) } : {}),
+      ...(key ? { idempotency_key: key } : {}),
+    };
+    let response: Response;
+    try {
+      response = await fetch(`${CLOUD_ORIGIN}/api/v1/devices/${deviceId}/requests`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(request),
+        signal: init.signal,
+      });
+    } catch (reason) {
+      if ((reason as Error).name === "AbortError") throw reason;
+      return Response.json({ detail: options.describe("network") }, { status: 503 });
+    }
+    if (response.ok) return response;
+    const body = await response.clone().json().catch(() => null);
+    const code = body?.error?.code;
+    if (response.status === 401) options.onSignedOut();
+    // Errors from the computer's own API pass through unchanged.
+    if (typeof code !== "string") return response;
+    return Response.json(
+      { detail: options.describe(RELAY_ERRORS.has(code) || response.status === 401 ? code : "relay_error") },
+      { status: response.status },
+    );
+  };
+}

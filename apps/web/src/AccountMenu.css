@@ -1,0 +1,268 @@
+/* Sidebar account and its menu, in the style of a macOS menu. */
+.account-menu {
+  position: relative;
+}
+.account-menu-trigger {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+  min-height: 48px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  text-align: left;
+  transition: background-color 0.15s ease;
+}
+.account-menu-trigger:hover,
+.account-menu-trigger[aria-expanded="true"] {
+  background: var(--surface-control);
+}
+.account-menu-trigger .avatar {
+  width: 30px;
+  height: 30px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 70%, white), var(--accent));
+  color: #fff;
+  font-size: 13px;
+}
+.account-menu-trigger .avatar .icon {
+  width: 16px;
+  height: 16px;
+}
+.account-menu-trigger.active {
+  background: var(--accent-soft);
+}
+.account-menu-copy {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+.account-menu-copy strong,
+.account-menu-copy small,
+.account-menu-identity strong,
+.account-menu-identity small,
+.account-menu-item-copy {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.account-menu-copy strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+.account-menu-copy small {
+  margin-top: 1px;
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+.account-menu-chevron {
+  width: 10px;
+  height: 16px;
+  flex: none;
+  color: var(--text-tertiary);
+}
+.account-menu-panel {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  z-index: 30;
+  display: grid;
+  width: max(100%, 288px);
+  padding: 5px;
+  border: 0.5px solid color-mix(in srgb, var(--text) 14%, transparent);
+  border-radius: 12px;
+  /* Opaque: the sidebar's own blur would keep this menu from blurring the page. */
+  background: var(--surface);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.16), 0 2px 6px rgba(0, 0, 0, 0.08);
+  box-sizing: border-box;
+  transform-origin: bottom left;
+  animation: account-menu-in 0.14s ease-out;
+}
+@keyframes account-menu-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+}
+.account-menu-identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 8px 9px;
+}
+.account-menu-identity .avatar {
+  width: 36px;
+  height: 36px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 70%, white), var(--accent));
+  color: #fff;
+  font-size: 15px;
+}
+.account-menu-identity > span:last-child {
+  display: grid;
+  min-width: 0;
+}
+.account-menu-identity strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+.account-menu-identity small {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.account-menu-separator {
+  height: 0;
+  margin: 5px 9px;
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+.account-menu-heading {
+  margin: 4px 9px 2px;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 600;
+}
+.account-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  padding: 4px 9px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  text-align: left;
+}
+/* macOS highlights the hovered item with the accent color. */
+.account-menu-item:hover:not(:disabled),
+.account-menu-item:focus-visible {
+  outline: none;
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.account-menu-item:hover:not(:disabled) small,
+.account-menu-item:focus-visible small {
+  color: inherit;
+  opacity: 0.85;
+}
+.account-menu-item .icon {
+  width: 15px;
+  height: 15px;
+}
+.account-menu-item.destructive {
+  color: var(--negative);
+}
+.account-menu-item.destructive:hover:not(:disabled),
+.account-menu-item.destructive:focus-visible {
+  background: var(--negative);
+  color: #fff;
+}
+.account-menu-check {
+  width: 12px;
+  flex: none;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+}
+.account-menu-item-copy {
+  display: grid;
+  min-width: 0;
+}
+.account-menu-item-copy small {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+.account-menu-item-copy .remote-device-dot {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  /* No glow here: the row clips overflow to truncate long computer names. */
+  box-shadow: none;
+}
+.account-menu-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 6px 9px;
+}
+.account-menu-row-copy {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+  min-width: 0;
+  font-size: 13px;
+}
+.account-menu-row .cloud-remote-status {
+  font-size: 11px;
+}
+/* A compact switch fits the menu's row height. */
+.account-menu-row .cloud-switch {
+  width: 38px;
+  height: 23px;
+  min-height: 23px;
+}
+.account-menu-row .cloud-switch-thumb {
+  width: 19px;
+  height: 19px;
+}
+.account-menu-row .cloud-switch[aria-checked="true"] .cloud-switch-thumb {
+  transform: translateX(15px);
+}
+@media (pointer: coarse) {
+  .account-menu-item {
+    min-height: 44px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .account-menu-trigger {
+    transition: none;
+  }
+  .account-menu-panel {
+    animation: none;
+  }
+}
+@media (max-width: 860px) {
+  /* Narrow layout: an avatar at the right of the navigation bar, opening downward. */
+  .account-menu-trigger {
+    width: 44px;
+    min-height: 44px;
+    justify-content: center;
+    padding: 0;
+    border-radius: 50%;
+  }
+  .account-menu-trigger:hover,
+  .account-menu-trigger[aria-expanded="true"],
+  .account-menu-trigger.active {
+    background: transparent;
+  }
+  .account-menu-trigger .avatar {
+    width: 32px;
+    height: 32px;
+  }
+  .account-menu-copy,
+  .account-menu-chevron {
+    display: none;
+  }
+  .account-menu-panel {
+    top: calc(100% + 4px);
+    right: 8px;
+    bottom: auto;
+    left: auto;
+    width: min(300px, calc(100vw - 16px));
+    transform-origin: top right;
+  }
+}
+/* A wrapped status keeps its light beside the first line. */
+.account-menu-row .cloud-remote-status {
+  align-items: flex-start;
+}
+.account-menu-row .cloud-remote-dot {
+  margin-top: 5px;
+}

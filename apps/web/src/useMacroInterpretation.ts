@@ -1,9 +1,10 @@
 import { uiText, type UiLocale } from "./i18n/index.ts";
 import { useEffect, useRef, useState } from "react";
 import type { MacroInterpretationStatus } from "./MacroInterpretationPanel";
+import { apiFetch } from "./transport.ts";
 
 async function request(path: string, options: RequestInit): Promise<MacroInterpretationStatus> {
-  const response = await fetch(`/api/v1/events/macro-interpretation${path}`, options);
+  const response = await apiFetch(`/api/v1/events/macro-interpretation${path}`, options);
   const body = await response.json();
   if (!response.ok) throw new Error(typeof body.detail === "string"
     ? body.detail : body.detail?.message ?? uiText("宏觀解讀讀取失敗 ({{p0}})", { p0: response.status }));

@@ -3,6 +3,8 @@ import { uiText } from "./i18n/index.ts";
 import { openAuthorization } from "./desktop";
 import { AnalysisSpinner } from "./AnalysisProgress";
 import GoogleMark from "./GoogleMark";
+import { apiFetch } from "./transport.ts";
+import { cloudErrorText, remoteView, type RemoteStatus } from "./remoteAccess.ts";
 
 type CloudAccountStatus = {
   configured: boolean;
@@ -13,50 +15,20 @@ type CloudAccountStatus = {
   expires_at: number | null;
 };
 
-type RemoteStatus = { enabled: boolean; state: string; error: string | null; device_id: string | null };
-type Tone = "ok" | "pending" | "warn" | "off";
-
 const SIGN_IN_POLL_MS = 1000;
 // Poll quickly while the link is changing, slowly once it has settled.
 const REMOTE_POLL_MS = { changing: 800, settled: 5000 };
 const SETTLED = new Set(["connected", "disabled", "subscription_required", "device_limit", "signed_out", "error"]);
 
-function remoteView(remote: RemoteStatus): { tone: Tone; text: string } {
-  if (!remote.enabled) return { tone: "off", text: uiText("已關閉：手機無法存取這台電腦。") };
-  switch (remote.state) {
-    case "connected": return { tone: "ok", text: uiText("已連線：可從手機查看這台電腦與發起分析。") };
-    case "registering": return { tone: "pending", text: uiText("正在把這台電腦註冊到雲端帳戶…") };
-    case "reconnecting": return { tone: "pending", text: uiText("連線中斷，正在自動重新連線…") };
-    case "device_already_connected": return { tone: "pending", text: uiText("這台電腦已有另一個連線，稍後會自動重試。") };
-    case "subscription_required": return { tone: "warn", text: uiText("遠端存取需要有效的訂閱方案。") };
-    case "device_limit": return { tone: "warn", text: uiText("此帳戶可註冊的電腦已達上限；請先在其他電腦關閉遠端存取。") };
-    case "signed_out": return { tone: "warn", text: uiText("雲端登入已失效，請重新登入。") };
-    case "error": return { tone: "warn", text: errorText(remote.error ?? "") };
-    default: return { tone: "pending", text: uiText("正在連線到雲端…") };
-  }
-}
-
-function errorText(code: string): string {
-  switch (code) {
-    case "timeout": return uiText("登入逾時，請重新登入。");
-    case "cancelled": return uiText("登入已取消或未完成，請重新登入。");
-    case "rejected": return uiText("雲端服務未接受這次登入，請重新登入。");
-    case "invalid_response": return uiText("雲端服務回應不完整，請重新登入。");
-    case "storage_failed": return uiText("無法在這台電腦保存登入資訊；請確認資料目錄可寫入後重試。");
-    case "misconfigured": return uiText("雲端服務位址設定不正確。");
-    default: return uiText("無法連線到雲端服務，請稍後重試。");
-  }
-}
-
 async function request(path: string, method = "GET"): Promise<CloudAccountStatus> {
-  const response = await fetch(`/api/v1/cloud-account${path}`, { method });
+  const response = await apiFetch(`/api/v1/cloud-account${path}`, { method });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(typeof body?.detail === "string" ? body.detail : "service_unavailable");
   return (body.status ?? body) as CloudAccountStatus;
 }
 
 async function readRemote(): Promise<RemoteStatus | null> {
-  const response = await fetch("/api/v1/cloud-account/remote");
+  const response = await apiFetch("/api/v1/cloud-account/remote");
   return response.ok ? response.json() : null;
 }
 
@@ -85,7 +57,7 @@ export default function CloudAccountSection({ onChanged }: { onChanged: () => vo
   const refresh = useCallback(() => request("").then(apply), [apply]);
 
   useEffect(() => {
-    refresh().catch((reason: Error) => setError(errorText(reason.message)));
+    refresh().catch((reason: Error) => setError(cloudErrorText(reason.message)));
   }, [refresh]);
 
   // While the browser is open, check often, and at once when the user returns to the app.
@@ -125,12 +97,12 @@ export default function CloudAccountSection({ onChanged }: { onChanged: () => vo
     setBusy(kind);
     setError("");
     try { await action(); }
-    catch (reason) { setError(errorText((reason as Error).message)); }
+    catch (reason) { setError(cloudErrorText((reason as Error).message)); }
     finally { setBusy(""); }
   }
 
   const signIn = () => run("sign-in", async () => {
-    const response = await fetch("/api/v1/cloud-account/sign-in", { method: "POST" });
+    const response = await apiFetch("/api/v1/cloud-account/sign-in", { method: "POST" });
     const body = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(typeof body?.detail === "string" ? body.detail : "service_unavailable");
     setStartUrl(body.start_url);
@@ -147,12 +119,12 @@ export default function CloudAccountSection({ onChanged }: { onChanged: () => vo
     togglingNow.current = true;
     setError("");
     try {
-      const response = await fetch(`/api/v1/cloud-account/remote/${enabled ? "enable" : "disable"}`, { method: "POST" });
+      const response = await apiFetch(`/api/v1/cloud-account/remote/${enabled ? "enable" : "disable"}`, { method: "POST" });
       if (!response.ok) throw new Error("service_unavailable");
       setRemote(await response.json());
     } catch (reason) {
       setRemote(before);
-      setError(errorText((reason as Error).message));
+      setError(cloudErrorText((reason as Error).message));
     } finally {
       togglingNow.current = false;
       setToggling(false);
@@ -162,7 +134,7 @@ export default function CloudAccountSection({ onChanged }: { onChanged: () => vo
   const profile = status?.profile;
   const name = profile?.display_name || profile?.email || "";
   const stateLabel = status?.signed_in ? uiText("已登入") : status?.pending ? uiText("登入中") : uiText("未登入");
-  const shownError = error || (status?.error && !status.pending ? errorText(status.error) : "");
+  const shownError = error || (status?.error && !status.pending ? cloudErrorText(status.error) : "");
   const view = remote ? remoteView(remote) : null;
 
   return (
@@ -174,13 +146,34 @@ export default function CloudAccountSection({ onChanged }: { onChanged: () => vo
       <div className="settings-account cloud-account">
         {status?.signed_in ? (
           <>
-            <div className="cloud-identity">
-              <span className="avatar" aria-hidden="true">{Array.from(name || "?")[0].toUpperCase()}</span>
-              <span className="cloud-identity-text">
-                <strong>{name}</strong>
-                {profile?.email && profile.email !== name && <small>{profile.email}</small>}
-              </span>
-              <button type="button" className="settings-secondary cloud-sign-out" disabled={!!busy}
+            <div className="cloud-group">
+              <div className="cloud-row">
+                <span className="avatar" aria-hidden="true">{Array.from(name || "?")[0].toUpperCase()}</span>
+                <span className="cloud-row-copy">
+                  <strong>{name}</strong>
+                  {profile?.email && profile.email !== name && <small>{profile.email}</small>}
+                </span>
+              </div>
+              <div className="cloud-row">
+                <span className="cloud-row-copy">
+                  <span id="cloud-remote-name">{uiText("遠端存取")}</span>
+                  <small className="cloud-remote-status" data-tone={view?.tone ?? "pending"} role="status">
+                    <span className="cloud-remote-dot" aria-hidden="true" />
+                    {view?.text ?? uiText("正在讀取遠端存取狀態…")}
+                  </small>
+                </span>
+                <button type="button" role="switch" className="cloud-switch" aria-checked={!!remote?.enabled}
+                  aria-labelledby="cloud-remote-name" aria-describedby="cloud-remote-purpose" disabled={!remote || toggling}
+                  onClick={() => remote && void toggleRemote(!remote.enabled)}>
+                  <span className="cloud-switch-thumb" aria-hidden="true" />
+                </button>
+              </div>
+            </div>
+            <p className="cloud-footnote" id="cloud-remote-purpose">
+              {uiText("只允許查看狀態、持倉與分析報告，以及發起市場分析；不會讀取金鑰、檔案或修改設定。App 需保持開啟，電腦主動連線到雲端，不開放任何連入的通訊埠。")}
+            </p>
+            <div className="cloud-group">
+              <button type="button" className="cloud-row cloud-row-button destructive" disabled={!!busy}
                 onClick={() => void run("sign-out", async () => {
                   apply(await request("/sign-out", "POST"));
                   setRemote(null);
@@ -188,30 +181,6 @@ export default function CloudAccountSection({ onChanged }: { onChanged: () => vo
                 {busy === "sign-out" ? uiText("正在登出…") : uiText("登出")}
               </button>
             </div>
-            {remote && view ? (
-              <div className="cloud-remote">
-                <div className="cloud-remote-row">
-                  <span className="cloud-remote-copy">
-                    <span className="cloud-remote-name" id="cloud-remote-name">{uiText("手機遠端存取")}</span>
-                    <span className="cloud-remote-purpose" id="cloud-remote-purpose">
-                      {uiText("只允許查看狀態、持倉與分析報告，以及發起市場分析；不會讀取金鑰、檔案或修改設定。App 需保持開啟，電腦主動連線到雲端，不開放任何連入的通訊埠。")}
-                    </span>
-                  </span>
-                  <button type="button" role="switch" className="cloud-switch" aria-checked={remote.enabled}
-                    aria-labelledby="cloud-remote-name" aria-describedby="cloud-remote-purpose" disabled={toggling}
-                    onClick={() => void toggleRemote(!remote.enabled)}>
-                    <span className="cloud-switch-thumb" aria-hidden="true" />
-                  </button>
-                </div>
-                <p className="cloud-remote-status" data-tone={view.tone} role="status">
-                  <span className="cloud-remote-dot" aria-hidden="true" />{view.text}
-                </p>
-              </div>
-            ) : (
-              <p className="cloud-remote-status" data-tone="pending" role="status">
-                <span className="cloud-remote-dot" aria-hidden="true" />{uiText("正在讀取遠端存取狀態…")}
-              </p>
-            )}
           </>
         ) : status?.pending ? (
           <div className="cloud-pending" role="status">
@@ -232,7 +201,7 @@ export default function CloudAccountSection({ onChanged }: { onChanged: () => vo
         ) : (
           <>
             <p className="settings-help">
-              {uiText("登入後可從手機查看這台電腦的持倉與分析，並遠端發起分析。本機分析不需要登入；登入資訊只加密保存在這台電腦。")}
+              {uiText("登入後可從其他裝置的瀏覽器查看這台電腦的持倉與分析，並遠端發起分析。本機分析不需要登入；登入資訊只加密保存在這台電腦。")}
             </p>
             <button type="button" className="cloud-google-button" disabled={!!busy || !status?.configured}
               onClick={() => void signIn()}>

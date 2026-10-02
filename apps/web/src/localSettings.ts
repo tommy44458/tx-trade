@@ -1,5 +1,6 @@
 import { uiText } from "./i18n/index.ts";
 import { applyUiTheme, normalizeUiTheme, type UiTheme } from "./uiTheme.ts";
+import { apiFetch, isRemoteMode } from "./transport.ts";
 export type ModelProvider = "codex" | "claude_code" | "openai";
 export type InitialIndicatorCatalogItem = {
   name: string;
@@ -65,7 +66,7 @@ export async function settingsRequest<T>(
   path: string,
   options?: RequestInit,
 ): Promise<T> {
-  const response = await fetch(`/api/v1${path}`, {
+  const response = await apiFetch(`/api/v1${path}`, {
     ...options,
     headers: { "Content-Type": "application/json", ...options?.headers },
   });
@@ -81,7 +82,8 @@ export async function settingsRequest<T>(
       typeof detail === "object" && detail ? detail : undefined,
     );
   }
-  if (path === "/settings" && body && typeof body === "object") {
+  // The remote page keeps its own appearance; only the computer follows its saved theme.
+  if (path === "/settings" && body && typeof body === "object" && !isRemoteMode()) {
     applyUiTheme(normalizeUiTheme(body.ui_theme));
   }
   return body as T;

@@ -732,37 +732,6 @@
   }
 }
 @media (max-width: 860px) {
-  .shell {
-    display: block;
-  }
-  .sidebar {
-    position: static;
-    width: 100%;
-    min-width: 0;
-    height: auto;
-    padding: 12px 20px;
-    border-right: 0;
-    border-bottom: 1px solid var(--border);
-  }
-  .brand {
-    margin: 0 0 12px;
-  }
-  .sidebar nav {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 8px;
-  }
-  .sidebar .nav {
-    justify-content: center;
-    padding: 8px;
-    font-size: 13px;
-    gap: 8px;
-  }
-  .nav-label,
-  .sidebar-foot,
-  .topbar {
-    display: none;
-  }
   .content {
     padding: 24px 20px 48px;
   }
@@ -790,25 +759,6 @@
   }
 }
 @media (max-width: 540px) {
-  .sidebar {
-    padding: 12px;
-  }
-  .sidebar nav {
-    gap: 4px;
-  }
-  .sidebar .nav {
-    flex-direction: column;
-    font-size: 12px;
-    gap: 4px;
-    padding: 8px 4px;
-  }
-  .sidebar .nav .nav-text {
-    flex: initial;
-    text-align: center;
-  }
-  .sidebar .nav small {
-    display: none;
-  }
   .content {
     padding: 24px 12px 48px;
   }

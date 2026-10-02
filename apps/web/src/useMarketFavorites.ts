@@ -45,7 +45,7 @@ export default function useMarketFavorites() {
     queue.current = queue.current
       .then(async () => {
         const settings = await settingsRequest<LocalSettings>("/settings", {
-          method: "PUT",
+          method: "PATCH",
           body: JSON.stringify({ favorite_market_ids: next }),
         });
         persisted.current = settings.favorite_market_ids ?? next;

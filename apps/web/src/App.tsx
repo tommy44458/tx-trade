@@ -1,6 +1,6 @@
 import { pythonReferenceText } from "./pythonReferenceText";
 import { uiText, uiLocale, useUiLocale, setUiLocale, isUiLocale, type UiLocale } from "./i18n/index.ts";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import CandlestickChart from "./CandlestickChart";
 import "./App.css";
 import "./Workspace.css";
@@ -36,7 +36,7 @@ import AnalysisFailure from "./AnalysisFailure";
 import DiscussionSidebar from "./DiscussionSidebar";
 import type { AnalysisDiscussionProps } from "./AnalysisDiscussion";
 import LeverageControl from "./LeverageControl";
-import { sessionAccount, type SessionInfo } from "./sessionIdentity";
+import { sessionAccount, type SessionAccount, type SessionInfo } from "./sessionIdentity";
 import { reportIndicators, type IndicatorReport } from "./chartIndicators";
 import { ANALYSIS_TIMEFRAMES, isAnalysisTimeframe, timeframeCode, timeframeLabel, type AnalysisTimeframe } from "./timeframes";
 import AnalysisProgress, {
@@ -46,6 +46,8 @@ import AnalysisProgress, {
 import ExchangeSyncPanel from "./ExchangeSyncPanel";
 import { importedPositionFacts, isManualPosition, liquidationSourceLabel, positionSourceLabel, type PositionSource } from "./positionSources";
 import Icon, { type IconName } from "./Icon";
+import AccountMenu from "./AccountMenu";
+import LocalCloudMenu from "./LocalCloudMenu";
 import DerivativesContext, { type DerivativesData } from "./DerivativesContext";
 import MarketReference, { type MarketReferenceData } from "./MarketReference";
 import DirectionAssessment from "./DirectionAssessment";
@@ -56,6 +58,7 @@ import {
   type LocalSettings,
   type TradingPreferences,
 } from "./localSettings";
+import { apiFetch, isRemoteMode } from "./transport.ts";
 
 type Candle = {
   open_time: string;
@@ -229,7 +232,7 @@ type Job = {
 };
 
 async function api<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`/api/v1${path}`, {
+  const res = await apiFetch(`/api/v1${path}`, {
     ...options,
     headers: { "Content-Type": "application/json", ...options?.headers },
   });
@@ -358,7 +361,15 @@ function RiskSelector({
   );
 }
 
-function App() {
+function App({ remoteSection, remoteIdentity, remoteMenu, remoteStatus }: {
+  remoteSection?: ReactNode;
+  /** On the remote page: the signed-in cloud account shown in the sidebar. */
+  remoteIdentity?: SessionAccount | null;
+  /** On the remote page: account menu items (computers, sign-out) in place of the local ones. */
+  remoteMenu?: ReactNode;
+  /** On the remote page: which computer the screens are reaching, in place of "local mode". */
+  remoteStatus?: ReactNode;
+} = {}) {
   const locale = useUiLocale();
   const [view, setView] = useState<
     "market" | "positions" | "events" | "history" | "settings"
@@ -391,7 +402,7 @@ function App() {
   const [accountEquity, setAccountEquity] = useState("");
   const tradingPreferences = useTradingPreferences((settings, touched) => {
     setLocalSettings((current) => current ?? settings);
-    if (isUiLocale(settings.ui_locale)) void setUiLocale(settings.ui_locale).catch(() => {});
+    if (!isRemoteMode() && isUiLocale(settings.ui_locale)) void setUiLocale(settings.ui_locale).catch(() => {});
     const saved = settings.trading_preferences;
     if (!saved) return;
     if (!touched.has("market_id") && saved.market_id) setMarketId(saved.market_id);
@@ -435,7 +446,7 @@ function App() {
   const [eventsError, setEventsError] = useState("");
   const macroInterpretation = useMacroInterpretation(view === "events", locale);
   const [session, setSession] = useState<SessionInfo | null>(null);
-  const account = sessionAccount(session);
+  const account = remoteIdentity !== undefined ? remoteIdentity : sessionAccount(session);
   const [selected, setSelected] = useState<string[]>([]);
   const marketPositions = useMemo(() => positions.filter((position) => position.market_id === marketId),
     [positions, marketId]);
@@ -829,35 +840,36 @@ function App() {
     { id: "history", label: uiText("分析紀錄"), icon: "history" },
     { id: "settings", label: uiText("設定"), icon: "settings" },
   ];
+  const openPage = (id: typeof view) => {
+    if (id !== view || viewingHistoricalPosition) latestPositionAnalysis.invalidate();
+    if (id === "positions" && view === "positions" && !viewingHistoricalPosition)
+      latestPositionAnalysis.refresh();
+    if (id !== view) latestMarketAnalysis.invalidate();
+    if (id === "market" && view === "market") latestMarketAnalysis.refresh();
+    setManualPositionAnalysisId(null);
+    synchronizeLatestTimeframe.current = true;
+    setView(id);
+    setViewingHistoricalPosition(false);
+    if (id === "positions") setSelected([]);
+    if (id === "history")
+      api<Job[]>("/analyses")
+        .then((items) =>
+          setHistory(
+            items.filter((item) =>
+              item.submitted_input.market_id.startsWith(
+                "binance:perp:",
+              ),
+            ),
+          ),
+        )
+        .catch((e) => setError(e.message));
+  };
   const navButton = (page: (typeof pages)[number]) => (
     <button
       key={page.id}
       className={view === page.id ? "nav active" : "nav"}
       aria-current={view === page.id ? "page" : undefined}
-      onClick={() => {
-        if (page.id !== view || viewingHistoricalPosition) latestPositionAnalysis.invalidate();
-        if (page.id === "positions" && view === "positions" && !viewingHistoricalPosition)
-          latestPositionAnalysis.refresh();
-        if (page.id !== view) latestMarketAnalysis.invalidate();
-        if (page.id === "market" && view === "market") latestMarketAnalysis.refresh();
-        setManualPositionAnalysisId(null);
-        synchronizeLatestTimeframe.current = true;
-        setView(page.id);
-        setViewingHistoricalPosition(false);
-        if (page.id === "positions") setSelected([]);
-        if (page.id === "history")
-          api<Job[]>("/analyses")
-            .then((items) =>
-              setHistory(
-                items.filter((item) =>
-                  item.submitted_input.market_id.startsWith(
-                    "binance:perp:",
-                  ),
-                ),
-              ),
-            )
-            .catch((e) => setError(e.message));
-      }}
+      onClick={() => openPage(page.id)}
     >
       <Icon name={page.icon} />
       <span className="nav-text">{page.label}</span>
@@ -995,32 +1007,18 @@ function App() {
         <nav aria-label={uiText("主要導覽")}>
           {pages.filter((page) => page.id !== "settings").map(navButton)}
         </nav>
-        <div className="sidebar-foot">
-          <nav className="sidebar-settings" aria-label={uiText("設定")}>
-            {navButton(pages.find((page) => page.id === "settings")!)}
-          </nav>
-          <div className="sidebar-account">
-            {account ? (
-              <>
-                <span className="avatar" aria-hidden="true">{account.initial}</span>
-                <div>
-                  <strong>{account.name}</strong>
-                  {account.detail && <small>{account.detail}</small>}
-                </div>
-              </>
-            ) : (
-              <strong>{uiText("本地工作空間")}</strong>
-            )}
-          </div>
-        </div>
+        <AccountMenu account={account} settingsActive={view === "settings"} onOpenSettings={() => openPage("settings")}>
+          {remoteMenu ?? <LocalCloudMenu onOpenSettings={() => openPage("settings")}
+            onChanged={() => { api<SessionInfo>("/session").then(setSession).catch(() => {}); }} />}
+        </AccountMenu>
       </aside>
       <main id="main-content" tabIndex={-1}>
         <header className="topbar">
           <span>{uiText("工作台")}<b>/</b> {pages.find((page) => page.id === view)?.label}
           </span>
           <span className="workspace-status">
-            {tradingPreferences.saving ? <AnalysisSpinner /> : <i />}{" "}
-            {tradingPreferences.saving ? uiText("儲存偏好中…") : uiText("本地模式")}
+            {tradingPreferences.saving ? <><AnalysisSpinner />{" "}{uiText("儲存偏好中…")}</>
+              : remoteStatus ?? <><i />{" "}{uiText("本地模式")}</>}
           </span>
         </header>
         <div className="content">
@@ -1055,6 +1053,7 @@ function App() {
               onCloudAccountChanged={() => {
                 api<SessionInfo>("/session").then(setSession).catch(() => {});
               }}
+              remoteSection={remoteSection}
             />
           )}
           {view === "market" && (

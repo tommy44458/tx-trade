@@ -27,7 +27,7 @@ export default function useTradingPreferences(
     let failed = false;
     try {
       await settingsRequest<LocalSettings>("/settings", {
-        method: "PUT",
+        method: "PATCH",
         body: JSON.stringify({ trading_preferences: patch }),
       });
     } catch (reason) {

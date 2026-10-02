@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { settingsRequest, type IntegrationStatus } from "./localSettings";
 import { AnalysisSpinner } from "./AnalysisProgress";
 import "./BingXSyncPanel.css";
+import { apiFetch } from "./transport.ts";
 
 type Status = IntegrationStatus & { contracts: string[] };
 type Result = {
@@ -34,7 +35,7 @@ export default function BingXSyncPanel({
     setBusy(true);
     setMessage("");
     try {
-      const response = await fetch("/api/v1/positions/bingx/sync", {
+      const response = await apiFetch("/api/v1/positions/bingx/sync", {
         method: "POST",
       });
       const body = await response.json();

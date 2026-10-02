@@ -4,6 +4,7 @@ import './index.css'
 import './i18n/index.ts'
 import { initializeUiTheme } from './uiTheme.ts'
 import App from './App.tsx'
+import './MobileLayout.css'
 
 initializeUiTheme()
 

@@ -1,0 +1,129 @@
+/*
+ * Narrow screens follow the iOS app layout: a translucent navigation bar with
+ * the brand and the account, the page status beneath it, and the four
+ * workspaces in a tab bar at the bottom within thumb reach.
+ */
+@media (max-width: 860px) {
+  .shell {
+    display: block;
+  }
+  .sidebar {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    width: 100%;
+    min-width: 0;
+    height: auto;
+    min-height: 52px;
+    padding: env(safe-area-inset-top) 12px 0 16px;
+    border-right: 0;
+    border-bottom: 0.5px solid var(--border);
+    box-sizing: border-box;
+    /* A backdrop filter here would trap the fixed tab bar inside the header; the
+       blur lives on a pseudo-element instead. */
+    background: transparent;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .sidebar::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: var(--material);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    backdrop-filter: blur(20px) saturate(180%);
+  }
+  .sidebar .brand {
+    margin: 0;
+    padding: 0;
+    width: fit-content;
+  }
+  .sidebar .brand-wordmark {
+    font-size: 20px;
+  }
+  .nav-label {
+    display: none;
+  }
+  /* Tab bar */
+  .sidebar nav {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 60;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0;
+    padding: 4px 8px env(safe-area-inset-bottom);
+    border-top: 0.5px solid var(--border);
+    background: var(--material);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    backdrop-filter: blur(20px) saturate(180%);
+  }
+  .sidebar .nav {
+    flex-direction: column;
+    justify-content: center;
+    gap: 3px;
+    min-height: 50px;
+    padding: 4px 2px;
+    border-radius: 0;
+    background: transparent;
+    color: var(--text-tertiary);
+    font-size: 10px;
+    font-weight: 500;
+  }
+  .sidebar .nav:hover {
+    background: transparent;
+  }
+  .sidebar .nav.active {
+    background: transparent;
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .sidebar .nav .icon {
+    width: 24px;
+    height: 24px;
+  }
+  .sidebar .nav .nav-text {
+    flex: initial;
+    text-align: center;
+    white-space: nowrap;
+  }
+  .sidebar .nav small {
+    display: none;
+  }
+  /* The account sits at the right of the navigation bar. */
+  .sidebar .sidebar-foot.account-menu {
+    display: block;
+    position: static;
+    margin: 0 0 0 auto;
+    padding: 0;
+    border: 0;
+  }
+  /* Page status row: where you are, and whether this is local or remote. */
+  .topbar {
+    display: flex;
+    height: 40px;
+    padding: 0 16px;
+    background: transparent;
+    font-size: 12px;
+  }
+  .workspace-status {
+    min-width: 0;
+    font-size: 11px;
+  }
+  .content {
+    padding-bottom: calc(84px + env(safe-area-inset-bottom));
+  }
+  /* Floating controls stay above the tab bar. */
+  .discussion-sidebar-toggle {
+    bottom: calc(72px + env(safe-area-inset-bottom));
+  }
+  .preference-error {
+    bottom: calc(72px + env(safe-area-inset-bottom));
+  }
+}

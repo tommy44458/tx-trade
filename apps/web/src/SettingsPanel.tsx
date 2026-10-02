@@ -1,12 +1,14 @@
-import { uiText, useUiLocale, setUiLocale, isUiLocale, type UiLocale } from "./i18n/index.ts";
+import { uiText, uiLocale, useUiLocale, setUiLocale, isUiLocale, type UiLocale } from "./i18n/index.ts";
 import CloudAccountSection from "./CloudAccountSection";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { AnalysisSpinner } from "./AnalysisProgress";
 import SelectControl from "./SelectControl";
 import BinanceSettingsPanel from "./BinanceSettingsPanel";
 import CliSetupDialog, { type CliSetupReason } from "./CliSetupDialog";
 import { openAuthorization } from "./desktop";
-import { isUiTheme, normalizeUiTheme, type UiTheme } from "./uiTheme";
+import { applyUiTheme, currentUiTheme, isUiTheme, normalizeUiTheme, type UiTheme } from "./uiTheme";
+import { isRemoteMode } from "./transport.ts";
+import { rememberBrowserPreference } from "./browserPreferences.ts";
 import {
   initialIndicatorCatalog,
   initialIndicatorCopy,
@@ -52,16 +54,26 @@ type SettingsUpdate = {
   clear_openai?: boolean;
 };
 
+/** On the remote page, show this browser's own appearance and language, not the computer's. */
+function shownSettings(value: LocalSettings): LocalSettings {
+  return isRemoteMode() ? { ...value, ui_theme: currentUiTheme(), ui_locale: uiLocale() } : value;
+}
+
 export default function SettingsPanel({
   initialSettings,
   onChanged,
   onCloudAccountChanged,
+  remoteSection,
 }: {
   initialSettings: LocalSettings | null;
   onChanged: () => Promise<void>;
   onCloudAccountChanged: () => void;
+  /** On the remote page: the remote connection controls, shown first. */
+  remoteSection?: ReactNode;
 }) {
   const locale = useUiLocale();
+  // Remote screens show only what is safe and meaningful away from the computer.
+  const remote = isRemoteMode();
   const [settings, setSettings] = useState<LocalSettings | null>(
     initialSettings,
   );
@@ -111,8 +123,9 @@ export default function SettingsPanel({
     settingsRequest<LocalSettings>("/settings")
       .then((value) => {
         if (!active || !mounted.current) return;
-        setSettings(value);
-        if (isUiLocale(value.ui_locale)) void setUiLocale(value.ui_locale).catch(() => {});
+        // The remote page keeps its own appearance and language; only the computer's apply here.
+        setSettings(shownSettings(value));
+        if (!isRemoteMode() && isUiLocale(value.ui_locale)) void setUiLocale(value.ui_locale).catch(() => {});
         setProvider(value.model_provider);
         setModel(value.model);
         const selection = normalizeInitialIndicators(value.initial_indicators);
@@ -136,7 +149,8 @@ export default function SettingsPanel({
 
   useEffect(() => {
     let active = true;
-    if (provider === "openai") return;
+    // The AI account is managed on the computer; the remote page never asks about it.
+    if (provider === "openai" || isRemoteMode()) return;
     settingsRequest<ModelAuthStatus>(`/auth/${provider}/status`)
       .then((value) => {
         if (!active) return;
@@ -154,7 +168,7 @@ export default function SettingsPanel({
   }, [provider]);
 
   useEffect(() => {
-    if (provider === "openai" || !auth?.authenticated) return;
+    if (provider === "openai" || !auth?.authenticated || isRemoteMode()) return;
     let active = true;
     settingsRequest<ModelCatalog>(`/auth/${provider}/models`)
       .then((value) => {
@@ -222,16 +236,23 @@ export default function SettingsPanel({
 
   async function update(values: SettingsUpdate) {
     const next = await settingsRequest<LocalSettings>("/settings", {
-      method: "PUT",
+      method: "PATCH",
       body: JSON.stringify(values),
     });
-    setSettings(next);
+    setSettings(shownSettings(next));
     await changedRef.current();
   }
 
   async function saveTheme(selected: UiTheme) {
     if (themeSavePending.current || busy || !indicatorsLoaded
         || selected === normalizeUiTheme(settings?.ui_theme)) return;
+    if (remote) {
+      applyUiTheme(selected);
+      rememberBrowserPreference("theme", selected);
+      setSettings((current) => current && { ...current, ui_theme: selected });
+      setThemeNotice(true);
+      return;
+    }
     themeSavePending.current = true;
     setPendingTheme(selected);
     setBusy("theme");
@@ -242,7 +263,7 @@ export default function SettingsPanel({
         method: "PATCH", body: JSON.stringify({ ui_theme: selected }),
       });
       if (!mounted.current) return;
-      setSettings(next);
+      setSettings(shownSettings(next));
       setThemeNotice(true);
       try {
         await changedRef.current();
@@ -269,7 +290,7 @@ export default function SettingsPanel({
       const next = await settingsRequest<LocalSettings>("/settings");
       if (!mounted.current) return;
       const selection = normalizeInitialIndicators(next.initial_indicators);
-      setSettings(next);
+      setSettings(shownSettings(next));
       setInitialIndicators(selection);
       setSavedInitialIndicators(selection);
       setIndicatorsLoaded(true);
@@ -294,7 +315,7 @@ export default function SettingsPanel({
       });
       if (!mounted.current) return;
       const selection = normalizeInitialIndicators(next.initial_indicators);
-      setSettings(next);
+      setSettings(shownSettings(next));
       setInitialIndicators(selection);
       setSavedInitialIndicators(selection);
       setIndicatorsNotice(true);
@@ -439,6 +460,7 @@ export default function SettingsPanel({
       )}{" "}
       {settings && (
         <>
+          {remoteSection}
           <section className="panel settings-section settings-appearance" aria-labelledby="settings-appearance-title">
             <div className="settings-appearance-row">
               <h2 id="settings-appearance-title">{uiText("外觀")}</h2>
@@ -474,11 +496,17 @@ export default function SettingsPanel({
                 const selected = event.target.value;
                 if (!isUiLocale(selected)) return;
                 void perform("language", async () => {
+                  if (remote) {
+                    await setUiLocale(selected);
+                    rememberBrowserPreference("locale", selected);
+                    setNotice(uiText("語言已儲存。"));
+                    return;
+                  }
                   const next = await settingsRequest<LocalSettings>("/settings", {
                     method: "PATCH", body: JSON.stringify({ ui_locale: selected }),
                   });
                   await setUiLocale(next.ui_locale ?? selected);
-                  setSettings(next);
+                  setSettings(shownSettings(next));
                   await changedRef.current();
                   setNotice(uiText("語言已儲存。"));
                 });
@@ -490,8 +518,8 @@ export default function SettingsPanel({
             <p className="settings-help">{uiText("介面與新分析使用所選語言；既有報告及追問保留原語言。")}</p>
             {busy === "language" && <p role="status"><AnalysisSpinner /> {uiText("正在儲存語言…")}</p>}
           </section>
-          <CloudAccountSection onChanged={onCloudAccountChanged} />
-          <section
+          {!remote && <CloudAccountSection onChanged={onCloudAccountChanged} />}
+          {!remote && (<section
             className="panel settings-section"
             aria-labelledby="settings-model-title"
           >
@@ -653,7 +681,7 @@ export default function SettingsPanel({
               >
                 {busy === "model" && <AnalysisSpinner />}{" "}{uiText("儲存分析設定")}</button>
             </div>
-          </section>
+          </section>)}
           <section className="panel settings-section settings-indicators" aria-labelledby="settings-indicators-title">
             <div className="panel-head">
               <h2 id="settings-indicators-title">{uiText("首次分析預先計算的指標")}</h2>
@@ -717,6 +745,7 @@ export default function SettingsPanel({
                 </p>}
             </div>
           </section>
+          {!remote && (<>
           <section
             className="panel settings-section"
             aria-labelledby="settings-bingx-title"
@@ -823,7 +852,7 @@ export default function SettingsPanel({
           </section>
           <BinanceSettingsPanel integration={settings.integrations.binance} busy={!!busy}
             onBusyChange={value => setBusy(value ? "binance" : null)}
-            onUpdated={async next => { setSettings(next); await changedRef.current(); }} />
+            onUpdated={async next => { setSettings(shownSettings(next)); await changedRef.current(); }} />
           <section
             className="panel settings-section"
             aria-labelledby="settings-jev-title"
@@ -952,6 +981,7 @@ export default function SettingsPanel({
             );
           })}
           <p className="settings-storage-note">{uiText("交易偏好、持倉、最愛、金鑰與本應用程式的登入授權保存在本機 SQLite，不再使用系統金鑰圈。資料庫與備份包含可還原的連線資料，請勿分享。AI 分析與新聞分類仍需連網。")}</p>
+          </>)}
         </>
       )}
     </div>
