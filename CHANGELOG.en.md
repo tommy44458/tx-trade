@@ -4,6 +4,10 @@ The product version is managed in `version.json`. Dates record release preparati
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-10-02
+
+The first public release of txinTrade: crypto futures market and position analysis on your computer, with the Claude Code or Codex you already use. Later versions install through in-app updates, after your data is backed up.
+
 ### Added
 
 - Market and position analyses now include a BTC/ETH market reference: the trend, swing structure, and recent change of both on the primary and next higher timeframe from closed candles, plus the analyzed pair's correlation and beta to each. The AI weighs market direction as risk context by the measured linkage and never lets it replace the pair's own levels or invalidation. It is computed locally and adds no model requests.
