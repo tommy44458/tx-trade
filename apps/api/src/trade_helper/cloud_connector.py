@@ -44,6 +44,11 @@ REQUEST_WORKERS = 4
 REQUEST_TIMEOUT_SECONDS = 20
 CHUNK_CHARS = 196_000
 MAX_CHUNKS = 64
+# Follow-up replies stream through the relay; repaint at most this often.
+MAX_STREAMS = 2
+STREAM_INTERVAL_SECONDS = 0.15
+STREAM_LIFETIME_SECONDS = 600
+MAX_STREAM_EVENT_CHARS = 200_000
 router = APIRouter(prefix="/api/v1/cloud-account/remote", tags=["txinTrade remote access"])
 
 
@@ -77,6 +82,7 @@ class Connector:
         self._thread: threading.Thread | None = None
         self._socket = None
         self._send_lock = threading.Lock()
+        self._streams: dict[str, threading.Event] = {}
         self._requests = ThreadPoolExecutor(REQUEST_WORKERS, thread_name_prefix="cloud-request")
         self._state = {"state": "disabled", "error": None, "device_id": None, "connected_since": None}
 
@@ -219,6 +225,11 @@ class Connector:
                     self._handle(ws, event)
                 elif event.get("type") == "request.dispatch" and isinstance(event.get("request"), dict):
                     self._requests.submit(self._answer, ws, event["request"])
+                elif event.get("type") == "request.cancel":
+                    with self._lock:
+                        stop = self._streams.get(str(event.get("request_id")))
+                    if stop:
+                        stop.set()
         except (ConnectionClosed, WebSocketException, OSError, ValueError):
             pass  # The relay closes links at least every 15 minutes; reconnect.
         finally:
@@ -249,6 +260,9 @@ class Connector:
         request_id = request.get("id")
         if not isinstance(request_id, str):
             return
+        if request.get("stream") is True:
+            self._stream(ws, request)
+            return
         try:
             try:
                 chunks, status = self._local_response(request)
@@ -264,19 +278,78 @@ class Connector:
         except (ConnectionClosed, WebSocketException, OSError):
             pass  # The link ended; the cloud already answered the browser.
 
+    def _stream(self, ws, request: dict) -> None:
+        """Forward a discussion's local event stream to the browser that asked for it."""
+        request_id = request["id"]
+        stop = threading.Event()
+        with self._lock:
+            busy = len(self._streams) >= MAX_STREAMS
+            if not busy:
+                self._streams[request_id] = stop
+        try:
+            if busy or not allowed(request):
+                return
+            deadline = time.monotonic() + STREAM_LIFETIME_SECONDS
+            pending: str | None = None
+            sent_at = 0.0
+
+            def flush() -> None:
+                nonlocal pending, sent_at
+                if pending is not None:
+                    self._send(ws, json.dumps({"v": 1, "type": "stream.event", "request_id": request_id,
+                                               "data": pending}, ensure_ascii=False))
+                    pending, sent_at = None, time.monotonic()
+
+            with httpx.stream("GET", self._local_url(request), headers=self._local_headers(request),
+                              timeout=httpx.Timeout(10, read=STREAM_LIFETIME_SECONDS)) as response:
+                if response.status_code != 200:
+                    return
+                name = "message"
+                for line in response.iter_lines():
+                    if stop.is_set() or self._stop.is_set() or time.monotonic() > deadline:
+                        return
+                    if line.startswith("event:"):
+                        name = line[6:].strip()
+                    elif line.startswith("data:") and name in {"state", "error"}:
+                        data = json.dumps({"event": name, "data": line[5:].strip()}, ensure_ascii=False)
+                        if len(data) > MAX_STREAM_EVENT_CHARS:
+                            return  # Too large to relay; the page falls back to reading.
+                        pending = data
+                        # The newest state replaces any not yet sent; send at a steady pace.
+                        if time.monotonic() - sent_at >= STREAM_INTERVAL_SECONDS or name == "error":
+                            flush()
+                    elif not line:
+                        name = "message"
+                flush()
+        except (httpx.HTTPError, ConnectionClosed, WebSocketException, OSError):
+            pass
+        finally:
+            with self._lock:
+                self._streams.pop(request_id, None)
+            with contextlib.suppress(ConnectionClosed, WebSocketException, OSError):
+                self._send(ws, json.dumps({"v": 1, "type": "stream.end", "request_id": request_id}))
+
     @staticmethod
-    def _local_response(request: dict) -> tuple[list[str], int]:
-        if not allowed(request):
-            raise CommandFailed("unsupported_operation")
+    def _local_url(request: dict) -> str:
+        port = os.getenv("APP_API_PORT", "8000")
+        query = request.get("query") or ""
+        return f"http://127.0.0.1:{port}{request['path']}" + (f"?{query}" if query else "")
+
+    @staticmethod
+    def _local_headers(request: dict) -> dict:
         headers = {}
         token = os.getenv("APP_DESKTOP_TOKEN")
         if token:
             headers["Authorization"] = f"Bearer {token}"
         if request.get("idempotency_key"):
             headers["Idempotency-Key"] = request["idempotency_key"]
-        port = os.getenv("APP_API_PORT", "8000")
-        query = request.get("query") or ""
-        url = f"http://127.0.0.1:{port}{request['path']}" + (f"?{query}" if query else "")
+        return headers
+
+    @classmethod
+    def _local_response(cls, request: dict) -> tuple[list[str], int]:
+        if not allowed(request):
+            raise CommandFailed("unsupported_operation")
+        headers, url = cls._local_headers(request), cls._local_url(request)
         try:
             # Through the real local server, so middleware, validation and background work match the app.
             response = httpx.request(request["method"], url, headers=headers, timeout=REQUEST_TIMEOUT_SECONDS,

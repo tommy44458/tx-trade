@@ -126,3 +126,140 @@ export function relayTransport(
     );
   };
 }
+
+const STREAM_SILENCE_MS = 10_000;
+
+type StreamListener = { onState: (data: string) => void; onError: () => void };
+type StreamMessage = { type: "stream.event"; request_id: string; data: string } | { type: "stream.end"; request_id: string };
+
+/**
+ * This browser's own WebSocket to the relay, used for live follow-up replies.
+ * It opens on first use with a single-use ticket and reconnects on the next use
+ * after the relay ends it (at most every 15 minutes).
+ */
+export class RelaySocket {
+  private socket: WebSocket | null = null;
+  private ready: Promise<string> | null = null;
+  private listeners = new Map<string, StreamListener>();
+  // Events can arrive before the request that opened the stream has answered.
+  private early = new Map<string, StreamMessage[]>();
+  private ping = 0;
+
+  private deviceId: string;
+
+  constructor(deviceId: string) {
+    this.deviceId = deviceId;
+  }
+
+  private connect(): Promise<string> {
+    if (this.ready) return this.ready;
+    this.ready = (async () => {
+      const { websocket_path } = await cloud<{ websocket_path: string }>(
+        `/api/v1/devices/${this.deviceId}/websocket-ticket`, { method: "POST" });
+      const socket = new WebSocket(`${CLOUD_ORIGIN.replace(/^http/, "ws")}${websocket_path}`);
+      this.socket = socket;
+      return new Promise<string>((resolve, reject) => {
+        socket.onmessage = (event) => {
+          if (event.data === "pong") return;
+          const message = JSON.parse(String(event.data));
+          if (message.type === "relay.ready") {
+            this.ping = window.setInterval(() => socket.readyState === WebSocket.OPEN && socket.send("ping"), 30_000);
+            resolve(message.connection_id);
+          } else if (message.type === "stream.event" || message.type === "stream.end") this.deliver(message);
+        };
+        socket.onclose = () => {
+          reject(new CloudError("network"));
+          this.closed(socket);
+        };
+      });
+    })();
+    this.ready.catch(() => { this.ready = null; });
+    return this.ready;
+  }
+
+  private closed(socket: WebSocket) {
+    if (this.socket !== socket) return;
+    window.clearInterval(this.ping);
+    this.socket = null;
+    this.ready = null;
+    // Open streams end; each falls back to reading the saved reply.
+    for (const listener of this.listeners.values()) listener.onError();
+    this.listeners.clear();
+    this.early.clear();
+  }
+
+  private deliver(message: StreamMessage) {
+    const listener = this.listeners.get(message.request_id);
+    if (!listener) {
+      const queued = this.early.get(message.request_id) ?? [];
+      queued.push(message);
+      this.early.set(message.request_id, queued);
+      window.setTimeout(() => this.early.delete(message.request_id), 5_000);
+      return;
+    }
+    if (message.type === "stream.end") {
+      this.listeners.delete(message.request_id);
+      listener.onError();
+      return;
+    }
+    // The computer forwards each server-sent event as {event, data}.
+    const event = JSON.parse(message.data) as { event: string; data: string };
+    if (event.event === "state") listener.onState(event.data);
+    else {
+      this.listeners.delete(message.request_id);
+      listener.onError();
+    }
+  }
+
+  /** Stream a local event stream from the computer to this browser. */
+  open(path: string, handlers: StreamListener): () => void {
+    let requestId: string | null = null;
+    let closed = false;
+    const stop = () => {
+      closed = true;
+      window.clearTimeout(silence);
+      if (requestId && this.listeners.delete(requestId)) this.cancel(requestId);
+    };
+    // A computer that never answers must not leave the reply waiting.
+    const silence = window.setTimeout(() => {
+      if (closed) return;
+      stop();
+      handlers.onError();
+    }, STREAM_SILENCE_MS);
+    const listener: StreamListener = {
+      onState: (data) => { window.clearTimeout(silence); handlers.onState(data); },
+      onError: () => { window.clearTimeout(silence); handlers.onError(); },
+    };
+    void (async () => {
+      try {
+        const connectionId = await this.connect();
+        const response = await cloud<{ request_id: string }>(`/api/v1/devices/${this.deviceId}/requests`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ method: "GET", path, stream: true, connection_id: connectionId }),
+        });
+        requestId = response.request_id;
+        if (closed) return this.cancel(requestId);
+        this.listeners.set(requestId, listener);
+        for (const message of this.early.get(requestId) ?? []) this.deliver(message);
+        this.early.delete(requestId);
+      } catch {
+        if (!closed) listener.onError();
+      }
+    })();
+    return stop;
+  }
+
+  private cancel(requestId: string) {
+    if (this.socket?.readyState === WebSocket.OPEN)
+      this.socket.send(JSON.stringify({ v: 1, type: "stream.cancel", request_id: requestId }));
+  }
+
+  close() {
+    const socket = this.socket;
+    if (socket) {
+      this.closed(socket);
+      socket.close(1000, "page_closed");
+    }
+  }
+}

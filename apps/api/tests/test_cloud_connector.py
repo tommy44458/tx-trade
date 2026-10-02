@@ -230,3 +230,61 @@ def test_relays_allowlisted_requests_to_the_local_api_and_refuses_the_rest(cloud
     assert done["status"] == 200 and done["chunks"] == len(chunks) > 1
     body = json.loads(gzip.decompress(base64.b64decode("".join(event["data"] for event in chunks))))
     assert body["items"][0] == payload
+
+
+class FakeStream:
+    """A local SSE response: yields lines, optionally waiting for a cancel between them."""
+
+    def __init__(self, lines, gate=None):
+        self.lines, self.gate, self.status_code = lines, gate, 200
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_exc):
+        return False
+
+    def iter_lines(self):
+        for line in self.lines:
+            if line == "WAIT":
+                self.gate.wait(5)
+                continue
+            yield line
+
+
+def stream_request(number: int) -> dict:
+    return {"id": f"00000000-0000-4000-8000-{number:012d}", "method": "GET", "query": "",
+            "path": "/api/v1/discussions/analysis/ana_1/stream", "stream": True,
+            "connection_id": "00000000-0000-4000-8000-00000000c0de"}
+
+
+def test_streams_a_reply_to_the_relay_and_ends_it(cloud, monkeypatch):
+    lines = [": heartbeat", "", "event: state", 'data: {"busy":true}', "", "event: state", 'data: {"busy":false}', ""]
+    monkeypatch.setattr(cloud_connector, "STREAM_INTERVAL_SECONDS", 0)
+    monkeypatch.setattr(cloud_connector.httpx, "stream", lambda *_args, **_kwargs: FakeStream(lines))
+    relay = cloud["relay"]["relay"] = FakeRelay([], requests=[stream_request(1)])
+    write_metadata("txintrade_remote", {"enabled": True})
+    cloud["connector"].start()
+    assert wait_for(lambda: any(event.get("type") == "stream.end" for event in relay.received))
+    events = [event for event in relay.received if event.get("type", "").startswith("stream.")]
+    assert [json.loads(event["data"]) for event in events if event["type"] == "stream.event"] == [
+        {"event": "state", "data": '{"busy":true}'}, {"event": "state", "data": '{"busy":false}'}]
+    assert events[-1]["type"] == "stream.end"
+
+
+def test_a_cancelled_stream_stops_forwarding(cloud, monkeypatch):
+    gate = threading.Event()
+    lines = ["event: state", 'data: {"busy":true}', "", "WAIT", "event: state", 'data: {"busy":true,"more":1}', ""]
+    monkeypatch.setattr(cloud_connector, "STREAM_INTERVAL_SECONDS", 0)
+    monkeypatch.setattr(cloud_connector.httpx, "stream", lambda *_args, **_kwargs: FakeStream(lines, gate))
+    request = stream_request(2)
+    relay = cloud["relay"]["relay"] = FakeRelay([], requests=[request])
+    write_metadata("txintrade_remote", {"enabled": True})
+    connector = cloud["connector"]
+    connector.start()
+    assert wait_for(lambda: any(event.get("type") == "stream.event" for event in relay.received))
+    with connector._lock:
+        connector._streams[request["id"]].set()
+    gate.set()
+    assert wait_for(lambda: any(event.get("type") == "stream.end" for event in relay.received))
+    assert sum(event.get("type") == "stream.event" for event in relay.received) == 1

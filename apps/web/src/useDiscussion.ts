@@ -1,7 +1,7 @@
 import { uiText, type UiLocale } from "./i18n/index.ts";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { DiscussionLiveMarket } from "./discussionLiveMarket.ts";
-import { apiFetch, isRemoteMode } from "./transport.ts";
+import { apiFetch, openEventStream } from "./transport.ts";
 
 export type DiscussionSubjectType = "analysis" | "macro";
 export type DiscussionMessage = {
@@ -161,7 +161,7 @@ export default function useDiscussion(type: DiscussionSubjectType, id: string, o
     };
     scopeRef.current = scope;
     stateRef.current = null;
-    void Promise.resolve().then(() => { setStreamFallback(isRemoteMode()); return load(scope); });
+    void Promise.resolve().then(() => { setStreamFallback(false); return load(scope); });
     return () => {
       scope.active = false;
       for (const controller of scope.controllers) controller.abort();
@@ -172,7 +172,7 @@ export default function useDiscussion(type: DiscussionSubjectType, id: string, o
     const scope = scopeRef.current;
     if (!scope?.active || !data?.busy || posting || streamFallback) return;
     const revision = scope.revision;
-    let source: EventSource | undefined;
+    let close: (() => void) | undefined;
     let pending: DiscussionState | null = null;
     let timer: number | undefined;
     let lastPaint = 0;
@@ -187,10 +187,10 @@ export default function useDiscussion(type: DiscussionSubjectType, id: string, o
       accept(scope, latest);
       setReadError("");
       lastPaint = Date.now();
-      if (!latest.busy) source?.close();
+      if (!latest.busy) close?.();
     };
     const fallback = () => {
-      source?.close();
+      close?.();
       flush();
       if (!active() || !stateRef.current?.busy) return;
       setStreamFallback(true);
@@ -198,11 +198,10 @@ export default function useDiscussion(type: DiscussionSubjectType, id: string, o
       void load(scope);
     };
     try {
-      source = new EventSource(`/api/v1/discussions/${path}/stream`);
-      source.addEventListener("state", (event) => {
+      close = openEventStream(`/api/v1/discussions/${path}/stream`, { onError: fallback, onState: (raw) => {
         if (!active()) return;
         try {
-          const latest = JSON.parse((event as MessageEvent<string>).data) as DiscussionState;
+          const latest = JSON.parse(raw) as DiscussionState;
           if (latest.subject.type !== type || latest.subject.id !== id) return;
           pending = latest;
           const elapsed = Date.now() - lastPaint;
@@ -212,13 +211,12 @@ export default function useDiscussion(type: DiscussionSubjectType, id: string, o
         } catch {
           fallback();
         }
-      });
-      source.onerror = fallback;
+      } });
     } catch {
       fallback();
     }
     return () => {
-      source?.close();
+      close?.();
       if (timer !== undefined) window.clearTimeout(timer);
       pending = null;
     };

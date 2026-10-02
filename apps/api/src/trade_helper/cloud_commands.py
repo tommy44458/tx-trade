@@ -73,7 +73,7 @@ def run_command(command: dict, idempotency_key: str) -> dict:
         if operation == "status.read":
             # Capabilities let the remote page tell an older app it needs updating.
             result = {"app": "txinTrade", "version": product_version(), "online": True,
-                      "capabilities": ["api.request"]}
+                      "capabilities": ["api.request", "stream"]}
         elif operation == "positions.list":
             result = {"positions": list_positions()}
         elif operation == "analyses.list":

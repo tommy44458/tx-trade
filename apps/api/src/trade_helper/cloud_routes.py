@@ -28,6 +28,8 @@ _ROUTES: tuple[tuple[str, re.Pattern[str]], ...] = tuple((method, re.compile(pat
     ("POST", rf"/api/v1/discussions/(analysis|macro)/{_ID}/messages(/{_ID}/retry)?"),
     ("PATCH", r"/api/v1/settings"),
 ))
+# A discussion reply may stream to the browser that asked for it.
+STREAM_ROUTE = re.compile(rf"/api/v1/discussions/(analysis|macro)/{_ID}/stream")
 REMOTE_SETTINGS_FIELDS = frozenset({"favorite_market_ids", "trading_preferences", "initial_indicators"})
 MAX_BODY_BYTES = 65_536
 _QUERY = re.compile(r"[A-Za-z0-9_.~%&=+,:-]{0,2048}")
@@ -39,6 +41,8 @@ def allowed(request: dict) -> bool:
     method, path, query = request.get("method"), request.get("path"), request.get("query", "")
     if not isinstance(method, str) or not isinstance(path, str) or not isinstance(query, str):
         return False
+    if request.get("stream") is True:
+        return method == "GET" and bool(STREAM_ROUTE.fullmatch(path)) and not query and "body" not in request
     if not any(method == allowed_method and pattern.fullmatch(path) for allowed_method, pattern in _ROUTES):
         return False
     if not _QUERY.fullmatch(query):

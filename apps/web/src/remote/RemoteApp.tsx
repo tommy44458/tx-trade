@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { uiText } from "../i18n/index.ts";
 import { AnalysisSpinner } from "../AnalysisProgress";
 import App from "../App";
@@ -6,6 +6,7 @@ import GoogleMark from "../GoogleMark";
 import { setRemoteTransport } from "../transport.ts";
 import {
   CloudError,
+  RelaySocket,
   listDevices,
   readMe,
   relayTransport,
@@ -106,6 +107,8 @@ function RemoteWorkspace({ device, devices, me, onChoose, onSignOut, onSignedOut
   const [check, setCheck] = useState<{ device: string; state: Check; error?: string; attempt: number }>(
     { device: "", state: "checking", attempt: 0 });
   const attempt = check.attempt;
+  const sockets = useRef<RelaySocket | null>(null);
+  useEffect(() => () => sockets.current?.close(), []);
   useEffect(() => {
     let active = true;
     // An app from before full remote screens only knows the five original commands.
@@ -113,7 +116,17 @@ function RemoteWorkspace({ device, devices, me, onChoose, onSignOut, onSignedOut
       .then((status) => {
         if (!active) return;
         if (status.capabilities?.includes("api.request")) {
-          setRemoteTransport(relayTransport(device.id, { describe: errorText, onSignedOut }));
+          const socket = new RelaySocket(device.id);
+          // An app without live replies reads saved ones instead (the discussion polls).
+          const streams = status.capabilities.includes("stream");
+          setRemoteTransport(relayTransport(device.id, { describe: errorText, onSignedOut }),
+            (path, handlers) => {
+              if (streams) return socket.open(path, handlers);
+              window.setTimeout(handlers.onError, 0);
+              return () => {};
+            });
+          sockets.current?.close();
+          sockets.current = socket;
           setCheck({ device: device.id, state: "ready", attempt });
         } else setCheck({ device: device.id, state: "outdated", attempt });
       })

@@ -37,3 +37,11 @@ def test_screens_reach_their_routes(request_):
 ])
 def test_everything_else_is_refused(request_):
     assert not allowed(request_)
+
+
+def test_only_a_discussion_reply_may_stream():
+    path = "/api/v1/discussions/analysis/ana_1/stream"
+    assert allowed({"method": "GET", "path": path, "stream": True, "connection_id": "c"})
+    assert not allowed({"method": "GET", "path": path})
+    assert not allowed({"method": "GET", "path": "/api/v1/positions", "stream": True})
+    assert not allowed({"method": "GET", "path": path, "stream": True, "query": "limit=100"})
