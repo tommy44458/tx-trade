@@ -169,6 +169,14 @@ async function harness(options = {}) {
       ipcHandlers.get("desktop:update-locale")({ sender: calls.window.webContents,
         senderFrame: calls.window.webContents.mainFrame }, locale);
     },
+    /** Call a renderer-facing handler as the app's own window would. */
+    invoke(name, ...args) {
+      return ipcHandlers.get(name)({ sender: calls.window.webContents,
+        senderFrame: calls.window.webContents.mainFrame }, ...args);
+    },
+    invokeFrom(sender, name, ...args) {
+      return ipcHandlers.get(name)(sender, ...args);
+    },
   };
 }
 
@@ -344,4 +352,26 @@ test("explicit download actions and background errors cannot restart the app wit
   await flush();
   assert.equal(failure.calls.updater.state.status, "error");
   assert.equal(failure.calls.dialogs.length, 0, "background check failures remain quiet");
+});
+
+test("the window's update notice reads the state and opens the update dialog, for the app's own window only", async () => {
+  const h = await harness({ locale: "en-US" });
+  assert.equal(h.invoke("desktop:update-state").status, "idle");
+  await h.calls.updater.check();
+  await flush();
+  // Only what the notice shows crosses into the page.
+  const state = h.invoke("desktop:update-state");
+  assert.deepEqual(Object.keys(state).sort(), ["canInstall", "percent", "status", "version"]);
+  assert.equal(state.status, "available");
+  assert.equal(state.canInstall, false);
+  const shown = h.calls.dialogs.length;
+  h.invoke("desktop:show-update");
+  await flush();
+  assert.equal(h.calls.dialogs.length, shown + 1);
+  assert.equal(h.calls.dialogs.at(-1).buttons[0], "Download Update");
+  // Another page or frame cannot read the state or raise the dialog.
+  const stranger = { sender: { id: 99 }, senderFrame: {} };
+  assert.throws(() => h.invokeFrom(stranger, "desktop:update-state"), /Invalid window/);
+  assert.throws(() => h.invokeFrom(stranger, "desktop:show-update"), /Invalid window/);
+  assert.equal(h.calls.dialogs.length, shown + 1);
 });
