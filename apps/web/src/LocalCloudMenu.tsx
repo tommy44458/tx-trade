@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { uiText } from "./i18n/index.ts";
 import { remoteView, type RemoteStatus } from "./remoteAccess.ts";
+import { announceCloudAccountChange } from "./cloudAccountEvents";
 import { openAuthorization } from "./desktop";
 import { apiFetch } from "./transport.ts";
 
@@ -51,6 +52,7 @@ export default function LocalCloudMenu({ onOpenSettings, onChanged }: {
       await apiFetch("/api/v1/cloud-account/sign-out", { method: "POST" });
       setSignedIn(false);
       onChanged();
+      announceCloudAccountChange();
     } finally {
       setBusy(false);
     }

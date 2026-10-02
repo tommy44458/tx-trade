@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { uiText } from "./i18n/index.ts";
+import { CLOUD_ACCOUNT_CHANGED, announceCloudAccountChange } from "./cloudAccountEvents";
 import { copyText } from "./copyText";
 import { openAuthorization } from "./desktop";
 import { AnalysisSpinner } from "./AnalysisProgress";
@@ -19,6 +20,7 @@ type CloudAccountStatus = {
 };
 
 const SIGN_IN_POLL_MS = 1000;
+const ACCOUNT_POLL_MS = 10_000;
 // Poll quickly while the link is changing, slowly once it has settled.
 const REMOTE_POLL_MS = { changing: 800, settled: 5000 };
 const SETTLED = new Set(["connected", "disabled", "subscription_required", "device_limit", "signed_out", "error"]);
@@ -75,7 +77,14 @@ export default function CloudAccountSection({ onChanged }: { onChanged: () => vo
     const before = previous.current;
     previous.current = next;
     setStatus(next);
-    if (before && before.signed_in !== next.signed_in) changed.current();
+    // Signing out and in as someone else can leave signed_in unchanged between two reads; the account is what counts.
+    const accountChanged = !!before && (before.signed_in !== next.signed_in
+      || (before.profile?.email ?? null) !== (next.profile?.email ?? null));
+    if (accountChanged) {
+      setRemote(null);
+      changed.current();
+      announceCloudAccountChange();
+    }
     // Sign-in finished in the system browser: bring the app back in front.
     if (before?.pending && next.signed_in) void window.tradeHelper?.focusWindow?.();
   }, []);
@@ -84,6 +93,19 @@ export default function CloudAccountSection({ onChanged }: { onChanged: () => vo
 
   useEffect(() => {
     refresh().catch((reason: Error) => setError(cloudErrorText(reason.message)));
+  }, [refresh]);
+
+  // The account can change elsewhere (the account menu, an expired session): follow it while Settings is open.
+  useEffect(() => {
+    const check = () => { if (document.visibilityState === "visible") refresh().catch(() => {}); };
+    const timer = window.setInterval(check, ACCOUNT_POLL_MS);
+    window.addEventListener(CLOUD_ACCOUNT_CHANGED, check);
+    window.addEventListener("focus", check);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener(CLOUD_ACCOUNT_CHANGED, check);
+      window.removeEventListener("focus", check);
+    };
   }, [refresh]);
 
   // While the browser is open, check often, and at once when the user returns to the app.

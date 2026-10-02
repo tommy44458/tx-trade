@@ -48,6 +48,7 @@ import { levelLadder } from "./levelLadder";
 import { importedPositionFacts, isManualPosition, liquidationSourceLabel, positionSourceLabel, type PositionSource } from "./positionSources";
 import Icon, { type IconName } from "./Icon";
 import AccountMenu from "./AccountMenu";
+import { CLOUD_ACCOUNT_CHANGED } from "./cloudAccountEvents";
 import UpdateNotice from "./UpdateNotice";
 import LocalCloudMenu from "./LocalCloudMenu";
 import DerivativesContext, { type DerivativesData } from "./DerivativesContext";
@@ -461,6 +462,22 @@ function App({ remoteSection, remoteIdentity, remoteMenu, remoteStatus }: {
   const macroInterpretation = useMacroInterpretation(view === "events", locale);
   const [session, setSession] = useState<SessionInfo | null>(null);
   const account = remoteIdentity !== undefined ? remoteIdentity : sessionAccount(session);
+  // The sidebar account follows the cloud account on its own: a sign-in can finish in the browser
+  // after Settings was left, or a sign-out can happen from the account menu.
+  useEffect(() => {
+    if (remoteIdentity !== undefined) return;
+    const reload = () => {
+      if (document.visibilityState === "visible") api<SessionInfo>("/session").then(setSession).catch(() => {});
+    };
+    const timer = window.setInterval(reload, 15_000);
+    window.addEventListener(CLOUD_ACCOUNT_CHANGED, reload);
+    window.addEventListener("focus", reload);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener(CLOUD_ACCOUNT_CHANGED, reload);
+      window.removeEventListener("focus", reload);
+    };
+  }, [remoteIdentity]);
   const [selected, setSelected] = useState<string[]>([]);
   const marketPositions = useMemo(() => positions.filter((position) => position.market_id === marketId),
     [positions, marketId]);

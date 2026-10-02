@@ -9,6 +9,10 @@ The product version is managed in `version.json`. Dates record release preparati
 - When assessing long and short, the AI no longer rates the countertrend side unsuitable only because the larger trend points the other way or a top or bottom is not yet confirmed. It rates such a side conditional and states the zone it leans on, an invalidation just beyond that zone, a target limited to the nearest opposing zone, and the cost of trading against the larger trend. A side is unsuitable only with no qualified zone, risk-reward below 1.5, an invalidation already triggered, a stop beyond the liquidation distance at the chosen leverage, or missing data, and the report names which. Facts that make one side poor to chase, such as price at resistance or an overextended band, are also weighed for the opposite side's anticipatory plan. The AI still does not see your directional view.
 - In follow-ups about a side rated conditional or unsuitable, the AI gives that side's concrete plan and its cost, or names the hard reason; it does not take your view as a premise or change its assessment because you disagree or because price later moved your way.
 
+### Fixed
+
+- After signing out of the cloud account on the computer and signing in with another one, Settings and the account at the bottom left kept showing the old account. Both now follow signing out from the account menu, switching accounts, and a sign-in finished in the browser after leaving Settings.
+
 ## [1.0.3] - 2026-10-02
 
 ### Changed
