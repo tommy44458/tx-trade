@@ -1,4 +1,5 @@
 import { economicMetricLabel } from "./economicLabels";
+import type { DirectionAssessmentData } from "./DirectionAssessment";
 import { pythonReferenceText } from "./pythonReferenceText";
 import { uiText, uiLocale, languageName, type UiLocale } from "./i18n/index.ts";
 import { useEffect, useState } from "react";
@@ -24,6 +25,7 @@ export type Reasoning = {
   supporting_evidence?: string;
   counter_evidence?: string;
   agent_stance?: "long" | "short" | "wait";
+  direction_assessment?: DirectionAssessmentData;
   macro_outlook?: {
     stance: "bullish" | "bearish" | "neutral";
     reason: string;

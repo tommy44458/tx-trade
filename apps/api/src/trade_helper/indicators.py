@@ -181,7 +181,8 @@ def strategy_candidates(candles: list[dict], quote: dict, params: dict) -> dict:
     context_candles = params.get("_context_candles")
     context = compare_timeframes(candles, quote, params) if context_candles else compare_closed_timeframes(
         metrics, None, request["timeframe"])
-    return {"atr14": metrics["atr14"], "candidates": strategy_for(metrics, request.get("directional_bias"),
+    # The directional hypothesis never filters or labels evidence (see agent_context).
+    return {"atr14": metrics["atr14"], "candidates": strategy_for(metrics, None,
                                        request.get("risk_tolerance"), quote,
                                        request.get("leverage", 5), context,
                                        quote.get("event_risk", "unavailable"),
@@ -207,7 +208,7 @@ def evaluate_positions(candles: list[dict], quote: dict, params: dict) -> dict:
         metrics, None, request["timeframe"])
     return build_position_options(positions, quote, level_result["levels"],
                                   context["market_state"], Decimal(metrics["atr14"]),
-                                  request.get("directional_bias"),
+                                  None,
                                   request.get("risk_tolerance"),
                                   request.get("account_equity_usdt"))
 

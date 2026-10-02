@@ -131,6 +131,8 @@ class PromptBundle:
 STRATEGY_MACHINE_CONTRACT = {
     "string_fields": ["market", "levels", "strategy", "supporting_evidence", "counter_evidence"],
     "agent_stance": ["long", "short", "wait"],
+    "direction_assessment": {side: {"verdict": ["reasonable", "conditional", "unsuitable"], "reason": "text"}
+                             for side in ("long", "short")},
     "strategy_decision": ["candidate", "wait"],
     "entry_actions": ["open_now", "wait_for_entry", "stand_aside"],
     "entry_fields": [

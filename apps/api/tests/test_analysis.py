@@ -383,7 +383,8 @@ def test_report_contract_recomputes_candidate_prices_and_costs():
     metrics["last_close"] = quote["price"]
     context = compare_timeframes(metrics, metrics, "1h")
     metrics["market_state"] = context["market_state"]
-    candidate = strategy_for(metrics, "bullish", "medium", quote, context=context)[0]
+    # Evidence never depends on the user's directional hypothesis.
+    candidate = strategy_for(metrics, None, "medium", quote, context=context)[0]
     plan = build_follow_up_plan(metrics["levels"], quote, "1h", now)
     live = current_candle_context([{"close": metrics["last_close"],
                                     "close_time": now}], quote, "1h")

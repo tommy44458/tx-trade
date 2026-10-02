@@ -347,8 +347,8 @@ class AnalysisReportV3(BaseModel):
         style = self.preference_assessment.get("trading_style")
         if style not in {None, "left", "right"}:
             raise ValueError("Report trading style is invalid")
-        expected = build_candidates(self.metrics, context,
-                                    self.preference_assessment.get("directional_bias"),
+        # Evidence is built without the directional hypothesis, which the model never sees.
+        expected = build_candidates(self.metrics, context, None,
                                     self.preference_assessment.get("risk_tolerance"),
                                     self.quote, self.analysis_leverage,
                                     self.quote.get("event_risk", "unavailable"), style)
@@ -397,7 +397,7 @@ class AnalysisReportV3(BaseModel):
             options = build_position_options(self.position_snapshot, self.quote,
                                              self.metrics["levels"], context["market_state"],
                                              Decimal(self.metrics["atr14"]),
-                                             self.preference_assessment.get("directional_bias"),
+                                             None,
                                              self.preference_assessment.get("risk_tolerance"),
                                              self.account_equity_usdt)
             if not position_runs or position_runs[-1] != options:

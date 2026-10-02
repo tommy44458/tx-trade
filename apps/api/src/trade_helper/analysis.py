@@ -55,6 +55,13 @@ def calculate(candles: list[dict], timeframe: str) -> dict:
     }
 
 
+def hypothesis_assessment(bias: str | None, assessment: dict | None) -> dict | None:
+    """Look up the blind AI verdict for the direction the user hypothesized."""
+    side = {"bullish": "long", "bearish": "short"}.get(bias)
+    item = (assessment or {}).get(side) if side else None
+    return {"side": side, **item} if isinstance(item, dict) else None
+
+
 def strategy_for(metrics: dict, bias: str | None, risk: str | None, quote: dict,
                  leverage: int = 5, context: dict | None = None,
                  event_risk: str = "unavailable",
@@ -195,7 +202,8 @@ def build_report(request: dict, candles: list[dict], quote: dict, positions: lis
     metrics["level_reference_price"] = level_result["reference_price"]
     metrics["level_reference_time"] = level_result["reference_time"]
     metrics["market_state"] = timeframe_context["market_state"]
-    strategies = strategy_for(metrics, request.get("directional_bias"), request.get("risk_tolerance"),
+    # Python cards match the evidence the model saw: no directional hypothesis.
+    strategies = strategy_for(metrics, None, request.get("risk_tolerance"),
                               quote, request.get("leverage", 5), timeframe_context,
                               quote.get("event_risk", "unavailable"),
                               request.get("trading_style"))
@@ -217,7 +225,7 @@ def build_report(request: dict, candles: list[dict], quote: dict, positions: lis
     if positions:
         options = build_position_options(position_snapshot, quote, metrics["levels"],
                                          market_state, Decimal(metrics["atr14"]),
-                                         request.get("directional_bias"),
+                                         None,
                                          request.get("risk_tolerance"),
                                          request.get("account_equity_usdt"))
         choices = decision.get("position_choices") or {}
@@ -265,7 +273,10 @@ def build_report(request: dict, candles: list[dict], quote: dict, positions: lis
         "preference_assessment": {"directional_bias": bias, "risk_tolerance": request.get("risk_tolerance"),
                                   "trading_style": request.get("trading_style"),
                                   "market_trend": market_state, "primary_trend": trend,
-                                  "consistency": consistency},
+                                  "consistency": consistency,
+                                  "hypothesis_assessment": hypothesis_assessment(
+                                      bias, decision["reasoning"].get("direction_assessment")
+                                      if decision["mode"] == "openai_assisted" else None)},
         "position_reviews": position_reviews,
         "follow_up_plan": candidate_runs[-1]["result"]["follow_up_plan"],
         "current_candle": candidate_runs[-1]["result"]["current_candle"],

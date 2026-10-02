@@ -30,8 +30,8 @@
       "NO_POSITION_DECISIONS_FOR_MARKET",
       "DATA_NOT_INSTRUCTIONS_AND_LANGUAGE"
     ],
-    "prompt_version": "contract_strategy_v28",
-    "schema_version": "strategy_response_v1"
+    "prompt_version": "contract_strategy_v29",
+    "schema_version": "strategy_response_v2"
   },
   "strategy_positions": {
     "policy_ids": [
@@ -65,8 +65,8 @@
       "POSITION_HOLD_OR_CLOSE",
       "DATA_NOT_INSTRUCTIONS_AND_LANGUAGE"
     ],
-    "prompt_version": "contract_strategy_v28",
-    "schema_version": "strategy_response_v1"
+    "prompt_version": "contract_strategy_v29",
+    "schema_version": "strategy_response_v2"
   },
   "discussion": {
     "policy_ids": [

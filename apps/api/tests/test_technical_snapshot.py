@@ -297,8 +297,8 @@ def test_high_risk_left_preference_does_not_impose_a_python_direction_veto(monke
             "basis_level_ids": []})
     def create(**kwargs):
         sent = json.loads(kwargs["input"][0]["content"])
-        assert (sent["risk_tolerance"], sent["trading_style"], sent["directional_bias"]) == (
-            "high", "left", "bearish")
+        assert (sent["risk_tolerance"], sent["trading_style"]) == ("high", "left")
+        assert "directional_bias" not in sent
         return SimpleNamespace(output=[], output_text=json.dumps(payload, ensure_ascii=False))
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
     monkeypatch.setenv("OPENAI_MODEL", "test-model")

@@ -71,6 +71,17 @@ def test_python_recommendations_are_not_sent_as_market_evidence(candidate):
     assert supplied["reference_scope"] == "preference_filtered_non_exhaustive_numerical_templates"
 
 
+def test_opposite_directional_hypotheses_produce_identical_model_input():
+    request, candles, context, quote = fixture()
+    payloads = []
+    for bias in ("bullish", "bearish", None):
+        selected = request | {"trading_style": "left", "risk_tolerance": "medium", "directional_bias": bias}
+        trace = prepare_analysis_evidence(selected, candles, quote, context)
+        payloads.append(agent_context(selected, candles, quote, context, prepared_trace=trace))
+    assert payloads[0] == payloads[1] == payloads[2]
+    assert "情境方向與你的判斷相反" not in json.dumps(payloads[0], ensure_ascii=False)
+
+
 def test_changing_preferences_keeps_price_and_indicator_evidence_identical():
     request, candles, context, quote = fixture()
     payloads = []
@@ -79,8 +90,10 @@ def test_changing_preferences_keeps_price_and_indicator_evidence_identical():
         selected = request | {"trading_style": style, "directional_bias": bias, "risk_tolerance": risk}
         trace = prepare_analysis_evidence(selected, candles, quote, context)
         payload = agent_context(selected, candles, quote, context, prepared_trace=trace)
-        assert (payload["trading_style"], payload["directional_bias"], payload["risk_tolerance"]) == (style, bias, risk)
-        assert list(payload).index("precomputed_evidence") < list(payload).index("directional_bias")
+        assert (payload["trading_style"], payload["risk_tolerance"]) == (style, risk)
+        # The directional hypothesis is withheld so it cannot anchor the decision.
+        assert "directional_bias" not in payload
+        assert list(payload).index("precomputed_evidence") < list(payload).index("risk_tolerance")
         payloads.append(payload)
     for payload in payloads[1:]:
         assert payload["current_candle"] == payloads[0]["current_candle"]

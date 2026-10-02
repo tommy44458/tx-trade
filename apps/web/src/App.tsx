@@ -47,6 +47,7 @@ import { importedPositionFacts, isManualPosition, liquidationSourceLabel, positi
 import Icon, { type IconName } from "./Icon";
 import DerivativesContext, { type DerivativesData } from "./DerivativesContext";
 import MarketReference, { type MarketReferenceData } from "./MarketReference";
+import DirectionAssessment from "./DirectionAssessment";
 import SettingsPanel from "./SettingsPanel";
 import {
   readModelConnection,
@@ -1141,6 +1142,10 @@ function App() {
                     <div className="warning" role="status">{uiText("設定已變更。下方是上次分析，重新分析後更新。")}</div>
                   )}{" "}
                   {report && (
+                    <DirectionAssessment assessment={report.reasoning?.direction_assessment}
+                      bias={report.preference_assessment?.directional_bias} />
+                  )}{" "}
+                  {report && (
                     <AnalysisEvidence
                         outputLocale={report.response_locale ?? report.output_locale ?? job?.submitted_input.output_locale ?? "zh-TW"}
                       mode={report.analysis_mode}
@@ -1639,6 +1644,8 @@ function App() {
                   )}{" "}
                 {report && job?.submitted_input.kind === "positions" && (
                   <>
+                    <DirectionAssessment assessment={report.reasoning?.direction_assessment}
+                      bias={report.preference_assessment?.directional_bias} />
                     <AnalysisEvidence
                         outputLocale={report.response_locale ?? report.output_locale ?? job?.submitted_input.output_locale ?? "zh-TW"}
                       positionAnalysis

@@ -359,10 +359,10 @@ def agent_context(request: dict, candles: list[dict], quote: dict,
         else:
             shared["interpretation"] = None
         context["saved_macro_interpretation"] = shared
-    # Keep facts first in the serialized input; preferences remain explicit,
-    # but do not replace the market evidence with a desired direction.
-    context.update({"directional_bias": request.get("directional_bias"),
-                    "risk_tolerance": request.get("risk_tolerance"),
+    # Keep facts first in the serialized input. The user's directional hypothesis
+    # is withheld so it cannot anchor the decision; the model assesses long and
+    # short separately and the report compares that with the hypothesis.
+    context.update({"risk_tolerance": request.get("risk_tolerance"),
                     "trading_style": request.get("trading_style")})
     return context
 

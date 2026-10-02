@@ -50,6 +50,13 @@ def read_model_report(raw: str, trace: list[dict], *, output_locale: str = "zh-T
         result['entry_decision']['basis_level_ids'] = plan.get('basis_level_ids') if isinstance(plan.get('basis_level_ids'), list) else []
     else:
         result['entry_decision'] = None
+    supplied_directions = value.get('direction_assessment')
+    directions = {side: {'verdict': item['verdict'], 'reason': item['reason'].strip()}
+                  for side, item in (supplied_directions.items() if isinstance(supplied_directions, dict) else ())
+                  if side in ('long', 'short') and isinstance(item, dict)
+                  and item.get('verdict') in ('reasonable', 'conditional', 'unsuitable')
+                  and isinstance(item.get('reason'), str) and item['reason'].strip()}
+    result['direction_assessment'] = directions or None
     macro = value.get('macro_outlook')
     result['macro_outlook'] = (macro | {'evidence_ids': macro.get('evidence_ids') if isinstance(macro.get('evidence_ids'), list) else []}
                               if isinstance(macro, dict) and isinstance(macro.get('reason'), str) else None)

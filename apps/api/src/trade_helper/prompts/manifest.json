@@ -1,14 +1,14 @@
 {
   "schema_version": "prompt_registry_manifest_v1",
-  "policy_version": "bilingual_trading_policy_v6",
+  "policy_version": "bilingual_trading_policy_v7",
   "locales": {
     "en-US": {
-      "translation_version": "en_prompts_v6",
-      "reviewed_policy_version": "bilingual_trading_policy_v6"
+      "translation_version": "en_prompts_v7",
+      "reviewed_policy_version": "bilingual_trading_policy_v7"
     },
     "zh-TW": {
-      "translation_version": "zh_prompts_v6",
-      "reviewed_policy_version": "bilingual_trading_policy_v6"
+      "translation_version": "zh_prompts_v7",
+      "reviewed_policy_version": "bilingual_trading_policy_v7"
     }
   },
   "policies": {
@@ -49,8 +49,8 @@
       "en-US": "9dd9df7a43cb16d6ebae3d9f6b682dd9a6fbde1b7fc6c2c8a0e181271acb463c"
     },
     "MARKET_EVIDENCE_BEFORE_PREFERENCES": {
-      "zh-TW": "aadf418d0befb9711810fc3063b5ba7f22d66e36af292698550462254d032b88",
-      "en-US": "d9f26db77611845cc1b701ac417692b8087e0ff44cb15dbc1e027ff37e57ac76"
+      "zh-TW": "baec065c4e05b1445a3ce994e7bf17531c1d3248309541d80caaff3f2dc790d7",
+      "en-US": "a46cd9e77243dd0a5a9c071526bac1ad3b174462cbce4654457e36b188c49d50"
     },
     "NON_EXHAUSTIVE_PYTHON_CANDIDATES": {
       "zh-TW": "f1bcc4c5b59ff3b9b6490fefcbece252a1e46df41493b06e6409a6d7e19df121",
@@ -65,12 +65,12 @@
       "en-US": "14b2d828e55c592d6a65aa00a22ce0aa7a104644fc215c34df9f1e6373bb29da"
     },
     "PREFERENCES_WITHOUT_CONFIRMATION_BIAS": {
-      "zh-TW": "0ec8c1dea184d3436b0362db11e325167a9313a791abebde991f0ffb6b5dde16",
-      "en-US": "548121b6784538defb6017ea2dc581cb0ff49b175fe18289ccc34c6810523a04"
+      "zh-TW": "3a2713f73742e94bca9aee38f4f7549e6b58b174b3e9c2bb5079bad5dc566330",
+      "en-US": "37443640e96cf36572de18b84a1cc0e29c5bb0e7f7f931881eaa4f1c4ef08373"
     },
     "PREFERENCE_FIT_AND_INVALIDATION": {
-      "zh-TW": "12f8cebea6e7fbfce5842208dc31f0ccc9abc26320bde0615c6f201f14834c92",
-      "en-US": "46b732486644cb1672af366697e670488bf1daaa0794526333db936cf3f7bbee"
+      "zh-TW": "a040b398ecd7eded54019f3658bce015cfcf2e7f4278e17f2b8bec2d2d6698ae",
+      "en-US": "4442ab5cd73e719965fba97ded33dcdc1e594d096c9b496e9420b639dea2558c"
     },
     "EXECUTION_STYLES_ON_EQUAL_FACTS": {
       "zh-TW": "74bcbda159203cf299a71d32c97d51a4ff50d850be11e01708e3f8364f10d4c8",
@@ -113,8 +113,8 @@
       "en-US": "f9c50ff625b5a9bbf6f22d2b80303211aa4acd228b67f4cfe591fae6d89fa7ef"
     },
     "STRATEGY_OUTPUT_CONTRACT": {
-      "zh-TW": "6774d7a9d4215639f64ba547bfb994ba9ec317d54f185931c185a48c4548475a",
-      "en-US": "368f7e8d68ff3b1af9b75ec8b5ddc8db6908dd70732378513139cd594ae5bbf5"
+      "zh-TW": "6c1cd8a5b1301e6322ad4f298b38ae883cc578aa4e6100790c39d193bc77e9cb",
+      "en-US": "854bf693fe8a1c18a8f3cb69fd8c0d0729f7bdee130ce0eb9e99d629caf2187b"
     },
     "POSITION_ZONE_EVIDENCE": {
       "zh-TW": "02ad67931867759c364b10ad0507a67a2be7b6d7fedbc4d6eeca984d173d450d",
@@ -181,17 +181,17 @@
       "en-US": "4959ad8a23324dc8224770b35cbda9e617c3bc8191e45c3066c9d4caecf1e7b2"
     }
   },
-  "task_sections_sha256": "7a909c11162fcbedb312e6b6a99501363074080269a2d25a17bf60e81e460c57",
+  "task_sections_sha256": "78a245190fad302e5face1d9216d8ef307534ef73ccbe9d06c6ea8accd2babe0",
   "news_questions_sha256": "532feb24aebc172bebc227cb3ec3ecc16a6a3eb93531d4004e2f1394541c4f79",
   "terminology_sha256": "44d06fcd5aa6a98e27e55a52083aa225a10997d4d2ca3c69c03a7960932ecb01",
   "task_versions": {
     "strategy_market": {
-      "prompt_version": "contract_strategy_v28",
-      "schema_version": "strategy_response_v1"
+      "prompt_version": "contract_strategy_v29",
+      "schema_version": "strategy_response_v2"
     },
     "strategy_positions": {
-      "prompt_version": "contract_strategy_v28",
-      "schema_version": "strategy_response_v1"
+      "prompt_version": "contract_strategy_v29",
+      "schema_version": "strategy_response_v2"
     },
     "discussion": {
       "prompt_version": "professional_discussion_v4",
@@ -210,5 +210,5 @@
       "schema_version": "typesafe_jev_questions_v1"
     }
   },
-  "machine_contracts_sha256": "8b228efc179aedda7ad116da7195201c5318d2d880f4bccd58759ed433da19bd"
+  "machine_contracts_sha256": "426a28142a31b0934ed3bddd5185175ab355ff568cb05f63ab16ef545f722e22"
 }
