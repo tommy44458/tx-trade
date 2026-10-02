@@ -4,8 +4,8 @@ export const VERSION = version.version;
 export const REPOSITORY = "https://github.com/tommy44458/txin-trade";
 export const WEB_APP = "https://app.txintrade.com";
 export const CONTACT_EMAIL = "support@txintrade.com";
-// Turn on once the first signed release is published on GitHub.
-export const RELEASED = false;
+// The first signed release (1.0.0) is published on GitHub.
+export const RELEASED = true;
 export const DOWNLOAD_MAC = `${REPOSITORY}/releases/latest/download/txinTrade-${VERSION}-mac-arm64.dmg`;
 export const RELEASES = `${REPOSITORY}/releases`;
 

@@ -93,21 +93,15 @@ With an optional txinTrade cloud account, you can open the same screens from you
 
 ## Getting started
 
-txinTrade is currently tested on **macOS with Apple Silicon**. A downloadable installer is coming; for now, run it from the source code:
+txinTrade runs on **macOS with Apple Silicon** (M1 or later).
 
-1. Install [Node.js 24+](https://nodejs.org/), [pnpm](https://pnpm.io/installation), [Python 3.12+](https://www.python.org/downloads/) and [uv](https://docs.astral.sh/uv/).
-2. Download this repository and, in its folder, run:
-
-   ```bash
-   pnpm desktop
-   ```
-
-   The first start installs what the app needs and opens txinTrade. Your data is created automatically; no database or configuration file to set up.
+1. [Download txinTrade for Mac](https://txintrade.com/download) (or from the [latest release](https://github.com/tommy44458/txin-trade/releases/latest)), open the DMG and drag txinTrade to Applications. The app is signed and notarized by Apple.
+2. Open txinTrade. Your data is created automatically; there is no database or configuration file to set up.
 3. In **Settings**, connect the AI subscription you already have:
    - **Codex** — uses the Codex app you have installed and its sign-in.
    - **Claude Code** — sign in once with `claude auth login` in a terminal, then choose **Connect Claude Code**. txinTrade only checks that you are signed in and never reads your Claude credentials.
 
-Keep txinTrade open while an analysis is running; closing it stops the work in progress.
+Keep txinTrade open while an analysis is running; closing it stops the work in progress. txinTrade checks for updates and installs them for you, after backing up your data. To run it from the source code instead, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ### Optional connections
 

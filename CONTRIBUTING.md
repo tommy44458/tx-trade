@@ -116,7 +116,7 @@ pnpm release:test
 
 `release:version` without arguments synchronizes package metadata with the current product version. To prepare a new version, first write matching entries under `Unreleased` in [CHANGELOG.md](CHANGELOG.md) and [CHANGELOG.en.md](CHANGELOG.en.md), then run `pnpm release:prepare <version>`; stable versions use `x.y.z`, beta versions use `x.y.z-beta.N`. This prepares dated notes and package versions locally. It does not create tags, publish releases, or enable automatic updates. `pnpm release:check --require-release` checks that the current version has dated notes.
 
-The existing `0.2.0` baseline remains unreleased. GitHub Actions now builds macOS arm64 test DMG/ZIP artifacts for PRs and manual runs. Matching version tags require Developer ID signing and notarization and produce a **draft** GitHub Release. The native update menu waits for active model work and backs up local data before installation; updates are disabled in development and test packages. Run `pnpm desktop:test-release` for local test installers.
+`1.0.0` is the first public release. GitHub Actions builds macOS arm64 test DMG/ZIP artifacts for PRs and manual runs. A matching version tag requires Developer ID signing; the app and the DMG are each notarized and stapled, and the result is a **draft** GitHub Release. Download and verify the draft before publishing it: installed apps only see published releases, and the official site links to the latest one. The native update menu waits for active model work and backs up local data before installation; updates are disabled in development and test packages. Run `pnpm desktop:test-release` for local test installers.
 
 ### Architecture and local data
 

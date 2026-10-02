@@ -93,21 +93,15 @@ txinTrade 會蒐集美國官方公布的數據——CPI、就業、PCE、GDP 與
 
 ## 開始使用
 
-txinTrade 目前在 **Apple Silicon 的 macOS** 上測試。可下載的安裝檔即將推出，目前請從原始碼執行：
+txinTrade 支援搭載 **Apple Silicon（M1 或更新）的 macOS**。
 
-1. 安裝 [Node.js 24 以上](https://nodejs.org/)、[pnpm](https://pnpm.io/installation)、[Python 3.12 以上](https://www.python.org/downloads/) 與 [uv](https://docs.astral.sh/uv/)。
-2. 下載這個 repo，在資料夾中執行：
-
-   ```bash
-   pnpm desktop
-   ```
-
-   第一次啟動會自動安裝所需的套件並開啟 txinTrade。資料會自動建立，不需要設定資料庫或設定檔。
+1. [下載 Mac 版 txinTrade](https://txintrade.com/zh-TW/download)（或從 [最新版本](https://github.com/tommy44458/txin-trade/releases/latest) 下載），打開 DMG，把 txinTrade 拖到「應用程式」。App 已通過 Apple 簽章與公證。
+2. 開啟 txinTrade。資料會自動建立，不需要設定資料庫或設定檔。
 3. 在**設定**連結你已經有的 AI 訂閱：
    - **Codex**：使用你已安裝的 Codex 與它的登入狀態。
    - **Claude Code**：先在終端機執行一次 `claude auth login` 登入，再選擇**連結 Claude Code**。txinTrade 只會確認你已登入，不會讀取你的 Claude 憑證。
 
-分析進行中請保持 txinTrade 開啟；關閉 App 會中止正在執行的工作。
+分析進行中請保持 txinTrade 開啟；關閉 App 會中止正在執行的工作。txinTrade 會自動檢查並安裝更新，安裝前會先備份你的資料。如果想從原始碼執行，請參考 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
 ### 選用的連結
 
