@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { AnalysisSpinner } from "./AnalysisProgress";
 import type { DesktopUpdateState } from "./desktop";
 import { uiText } from "./i18n/index.ts";
 import "./UpdateNotice.css";
@@ -25,11 +26,19 @@ export default function UpdateNotice() {
         : state.status === "waiting-for-idle" ? uiText("分析結束後安裝更新")
           : state.status === "installing" ? uiText("正在安裝更新…") : null;
   if (!label) return null;
+  // Busy from the moment Download is chosen, so the app never looks stuck while it works.
+  const busy = !state.canInstall && ["downloading", "waiting-for-idle", "installing"].includes(state.status);
+  const downloading = state.status === "downloading";
   return (
-    <button type="button" className="update-notice" data-ready={state.canInstall || undefined}
+    <button type="button" className="update-notice" data-ready={state.canInstall || undefined} aria-busy={busy || undefined}
       onClick={() => void bridge?.showUpdate?.()}>
-      <span className="update-notice-dot" aria-hidden="true" />
-      <span className="update-notice-label">{label}</span>
+      {busy ? <AnalysisSpinner /> : <span className="update-notice-dot" aria-hidden="true" />}
+      <span className="update-notice-label" role="status">{label}</span>
+      {downloading && (
+        <span className="update-notice-progress" aria-hidden="true">
+          <span style={{ width: `${Math.max(2, state.percent)}%` }} />
+        </span>
+      )}
     </button>
   );
 }

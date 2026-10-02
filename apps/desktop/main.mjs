@@ -259,7 +259,11 @@ function publicUpdateState(state) {
 function updateStateChanged(state) {
   // The notice is a convenience: a page that is still loading must never hold up the update itself.
   try {
-    if (window && !window.isDestroyed()) window.webContents.send("desktop:update-state", publicUpdateState(state));
+    if (window && !window.isDestroyed()) {
+      window.webContents.send("desktop:update-state", publicUpdateState(state));
+      // The Dock icon shows the download too, so it is visible with the window hidden; -1 removes it.
+      window.setProgressBar(state.status === "downloading" ? Math.max(0.01, state.percent / 100) : -1);
+    }
   } catch { /* The native dialog below still offers the update. */ }
   // Keep download progress visible without rebuilding the entire menu for each byte event.
   const key = `${state.status}:${state.canInstall}:${Math.floor(state.percent / 5)}`;

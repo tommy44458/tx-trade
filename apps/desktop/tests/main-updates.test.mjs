@@ -74,6 +74,7 @@ async function harness(options = {}) {
         } });
     }
     isDestroyed() { return false; }
+    setProgressBar(value) { calls.progress ??= []; calls.progress.push(value); }
     isMinimized() { return false; }
     focus() {}
     restore() {}
@@ -244,6 +245,9 @@ test("notices offer an explicit download and restart, and a rejected native inst
   await flush();
   assert.equal(h.calls.dialogs.at(-1).buttons[0], "Restart and Update");
   assert.equal(h.calls.sent.at(-1)[1].canInstall, true);
+  // The Dock showed the download as soon as it began, and cleared once it finished.
+  assert.ok(h.calls.progress.includes(0.01));
+  assert.equal(h.calls.progress.at(-1), -1);
   assert.equal(h.calls.fetches.length, 0);
   assert.equal(h.calls.nativeRequested, undefined);
   h.menuItem("Install Update").click();
