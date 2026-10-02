@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { applyPendingAnalysisUpdate, createPositionAnalysisLookup, isLatestPositionAnalysis } from '../src/latestPositionAnalysis.ts';
+import { applyPendingAnalysisUpdate, createPositionAnalysisLookup, isLatestAnalysis, isLatestPositionAnalysis } from '../src/latestPositionAnalysis.ts';
 
 const saved = (marketId = 'binance:perp:BTCUSDT', overrides = {}) => ({
   id: 'saved-position-analysis', status: 'completed',
@@ -85,4 +85,21 @@ test('a slower poll cannot downgrade a completed task or replace a different exp
   assert.equal(applyPendingAnalysisUpdate(historical, completed), historical);
   const failed = { id: running.id, status: 'failed' };
   assert.equal(applyPendingAnalysisUpdate(failed, running), failed);
+});
+
+test('market reports load only for their own kind, pair and original timeframe', () => {
+  const pair = 'binance:perp:ETHUSDT';
+  const market = saved(pair, { submitted_input: { kind: 'market', market_id: pair, timeframe: '12h' },
+    report: { market_id: pair, timeframe: '12h' } });
+  assert.equal(isLatestAnalysis(market, pair, 'market'), true);
+  // Market and position reports never stand in for each other.
+  assert.equal(isLatestAnalysis(market, pair, 'positions'), false);
+  assert.equal(isLatestPositionAnalysis(market, pair), false);
+  assert.equal(isLatestAnalysis(saved(pair), pair, 'market'), false);
+  for (const record of [market, { ...market, status: 'running' }, { ...market, report: null },
+    { ...market, report: { market_id: pair, timeframe: '1h' } }]) {
+    assert.equal(isLatestAnalysis(record, 'binance:perp:BTCUSDT', 'market'), false);
+  }
+  assert.equal(isLatestAnalysis({ ...market, status: 'running' }, pair, 'market'), false);
+  assert.equal(isLatestAnalysis({ ...market, report: { market_id: pair, timeframe: '1h' } }, pair, 'market'), false);
 });

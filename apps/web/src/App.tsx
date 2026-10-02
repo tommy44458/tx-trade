@@ -20,7 +20,7 @@ import SelectControl from "./SelectControl";
 import MarketPicker, { type Market } from "./MarketPicker";
 import useMarketFavorites from "./useMarketFavorites";
 import useTradingPreferences from "./useTradingPreferences";
-import useLatestPositionAnalysis from "./useLatestPositionAnalysis";
+import useLatestAnalysis from "./useLatestAnalysis";
 import { applyPendingAnalysisUpdate } from "./latestPositionAnalysis";
 import PositionOptionalFields, {
   type OptionalPositionFields,
@@ -471,23 +471,33 @@ function App() {
     ? analysisJob : null;
   const pendingPositionJob = pendingJob?.submitted_input.kind === "positions" &&
     pendingJob.submitted_input.market_id === marketId ? pendingJob : null;
-  const latestPositionAnalysis = useLatestPositionAnalysis<Job>(
+  const showLatestTimeframe = (latest: Job) => {
+    if (synchronizeLatestTimeframe.current && isAnalysisTimeframe(latest.submitted_input.timeframe)) {
+      // This selects the saved report's visible timeframe, without changing saved defaults.
+      tradingPreferences.touched.current.add("timeframe");
+      setTimeframe(latest.submitted_input.timeframe);
+    }
+  };
+  const latestPositionAnalysis = useLatestAnalysis<Job>(
+    "positions",
     view === "positions" && !viewingHistoricalPosition && !manualPositionJob &&
       !pendingPositionJob && submittingKind !== "positions",
     marketId,
-    (latest) => {
-      if (synchronizeLatestTimeframe.current && isAnalysisTimeframe(latest.submitted_input.timeframe)) {
-        // This selects the saved report's visible timeframe, without changing saved defaults.
-        tradingPreferences.touched.current.add("timeframe");
-        setTimeframe(latest.submitted_input.timeframe);
-      }
-    },
+    showLatestTimeframe,
+  );
+  // A report just requested or opened from history wins; otherwise each pair shows its latest one.
+  const viewedMarketJob = analysisJob?.submitted_input.kind !== "positions" &&
+    analysisJob?.submitted_input.market_id === marketId ? analysisJob : null;
+  const latestMarketAnalysis = useLatestAnalysis<Job>(
+    "market",
+    view === "market" && !viewedMarketJob && submittingKind !== "market",
+    marketId,
+    showLatestTimeframe,
   );
   const job = view === "positions" && !viewingHistoricalPosition
     ? pendingPositionJob ?? manualPositionJob ?? latestPositionAnalysis.data
     : view === "market"
-      ? analysisJob?.submitted_input.kind !== "positions" && analysisJob?.submitted_input.market_id === marketId
-        ? analysisJob : null
+      ? viewedMarketJob ?? latestMarketAnalysis.data
       : analysisJob;
   const report =
     submittingKind !== "positions" && job?.report?.market_id === marketId && job.report.timeframe === timeframe
@@ -645,6 +655,7 @@ function App() {
     if (!analysisLeverageValid) return;
     if (kind === "positions" && (!marketId || !selectedPositionIds.length)) return;
     latestPositionAnalysis.invalidate();
+    latestMarketAnalysis.invalidate();
     setSubmittingKind(kind);
     setError("");
     try {
@@ -853,6 +864,7 @@ function App() {
         emptyLabel={uiText("尚無持倉交易對")}
         onChange={(id) => {
           if (id !== marketId || viewingHistoricalPosition) latestPositionAnalysis.invalidate();
+          if (id !== marketId) latestMarketAnalysis.invalidate();
           setMarketId(id);
           setViewingHistoricalPosition(false);
           setManualPositionAnalysisId(null);
@@ -928,6 +940,7 @@ function App() {
           onClick={(e) => {
             e.preventDefault();
             latestPositionAnalysis.invalidate();
+            if (view !== "market") latestMarketAnalysis.invalidate();
             setManualPositionAnalysisId(null);
             setView("market");
           }}
@@ -946,6 +959,8 @@ function App() {
                 if (page.id !== view || viewingHistoricalPosition) latestPositionAnalysis.invalidate();
                 if (page.id === "positions" && view === "positions" && !viewingHistoricalPosition)
                   latestPositionAnalysis.refresh();
+                if (page.id !== view) latestMarketAnalysis.invalidate();
+                if (page.id === "market" && view === "market") latestMarketAnalysis.refresh();
                 setManualPositionAnalysisId(null);
                 synchronizeLatestTimeframe.current = true;
                 setView(page.id);
@@ -1093,6 +1108,21 @@ function App() {
                 <div className="analysis-main">
                   {marketBusy && (
                     <AnalysisProgress kind="market" phase={analysisPhase} />
+                  )}
+                  {!marketBusy && latestMarketAnalysis.status === "loading" && (
+                    <div className="market-context-status" role="status" aria-busy="true">
+                      <AnalysisSpinner />
+                      <span>{uiText("正在載入此交易對的最新市場分析…")}</span>
+                    </div>
+                  )}
+                  {!marketBusy && latestMarketAnalysis.status === "empty" && (
+                    <p className="note" role="status">{uiText("此交易對尚無已完成的市場分析。調整交易偏好後開始分析。")}</p>
+                  )}
+                  {!marketBusy && latestMarketAnalysis.status === "error" && (
+                    <div className="market-context-status" role="alert" data-error="true">
+                      <span>{latestMarketAnalysis.error}</span>
+                      <button type="button" className="settings-link" onClick={latestMarketAnalysis.refresh}>{uiText("重試")}</button>
+                    </div>
                   )}
                   {!marketBusy &&
                     job?.submitted_input.kind === "market" &&
@@ -1678,6 +1708,7 @@ function App() {
                     key={item.id}
                     onClick={() => {
                       latestPositionAnalysis.invalidate();
+                      latestMarketAnalysis.invalidate();
                       setManualPositionAnalysisId(null);
                       // A delayed preference load must not replace a report being viewed.
                       for (const key of ["market_id", "timeframe", "directional_bias", "risk_tolerance", "trading_style", "leverage"] as const)

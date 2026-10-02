@@ -111,6 +111,19 @@ def test_latest_uses_submitted_time_instead_of_slow_old_completion(client):
     assert result["submitted_input"]["timeframe"] == "4h"
 
 
+def test_market_kind_returns_the_pairs_newest_market_report_only(client):
+    save_analysis("market-old", kind="market", created_offset=0, timeframe="1h")
+    save_analysis("market-new", kind="market", created_offset=30, timeframe="12h")
+    save_analysis("positions-newest", kind="positions", created_offset=60)
+    save_analysis("other-pair-market", kind="market", market_id=OTHER_MARKET, created_offset=90)
+    result = latest(client, kind="market").json()
+    assert result["id"] == "market-new"
+    assert result["submitted_input"]["kind"] == "market"
+    assert result["report"]["timeframe"] == "12h"
+    assert latest(client).json()["id"] == "positions-newest"
+    assert latest(client, market_id=OTHER_MARKET, kind="market").json()["id"] == "other-pair-market"
+
+
 def test_created_time_ties_have_stable_completion_and_id_order(client):
     save_analysis("a-earlier-completion", created_offset=10, completed_offset=11)
     save_analysis("a-later-completion", created_offset=10, completed_offset=12)

@@ -12,17 +12,24 @@ export function applyPendingAnalysisUpdate<T extends { id: string; status: strin
   return current?.id === updated.id && ["queued", "running"].includes(current.status) ? updated : current;
 }
 
-/** A saved report must belong to this exact pair and its original supported timeframe. */
-export function isLatestPositionAnalysis(
+export type SavedAnalysisKind = "market" | "positions";
+
+/** A saved report must be of this kind, for this exact pair and its original supported timeframe. */
+export function isLatestAnalysis(
   value: unknown,
   marketId: string,
+  kind: SavedAnalysisKind,
 ): value is SavedPositionAnalysis {
   if (!value || typeof value !== "object") return false;
   const item = value as SavedPositionAnalysis;
   return typeof item.id === "string" && !!item.id && item.status === "completed" &&
-    item.submitted_input?.kind === "positions" && item.submitted_input.market_id === marketId &&
+    item.submitted_input?.kind === kind && item.submitted_input.market_id === marketId &&
     isAnalysisTimeframe(item.submitted_input.timeframe) &&
     item.report?.market_id === marketId && item.report.timeframe === item.submitted_input.timeframe;
+}
+
+export function isLatestPositionAnalysis(value: unknown, marketId: string): value is SavedPositionAnalysis {
+  return isLatestAnalysis(value, marketId, "positions");
 }
 
 /** Cancellation also protects against transports that finish after AbortSignal was ignored. */

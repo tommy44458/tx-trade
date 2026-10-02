@@ -4,6 +4,10 @@ The product version is managed in `version.json`. Dates record release preparati
 
 ## [Unreleased]
 
+### Added
+
+- Switching pairs in market analysis now shows that pair's latest completed analysis; a just-finished report or one opened from history takes precedence.
+
 ## [0.2.0] - 2026-10-02
 
 ### Added
