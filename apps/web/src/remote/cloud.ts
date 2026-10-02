@@ -17,10 +17,14 @@ export class CloudError extends Error {
 }
 
 export type Profile = { email: string | null; display_name: string | null; picture_url: string | null };
+export type Plan = "monthly";
+/** The account's Creem subscription; null when it never subscribed. */
+export type Billing = { plan: Plan | null; status: string; current_period_end: number | null; canceled_at: number | null };
 export type Me = {
   account_id: string;
   profile: Profile | null;
   entitlements: Array<{ feature: string; status: string; expires_at: number | null }>;
+  billing?: Billing | null;
 };
 export type Device = { id: string; label: string; created_at: number; revoked_at: number | null; online: boolean };
 
@@ -51,6 +55,26 @@ export const signInUrl = () =>
 export const readMe = () => cloud<Me>("/api/v1/me");
 
 export const signOut = () => cloud<unknown>("/auth/logout", { method: "POST" });
+
+/** Only the server grants remote access; the page just reads what it decided. */
+export const hasRemoteAccess = (me: Me) => me.entitlements.some((item) => item.feature === "remote_access"
+  && item.status === "active" && (item.expires_at === null || item.expires_at > Date.now()));
+
+/** Go to Creem's checkout for a plan; Creem returns to this page with `?billing=success`. */
+export async function startCheckout(plan: Plan): Promise<void> {
+  const { checkout_url } = await cloud<{ checkout_url: string }>("/api/v1/billing/checkout", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ plan }),
+  });
+  window.location.assign(checkout_url);
+}
+
+/** Go to Creem's customer portal to cancel, change the card or see invoices. */
+export async function openBillingPortal(): Promise<void> {
+  const { url } = await cloud<{ url: string }>("/api/v1/billing/portal", { method: "POST" });
+  window.location.assign(url);
+}
 
 export async function listDevices(): Promise<Device[]> {
   const { devices } = await cloud<{ devices: Device[] }>("/api/v1/devices");
