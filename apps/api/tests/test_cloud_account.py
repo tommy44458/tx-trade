@@ -166,3 +166,9 @@ def test_only_https_or_a_development_loopback_origin_is_used(monkeypatch, origin
     assert TestClient(app).post("/api/v1/cloud-account/sign-in").status_code == 400
     monkeypatch.setenv("TXINTRADE_CLOUD_ORIGIN", "http://localhost:8787")
     assert cloud_account.status()["configured"] is True
+
+
+def test_cloud_routes_are_left_out_of_api_documentation():
+    paths = TestClient(app).get("/openapi.json").json()["paths"]
+    assert not [path for path in paths if path.startswith("/api/v1/cloud-account")]
+    assert "/api/v1/settings" in paths

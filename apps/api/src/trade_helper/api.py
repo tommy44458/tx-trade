@@ -77,12 +77,17 @@ async def lifespan(_app: FastAPI):
     shutdown_codex()
 
 
-app = FastAPI(title="txinTrade local API", version=product_version(), lifespan=lifespan)
+# The packaged app publishes no API documentation; browser development keeps it.
+_API_DOCS = os.getenv("APP_DESKTOP") != "1"
+app = FastAPI(title="txinTrade local API", version=product_version(), lifespan=lifespan,
+              docs_url="/docs" if _API_DOCS else None, redoc_url="/redoc" if _API_DOCS else None,
+              openapi_url="/openapi.json" if _API_DOCS else None)
 app.include_router(settings_router)
 app.include_router(credential_migration_router)
 app.include_router(claude_code_auth_router)
-app.include_router(cloud_remote_router)
-app.include_router(cloud_account_router)
+# Cloud account and remote access routes are never described in API documentation.
+app.include_router(cloud_remote_router, include_in_schema=False)
+app.include_router(cloud_account_router, include_in_schema=False)
 app.include_router(codex_auth_router)
 app.include_router(live_market_context_router)
 app.include_router(macro_interpretation_router)

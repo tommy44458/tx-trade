@@ -87,3 +87,17 @@ def test_offline_smoke_cannot_be_combined_with_a_background_service(monkeypatch)
     with pytest.raises(SystemExit) as error:
         desktop_runtime.main(["--service", "worker", "--no-workers"])
     assert error.value.code == 2
+
+
+def test_the_packaged_app_serves_no_api_documentation(monkeypatch):
+    import importlib
+
+    from trade_helper import api
+
+    monkeypatch.setenv("APP_DESKTOP", "1")
+    packaged = importlib.reload(api)
+    try:
+        assert (packaged.app.docs_url, packaged.app.redoc_url, packaged.app.openapi_url) == (None, None, None)
+    finally:
+        monkeypatch.delenv("APP_DESKTOP")
+        importlib.reload(api)
