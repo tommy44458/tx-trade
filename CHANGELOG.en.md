@@ -4,6 +4,8 @@ The product version is managed in `version.json`. Dates record release preparati
 
 ## [Unreleased]
 
+## [1.0.3] - 2026-10-02
+
 ### Changed
 
 - Once signed in to the cloud, Settings → Cloud account shows the remote web page address (app.txintrade.com) to open or copy, and the account menu adds Open the remote web page.
