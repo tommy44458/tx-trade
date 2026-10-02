@@ -83,10 +83,16 @@
 .sidebar-foot {
   margin-top: auto;
   border-top: 1px solid var(--border);
-  padding: var(--space-5) var(--space-2) 0;
+  padding-top: var(--space-3);
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+.sidebar-account {
   display: flex;
   align-items: center;
   gap: var(--space-3);
+  padding: 0 var(--space-2);
   min-width: 0;
 }
 .sidebar-foot strong {
@@ -1247,8 +1253,33 @@ select,
     font-size: 21px;
   }
   .nav-label,
-  .sidebar-foot {
+  .sidebar-account {
     display: none;
+  }
+  /* Settings becomes an icon beside the brand; the four workspaces fill the tab row. */
+  .sidebar-foot {
+    position: absolute;
+    top: 8px;
+    right: 12px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+  .sidebar .sidebar-settings {
+    display: block;
+  }
+  .sidebar-settings .nav {
+    width: 44px;
+    min-height: 44px;
+    padding: 0;
+  }
+  .sidebar-settings .nav-text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
   }
   .sidebar nav {
     display: grid;

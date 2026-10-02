@@ -1,6 +1,7 @@
 import { uiText } from "./i18n/index.ts";
 export type DesktopBridge = {
   openExternal: (url: string) => Promise<void>;
+  focusWindow?: () => Promise<void>;
   updateLocale?: (locale: import("./i18n/index.ts").UiLocale) => Promise<void>;
   updateTheme?: (theme: import("./uiTheme.ts").UiTheme) => Promise<void>;
   platform?: string;

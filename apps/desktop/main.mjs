@@ -420,6 +420,13 @@ app.whenReady().then(async () => {
     await shell.openExternal(externalUrl(url, {
       developmentOrigin: app.isPackaged ? undefined : process.env.TXINTRADE_CLOUD_ORIGIN }));
   });
+  ipcMain.handle("desktop:focus-window", event => {
+    trustedSender(event);
+    // Return to the app after a sign-in finished in the system browser.
+    if (window.isMinimized()) window.restore();
+    window.show();
+    app.focus({ steal: true });
+  });
   ipcMain.handle("desktop:retry-startup", async event => {
     trustedSender(event);
     if (!startupFailed) throw new Error("Startup is already running");

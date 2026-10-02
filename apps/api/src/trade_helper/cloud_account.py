@@ -40,13 +40,34 @@ _last_error: str | None = None
 router = APIRouter(prefix="/api/v1/cloud-account", tags=["txinTrade cloud account"])
 # The callback page is shown in the system browser, outside the app's language setting.
 _PAGE = {
-    "signed_in": "<p>已登入 txinTrade 雲端帳戶，可以關閉此頁並回到 App。</p>"
-                 "<p>Signed in to your txinTrade cloud account. You can close this page and return to the app.</p>",
-    "failed": "<p>雲端登入未完成，請回到 txinTrade 查看原因並重試。</p>"
-              "<p>Cloud sign-in did not finish. Return to txinTrade for details and try again.</p>",
-    "expired": "<p>此登入連結已失效，請回到 txinTrade 重新登入。</p>"
-               "<p>This sign-in link is no longer valid. Return to txinTrade and sign in again.</p>",
+    "signed_in": ("ok", "已登入 txinTrade", "可以關閉此分頁，txinTrade 會自動回到前景。",
+                  "Signed in to txinTrade", "You can close this tab; txinTrade will come back to the front."),
+    "failed": ("error", "登入未完成", "請回到 txinTrade 查看原因並重試。",
+               "Sign-in did not finish", "Return to txinTrade for details and try again."),
+    "expired": ("error", "登入連結已失效", "請回到 txinTrade 重新登入。",
+                "This sign-in link has expired", "Return to txinTrade and sign in again."),
 }
+_PAGE_STYLE = (
+    ":root{color-scheme:light dark;--bg:#f5f5f7;--card:#fff;--text:#1d1d1f;--muted:#6e6e73;--ok:#1f9d55;--error:#d93025}"
+    "@media(prefers-color-scheme:dark){:root{--bg:#151517;--card:#1f1f22;--text:#f5f5f7;--muted:#a1a1a6}}"
+    "*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:16px;"
+    "background:var(--bg);color:var(--text);font:15px/1.6 -apple-system,BlinkMacSystemFont,system-ui,sans-serif}"
+    "main{width:min(420px,100%);padding:40px 32px;border-radius:20px;background:var(--card);text-align:center;"
+    "box-shadow:0 12px 40px rgba(0,0,0,.08)}"
+    ".brand{margin:0 0 28px;font-size:13px;font-weight:600;letter-spacing:.02em;color:var(--muted)}"
+    ".mark{width:56px;height:56px;margin:0 auto 20px;border-radius:50%;display:grid;place-items:center;"
+    "font-size:28px;font-weight:600;color:#fff}.ok .mark{background:var(--ok)}.error .mark{background:var(--error)}"
+    "h1{margin:0 0 6px;font-size:21px;font-weight:600}p{margin:0;color:var(--muted)}"
+    ".en{margin-top:24px;padding-top:20px;border-top:1px solid rgba(128,128,128,.2)}.en h1{font-size:15px}"
+)
+
+
+def _page(kind: str) -> str:
+    tone, title, body, title_en, body_en = _PAGE[kind]
+    return (f"<main class='{tone}'><p class='brand'>txinTrade</p>"
+            f"<div class='mark' aria-hidden='true'>{'✓' if tone == 'ok' else '!'}</div>"
+            f"<h1>{title}</h1><p>{body}</p>"
+            f"<div class='en' lang='en'><h1>{title_en}</h1><p>{body_en}</p></div></main>")
 
 
 class CloudAccountError(RuntimeError):
@@ -101,7 +122,7 @@ def _expire(attempt: SignIn) -> None:
             cancel_sign_in("timeout")
 
 
-def _session_record() -> dict | None:
+def session_record() -> dict | None:
     record = load_credentials(_RECORD, allow_interaction=True)
     if not record or not _SESSION_TOKEN.match(str(record.get("session_token", ""))):
         return None
@@ -170,7 +191,7 @@ def _callback(query: dict[str, list[str]]) -> tuple[int, str]:
         attempt = _pending
         # Only the pending attempt's state, compared in constant time, may finish sign-in.
         if attempt is None or attempt.finished or not secrets.compare_digest(value("state"), attempt.state):
-            return 400, _PAGE["expired"]
+            return 400, _page("expired")
         attempt.finished = True
     try:
         if value("error"):
@@ -183,14 +204,17 @@ def _callback(query: dict[str, list[str]]) -> tuple[int, str]:
             if _pending is attempt:
                 _pending, _last_error = None, None
                 _stop(attempt)
-        return 200, _PAGE["signed_in"]
+        # A remote-access link waiting for sign-in reconnects now, not on its next hourly check.
+        from .cloud_connector import connector
+        connector.wake()
+        return 200, _page("signed_in")
     except (CloudAccountError, CredentialStoreError, httpx.HTTPError, ValueError) as exc:
         code = str(exc) if isinstance(exc, CloudAccountError) else \
             "storage_failed" if isinstance(exc, CredentialStoreError) else "service_unavailable"
         with _LOCK:
             if _pending is attempt:
                 cancel_sign_in(code)
-        return 400, _PAGE["failed"]
+        return 400, _page("failed")
 
 
 class _CallbackHandler(BaseHTTPRequestHandler):
@@ -206,8 +230,7 @@ class _CallbackHandler(BaseHTTPRequestHandler):
         code, message = _callback(parse_qs(parsed.query, keep_blank_values=True))
         document = ("<!doctype html><html lang='zh-Hant'><meta charset='utf-8'>"
                     "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-                    "<title>txinTrade</title><body style='font:17px system-ui;padding:48px;line-height:1.6'>"
-                    f"{message}</body></html>").encode()
+                    f"<title>txinTrade</title><style>{_PAGE_STYLE}</style><body>{message}</body></html>").encode()
         self.send_response(code)
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.send_header("Content-Length", str(len(document)))
@@ -242,9 +265,13 @@ def sign_out() -> dict:
     cancel_sign_in()
     record = None
     try:
-        record = _session_record()
+        record = session_record()
     except CredentialStoreError:
         pass
+    # Remote access belongs to this account: stop it and revoke this device first.
+    from .cloud_connector import forget_device
+
+    forget_device(record)
     if record:
         try:
             # Best effort: the cloud revokes the session; local removal happens regardless.

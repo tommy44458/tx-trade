@@ -829,6 +829,43 @@ function App() {
     { id: "history", label: uiText("分析紀錄"), icon: "history" },
     { id: "settings", label: uiText("設定"), icon: "settings" },
   ];
+  const navButton = (page: (typeof pages)[number]) => (
+    <button
+      key={page.id}
+      className={view === page.id ? "nav active" : "nav"}
+      aria-current={view === page.id ? "page" : undefined}
+      onClick={() => {
+        if (page.id !== view || viewingHistoricalPosition) latestPositionAnalysis.invalidate();
+        if (page.id === "positions" && view === "positions" && !viewingHistoricalPosition)
+          latestPositionAnalysis.refresh();
+        if (page.id !== view) latestMarketAnalysis.invalidate();
+        if (page.id === "market" && view === "market") latestMarketAnalysis.refresh();
+        setManualPositionAnalysisId(null);
+        synchronizeLatestTimeframe.current = true;
+        setView(page.id);
+        setViewingHistoricalPosition(false);
+        if (page.id === "positions") setSelected([]);
+        if (page.id === "history")
+          api<Job[]>("/analyses")
+            .then((items) =>
+              setHistory(
+                items.filter((item) =>
+                  item.submitted_input.market_id.startsWith(
+                    "binance:perp:",
+                  ),
+                ),
+              ),
+            )
+            .catch((e) => setError(e.message));
+      }}
+    >
+      <Icon name={page.icon} />
+      <span className="nav-text">{page.label}</span>
+      {page.id === "positions" && positions.length > 0 && (
+        <small>{positions.length}</small>
+      )}
+    </button>
+  );
   const running = pendingJob?.status === "queued" || pendingJob?.status === "running";
   const busy = submittingKind !== null || running;
   const activeAnalysisKind =
@@ -956,56 +993,25 @@ function App() {
         </a>
         <div className="nav-label">{uiText("工作空間")}</div>
         <nav aria-label={uiText("主要導覽")}>
-          {pages.map((page) => (
-            <button
-              key={page.id}
-              className={view === page.id ? "nav active" : "nav"}
-              aria-current={view === page.id ? "page" : undefined}
-              onClick={() => {
-                if (page.id !== view || viewingHistoricalPosition) latestPositionAnalysis.invalidate();
-                if (page.id === "positions" && view === "positions" && !viewingHistoricalPosition)
-                  latestPositionAnalysis.refresh();
-                if (page.id !== view) latestMarketAnalysis.invalidate();
-                if (page.id === "market" && view === "market") latestMarketAnalysis.refresh();
-                setManualPositionAnalysisId(null);
-                synchronizeLatestTimeframe.current = true;
-                setView(page.id);
-                setViewingHistoricalPosition(false);
-                if (page.id === "positions") setSelected([]);
-                if (page.id === "history")
-                  api<Job[]>("/analyses")
-                    .then((items) =>
-                      setHistory(
-                        items.filter((item) =>
-                          item.submitted_input.market_id.startsWith(
-                            "binance:perp:",
-                          ),
-                        ),
-                      ),
-                    )
-                    .catch((e) => setError(e.message));
-              }}
-            >
-              <Icon name={page.icon} />
-              <span className="nav-text">{page.label}</span>
-              {page.id === "positions" && positions.length > 0 && (
-                <small>{positions.length}</small>
-              )}
-            </button>
-          ))}
+          {pages.filter((page) => page.id !== "settings").map(navButton)}
         </nav>
         <div className="sidebar-foot">
-          {account ? (
-            <>
-              <span className="avatar" aria-hidden="true">{account.initial}</span>
-              <div>
-                <strong>{account.name}</strong>
-                {account.detail && <small>{account.detail}</small>}
-              </div>
-            </>
-          ) : (
-            <strong>{uiText("本地工作空間")}</strong>
-          )}
+          <nav className="sidebar-settings" aria-label={uiText("設定")}>
+            {navButton(pages.find((page) => page.id === "settings")!)}
+          </nav>
+          <div className="sidebar-account">
+            {account ? (
+              <>
+                <span className="avatar" aria-hidden="true">{account.initial}</span>
+                <div>
+                  <strong>{account.name}</strong>
+                  {account.detail && <small>{account.detail}</small>}
+                </div>
+              </>
+            ) : (
+              <strong>{uiText("本地工作空間")}</strong>
+            )}
+          </div>
         </div>
       </aside>
       <main id="main-content" tabIndex={-1}>

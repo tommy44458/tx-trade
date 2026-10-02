@@ -22,6 +22,8 @@ from .bingx_sync import sync_positions as sync_bingx_positions
 from .claude_code_bridge import router as claude_code_auth_router
 from .cloud_account import router as cloud_account_router
 from .cloud_account import signed_in_profile
+from .cloud_connector import connector as cloud_connector
+from .cloud_connector import router as cloud_remote_router
 from .codex_bridge import router as codex_auth_router
 from .codex_bridge import shutdown as shutdown_codex
 from .config import assert_local_mode, local_user_id
@@ -68,7 +70,10 @@ async def lifespan(_app: FastAPI):
     assert_local_mode()
     init_db()
     reset_desktop_update_gate()
+    # Idle unless the user enabled remote access while signed in.
+    cloud_connector.start()
     yield
+    cloud_connector.stop()
     shutdown_codex()
 
 
@@ -76,6 +81,7 @@ app = FastAPI(title="txinTrade local API", version=product_version(), lifespan=l
 app.include_router(settings_router)
 app.include_router(credential_migration_router)
 app.include_router(claude_code_auth_router)
+app.include_router(cloud_remote_router)
 app.include_router(cloud_account_router)
 app.include_router(codex_auth_router)
 app.include_router(live_market_context_router)
