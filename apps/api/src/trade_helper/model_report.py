@@ -6,16 +6,92 @@ from decimal import Decimal, DecimalException
 from .prompts.contracts import validate_locale
 from .risk import costed_risk
 
+REPORT_FIELDS = frozenset({
+    "market", "levels", "strategy", "supporting_evidence", "counter_evidence", "evidence_tools",
+    "strategy_decision", "agent_stance", "entry_decision", "direction_assessment", "macro_outlook",
+    "position_decisions",
+})
+
+
+def _closing(text: str) -> str | None:
+    """The brackets an object left open, or None when it ends inside a string."""
+    stack, in_string, escaped = [], False, False
+    for char in text:
+        if in_string:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+        elif char == '"':
+            in_string = True
+        elif char in "{[":
+            stack.append("}" if char == "{" else "]")
+        elif char in "}]" and (not stack or stack.pop() != char):
+            return None
+    return None if in_string else "".join(reversed(stack))
+
+
+def _restore_fields(value: dict) -> dict:
+    """Move report fields the model nested by mistake back to the top level.
+
+    Seen in practice: a brace missing in the middle nests every later field in the
+    object it failed to close, and a made-up "string_fields" wrapper around the
+    text fields. Fields already at the top level are never replaced.
+    """
+    def find(node: dict, key: str):
+        for child in node.values():
+            if isinstance(child, dict):
+                if key in child:
+                    return child
+                found = find(child, key)
+                if found is not None:
+                    return found
+        return None
+
+    for key in sorted(REPORT_FIELDS - value.keys()):
+        holder = find(value, key)
+        if holder is not None:
+            value[key] = holder.pop(key)
+    return value
+
+
+def _json_object(text: str):
+    """Parse the model's JSON object, tolerating trailing prose or missing final brackets.
+
+    Repairs only structure: text cut off inside a string is not guessed at.
+    """
+    try:
+        return json.loads(text)
+    except (json.JSONDecodeError, TypeError):
+        pass
+    start = text.find("{") if isinstance(text, str) else -1
+    if start < 0:
+        return {}
+    try:
+        return json.JSONDecoder().raw_decode(text[start:])[0]
+    except json.JSONDecodeError:
+        pass
+    body = text[start:].rstrip()
+    closing = _closing(body)
+    if not closing:
+        return {}
+    try:
+        value = json.loads(body + closing)
+    except json.JSONDecodeError:
+        return {}
+    return value if isinstance(value, dict) else {}
+
 
 def read_model_report(raw: str, trace: list[dict], *, output_locale: str = "zh-TW") -> dict:
     validate_locale(output_locale)
     text = raw.strip()
     if text.startswith('```'):
         text = text.split('\n', 1)[-1].rsplit('```', 1)[0].strip()
-    try:
-        value = json.loads(text)
-    except (json.JSONDecodeError, TypeError):
-        value = {}
+    value = _json_object(text)
+    if isinstance(value, dict):
+        value = _restore_fields(value)
     if not isinstance(value, dict):
         value = {}
     def sentence(key):
