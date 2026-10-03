@@ -91,7 +91,7 @@ const words = text.heroTitle.split(names).flatMap((part) =>
     background: var(--shine); background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent;
     animation: shine 6s ease-in-out 1.2s infinite;
   }
-  .hero .lead { max-width: 36em; margin: 32px auto 0; }
+  .hero .lead { max-width: 36em; margin: 32px auto 0; text-wrap: balance; }
   .hero .actions { justify-content: center; }
   .caption { margin: 18px 0 0; color: var(--text-tertiary); font-size: 13px; letter-spacing: 0; }
   .fade { animation: rise 1s var(--ease) both; animation-delay: var(--d); }
