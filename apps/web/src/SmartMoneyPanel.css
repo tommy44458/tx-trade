@@ -136,10 +136,93 @@
 .sm-bars {
   margin: 0;
 }
+.sm-plot {
+  position: relative;
+  cursor: crosshair;
+  border-radius: 4px;
+  outline-offset: 2px;
+}
+/* The detail chart scrubs with a finger; the overview cards keep sideways swiping. */
+.sm-plot-scrub {
+  touch-action: pan-y;
+}
 .sm-bars svg {
   display: block;
   width: 100%;
   height: 88px;
+}
+.sm-column {
+  fill: var(--surface-subtle);
+}
+.sm-dim {
+  opacity: 0.35;
+}
+.sm-tip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  transform: translateX(-50%);
+  z-index: 2;
+  display: grid;
+  gap: 2px;
+  min-width: 150px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  pointer-events: none;
+}
+/* Near either edge the card opens inward instead of spilling off the chart. */
+.sm-tip-left {
+  transform: translateX(calc(-100% + 12px));
+}
+.sm-tip-right {
+  transform: translateX(-12px);
+}
+.sm-tip strong {
+  color: var(--text);
+  font-weight: 600;
+}
+.sm-tip span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.sm-tip i {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+.sm-pages {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.sm-pages button {
+  min-height: 32px;
+  padding: 4px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--accent);
+  font: inherit;
+  cursor: pointer;
+}
+.sm-pages button:disabled {
+  color: var(--text-tertiary);
+  cursor: default;
 }
 .sm-axis {
   stroke: var(--border-strong);
