@@ -4,6 +4,16 @@ The product version is managed in `version.json`. Dates record release preparati
 
 ## [Unreleased]
 
+## [1.0.8] - 2026-10-03
+
+### Added
+
+- txinTrade is now available for Windows (Windows 10 or 11, 64-bit), with the same in-app updates.
+
+### Changed
+
+- Claude Code and Codex setup now walks through each step with commands for your computer's system, each copied in one click.
+
 ## [1.0.7] - 2026-10-03
 
 ### Changed
