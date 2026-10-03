@@ -247,9 +247,31 @@ def _macro_context(row: dict, output_locale: str | None = None) -> tuple[dict, d
     }
 
 
-def load_subject(db, subject_type: Literal["analysis", "macro"], subject_id: str,
+def _fund_flow_context(row: dict, output_locale: str | None = None) -> tuple[dict, dict]:
+    payload = _saved_json(row["payload_json"], dict)
+    if not payload.get("focus"):
+        raise _unavailable()
+    output_locale = output_locale or "zh-TW"
+    english = output_locale == "en-US"
+    subject = {
+        "type": "fund_flows", "id": row["id"], "title": "Fund flows" if english else "資金流向",
+        "output_locale": output_locale, "as_of": payload.get("as_of"),
+        "asset": row["asset"], "window": row["flow_window"],
+    }
+    return subject, {
+        "version": VERSION, "subject": subject, "data_basis": "frozen_existing_result",
+        "as_of": payload.get("as_of"), "generated_at": row.get("created_at"),
+        "output_locale": output_locale, "fund_flows": payload,
+        "data_notice": ("These are the on-chain fund flows frozen when this conversation began; they have not "
+                        "been refreshed. Prices, candles and indicators are not included.") if english else (
+            "這是對話開始時封存的鏈上資金資料，沒有刷新；不含價格、K 線與指標。"),
+    }
+
+
+def load_subject(db, subject_type: Literal["analysis", "macro", "fund_flows"], subject_id: str,
                  user_id: str, *, output_locale: str | None = None) -> tuple[dict, dict]:
-    table = {"analysis": "analyses", "macro": "macro_interpretations"}.get(subject_type)
+    table = {"analysis": "analyses", "macro": "macro_interpretations",
+             "fund_flows": "fund_flow_snapshots"}.get(subject_type)
     if table is None:
         raise DiscussionContextError("DISCUSSION_SUBJECT_NOT_FOUND", 404, "找不到這份結果。")
     row = db.execute(
@@ -258,6 +280,14 @@ def load_subject(db, subject_type: Literal["analysis", "macro"], subject_id: str
     if row is None:
         raise DiscussionContextError("DISCUSSION_SUBJECT_NOT_FOUND", 404, "找不到這份結果。")
     row = dict(row)
+    if subject_type == "fund_flows":
+        # A snapshot is complete when it is written.
+        try:
+            return _fund_flow_context(row, output_locale)
+        except DiscussionContextError:
+            raise
+        except (ValueError, TypeError, KeyError, AttributeError):
+            raise _unavailable() from None
     ready = "completed" if subject_type == "analysis" else "succeeded"
     result_field = "report_json" if subject_type == "analysis" else "result_json"
     if row["status"] != ready or not row.get(result_field):

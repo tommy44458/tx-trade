@@ -4,6 +4,20 @@ The product version is managed in `version.json`. Dates record release preparati
 
 ## [Unreleased]
 
+### Added
+
+- A new Fund flows page follows large exchange inflows and outflows, whale transfers and stablecoin supply.
+- The AI answers follow-up questions on the Fund flows page, and market and position analyses consider fund flows.
+- The remote web page offers Fund flows and its AI follow-ups too.
+
+### Changed
+
+- Traditional Chinese reports, follow-up replies and macro interpretations use full-width marks and a space between Chinese and English or numbers.
+
+### Fixed
+
+- The BLS calendar is read again, so CPI and jobs report dates show; its time zone name had stopped it.
+
 ## [1.0.5] - 2026-10-03
 
 ### Changed

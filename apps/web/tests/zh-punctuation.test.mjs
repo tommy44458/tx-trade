@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { fullWidthPunctuation, localizeReportText } from '../src/zhPunctuation.ts';
+import { fullWidthPunctuation, localizeReportText, spaceBetweenScripts } from '../src/zhPunctuation.ts';
 
 test('a comma next to Chinese becomes full-width, with the following space dropped', () => {
   assert.equal(fullWidthPunctuation('站上阻力,動能轉強'), '站上阻力，動能轉強');
@@ -39,3 +39,22 @@ test('only Traditional Chinese reports change, and every string in them is cover
   assert.equal(report.reasoning.market, '偏多,但過熱;先等');
   assert.equal(localizeReportText(report, 'en-US'), report);
 });
+
+test('Chinese next to English or numbers gets one space, punctuation none', () => {
+  assert.equal(spaceBetweenScripts('4H/12H/1D結構仍為rising'), '4H/12H/1D 結構仍為 rising');
+  assert.equal(spaceBetweenScripts('站上85,067阻力'), '站上 85,067 阻力');
+  assert.equal(spaceBetweenScripts('RSI72偏高，EMA20向上'), 'RSI72 偏高，EMA20 向上');
+  assert.equal(spaceBetweenScripts('上漲5%後回落'), '上漲 5% 後回落');
+  assert.equal(spaceBetweenScripts('單日漲+2%'), '單日漲 +2%');
+  // Already spaced, or next to Chinese punctuation: unchanged.
+  assert.equal(spaceBetweenScripts('結構仍為 rising'), '結構仍為 rising');
+  assert.equal(spaceBetweenScripts('（4H）「BTC」，ETH。'), '（4H）「BTC」，ETH。');
+  assert.equal(spaceBetweenScripts('Price holds above 85,000.'), 'Price holds above 85,000.');
+});
+
+test('reports get both: full-width marks first, then spaced scripts', () => {
+  const shown = localizeReportText({ reasoning: { market: '站上阻力85,067,接著4H與1D同步偏多' } }, 'zh-TW');
+  assert.equal(shown.reasoning.market, '站上阻力 85,067，接著 4H 與 1D 同步偏多');
+  assert.equal(localizeReportText({ text: '為rising' }, 'en-US').text, '為rising');
+});
+

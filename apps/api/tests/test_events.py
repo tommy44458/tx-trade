@@ -127,3 +127,10 @@ def test_report_waits_for_official_event_window_and_rejects_future_knowledge():
     report["event_context"]["events"][0]["ingested_at"] = (now + timedelta(seconds=1)).isoformat()
     with pytest.raises(ValueError, match="learned after"):
         validate_report(report)
+
+
+def test_bls_own_eastern_zone_name_is_read_as_new_york():
+    calendar = BLS.replace("DTSTART;TZID=America/New_York:", "DTSTART;TZID=US-Eastern:")
+    assert calendar != BLS
+    assert parse_bls_ics(calendar) == parse_bls_ics(BLS)
+

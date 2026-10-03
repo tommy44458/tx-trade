@@ -26,7 +26,8 @@ QUOTE_MAX_AGE_SECONDS = 60
 QUOTE_FUTURE_TOLERANCE_SECONDS = 2
 CANDLE_BOUNDARY_GRACE_SECONDS = 5
 RECENT_CANDLE_LIMIT = 8
-NOT_REFRESHED = ["support_resistance", "indicators", "higher_timeframes", "market_reference", "positions", "macro"]
+NOT_REFRESHED = ["support_resistance", "indicators", "higher_timeframes", "market_reference", "fund_flows",
+                 "positions", "macro"]
 _EPOCH = datetime(1970, 1, 1, tzinfo=UTC)
 
 

@@ -14,7 +14,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
 
-SCHEMA_VERSION = 9
+SCHEMA_VERSION = 10
 BUSY_TIMEOUT_MS = 15_000
 
 
@@ -511,10 +511,63 @@ def _migration_9(db: Database) -> None:
     """)
 
 
+def _migration_10(db: Database) -> None:
+    # Follow-up questions on the fund-flows page: each conversation is anchored on
+    # the fund-flow data frozen when it began. SQLite cannot change a CHECK in place,
+    # so discussion_sessions is rebuilt; foreign keys are off during migrations so its
+    # messages stay attached, and the rebuilt tables' references are checked here.
+    db.execute("""CREATE TABLE IF NOT EXISTS fund_flow_snapshots (
+        id TEXT PRIMARY KEY, user_id TEXT NOT NULL,
+        asset TEXT NOT NULL, flow_window TEXT NOT NULL,
+        generated_at TEXT NOT NULL,
+        payload_json TEXT NOT NULL CHECK(json_valid(payload_json)),
+        created_at TEXT NOT NULL,
+        UNIQUE(id,user_id)
+    )""")
+    current = db.execute(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='discussion_sessions'",
+    ).fetchone()["sql"]
+    if "fund_flows" in current:
+        return
+    db.executescript("""
+    CREATE TABLE discussion_sessions_v10 (
+        id TEXT PRIMARY KEY, user_id TEXT NOT NULL,
+        subject_type TEXT NOT NULL CHECK(subject_type IN ('analysis','macro','fund_flows')),
+        subject_id TEXT NOT NULL, analysis_id TEXT, macro_id TEXT, fund_flow_id TEXT,
+        subject_json TEXT NOT NULL CHECK(json_valid(subject_json)),
+        context_json TEXT NOT NULL CHECK(json_valid(context_json)),
+        created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+        output_locale TEXT NOT NULL DEFAULT 'zh-TW' CHECK(output_locale IN ('zh-TW','en-US')),
+        UNIQUE(user_id,subject_type,subject_id),
+        CHECK((subject_type='analysis' AND analysis_id=subject_id AND macro_id IS NULL AND fund_flow_id IS NULL)
+           OR (subject_type='macro' AND macro_id=subject_id AND analysis_id IS NULL AND fund_flow_id IS NULL)
+           OR (subject_type='fund_flows' AND fund_flow_id=subject_id AND analysis_id IS NULL AND macro_id IS NULL)),
+        FOREIGN KEY(analysis_id,user_id) REFERENCES analyses(id,user_id) ON DELETE CASCADE,
+        FOREIGN KEY(macro_id,user_id) REFERENCES macro_interpretations(id,user_id)
+            ON DELETE CASCADE,
+        FOREIGN KEY(fund_flow_id,user_id) REFERENCES fund_flow_snapshots(id,user_id)
+            ON DELETE CASCADE
+    );
+    INSERT INTO discussion_sessions_v10
+        (id,user_id,subject_type,subject_id,analysis_id,macro_id,subject_json,context_json,
+         created_at,updated_at,output_locale)
+        SELECT id,user_id,subject_type,subject_id,analysis_id,macro_id,subject_json,context_json,
+               created_at,updated_at,output_locale FROM discussion_sessions;
+    DROP TABLE discussion_sessions;
+    ALTER TABLE discussion_sessions_v10 RENAME TO discussion_sessions;
+    """)
+    for table in ("discussion_sessions", "discussion_messages"):
+        if db.execute(f"PRAGMA foreign_key_check({table})").fetchone() is not None:
+            raise RuntimeError("Rebuilding discussion sessions broke a reference")
+
+
 def init_db() -> None:
     connection = _open_connection()
     try:
         _enable_wal(connection)
+        # Rebuilding a table must not cascade into its children; a migration that
+        # rebuilds one checks its references (SQLite's schema-change procedure).
+        connection.execute("PRAGMA foreign_keys=OFF")
         connection.execute("BEGIN IMMEDIATE")
         version = connection.execute("PRAGMA user_version").fetchone()["user_version"]
         if version > SCHEMA_VERSION:
@@ -526,7 +579,7 @@ def init_db() -> None:
         for migration_version, migration in (
             (1, _migration_1), (2, _migration_2), (3, _migration_3), (4, _migration_4),
             (5, _migration_5), (6, _migration_6), (7, _migration_7), (8, _migration_8),
-            (9, _migration_9),
+            (9, _migration_9), (10, _migration_10),
         ):
             if version < migration_version:
                 migration(db)

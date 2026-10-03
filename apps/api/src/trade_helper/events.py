@@ -55,6 +55,11 @@ def _ics_unfold(raw: str) -> list[str]:
     return result
 
 
+# BLS names its zone "US-Eastern", which is not an IANA name; without this every
+# BLS entry failed to parse and the whole calendar showed offline.
+_ICS_ZONES = {"US-Eastern": "America/New_York"}
+
+
 def _ics_datetime(value: str, name: str) -> tuple[date, datetime | None]:
     if len(value) == 8:
         day = date.fromisoformat(f"{value[:4]}-{value[4:6]}-{value[6:8]}")
@@ -65,7 +70,8 @@ def _ics_datetime(value: str, name: str) -> tuple[date, datetime | None]:
         at = parsed.replace(tzinfo=UTC)
     else:
         tz_match = re.search(r"TZID=([^;:]+)", name)
-        at = parsed.replace(tzinfo=ZoneInfo(tz_match.group(1)) if tz_match else EASTERN)
+        zone = _ICS_ZONES.get(tz_match.group(1), tz_match.group(1)) if tz_match else None
+        at = parsed.replace(tzinfo=ZoneInfo(zone) if zone else EASTERN)
     return at.astimezone(EASTERN).date(), at
 
 

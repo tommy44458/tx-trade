@@ -17,7 +17,10 @@ _ROUTES: tuple[tuple[str, re.Pattern[str]], ...] = tuple((method, re.compile(pat
     ("POST", r"/api/v1/auth/(codex|claude_code)/check"),
     ("GET", r"/api/v1/analyses/latest"),
     ("GET", rf"/api/v1/analyses/{_ID}(/chart-snapshot|/level-shadow|/level-shadow/v4)?"),
-    ("GET", rf"/api/v1/discussions/(analysis|macro)/{_ID}"),
+    ("GET", rf"/api/v1/discussions/(analysis|macro|fund_flows)/{_ID}"),
+    # Fund-flow follow-ups: the conversation's frozen data lives on the computer.
+    ("GET", r"/api/v1/smart-money/snapshots/latest"),
+    ("POST", r"/api/v1/smart-money/snapshots"),
     ("POST", r"/api/v1/(analyses|positions)"),
     ("POST", r"/api/v1/positions/(binance|bingx)/sync"),
     ("POST", rf"/api/v1/positions/{_ID}/close"),
@@ -25,11 +28,11 @@ _ROUTES: tuple[tuple[str, re.Pattern[str]], ...] = tuple((method, re.compile(pat
     ("DELETE", rf"/api/v1/positions/{_ID}"),
     ("POST", r"/api/v1/events/macro-interpretation/ensure"),
     ("POST", rf"/api/v1/events/macro-interpretation/{_ID}/translate"),
-    ("POST", rf"/api/v1/discussions/(analysis|macro)/{_ID}/messages(/{_ID}/retry)?"),
+    ("POST", rf"/api/v1/discussions/(analysis|macro|fund_flows)/{_ID}/messages(/{_ID}/retry)?"),
     ("PATCH", r"/api/v1/settings"),
 ))
 # A discussion reply may stream to the browser that asked for it.
-STREAM_ROUTE = re.compile(rf"/api/v1/discussions/(analysis|macro)/{_ID}/stream")
+STREAM_ROUTE = re.compile(rf"/api/v1/discussions/(analysis|macro|fund_flows)/{_ID}/stream")
 REMOTE_SETTINGS_FIELDS = frozenset({"favorite_market_ids", "trading_preferences", "initial_indicators"})
 MAX_BODY_BYTES = 65_536
 _QUERY = re.compile(r"[A-Za-z0-9_.~%&=+,:-]{0,2048}")
