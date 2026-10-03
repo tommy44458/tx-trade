@@ -1,6 +1,7 @@
 import { economicMetricLabel } from "./economicLabels";
 import { uiText, uiLocale, useUiLocale, languageName, type UiLocale } from "./i18n/index.ts";
 import "./MacroInterpretationPanel.css";
+import { localizeReportText } from "./zhPunctuation";
 
 export type MacroInterpretationEvidence = {
   id: string;
@@ -196,8 +197,10 @@ export default function MacroInterpretationPanel({
   translating = false,
 }: MacroInterpretationPanelProps) {
   const locale = useUiLocale();
-  const result = state?.interpretation;
-  const displayLocale = result?.response_locale ?? result?.output_locale ?? state?.display_locale ?? "zh-TW";
+  const saved = state?.interpretation;
+  const displayLocale = saved?.response_locale ?? saved?.output_locale ?? state?.display_locale ?? "zh-TW";
+  // Shown as Traditional Chinese reads best: full-width marks, a space between Chinese and English or numbers.
+  const result = localizeReportText(saved, displayLocale);
   const translationBusy = translating || ["queued", "running"].includes(state?.translation?.status ?? "");
   const translationMissing = !!result && displayLocale !== locale;
 

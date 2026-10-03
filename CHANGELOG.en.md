@@ -11,7 +11,7 @@ The product version is managed in `version.json`. Dates record release preparati
 
 ### Changed
 
-- Traditional Chinese reports put a space between Chinese and English words or numbers.
+- Traditional Chinese reports, follow-up replies and macro interpretations use full-width marks and a space between Chinese and English or numbers.
 
 ### Fixed
 

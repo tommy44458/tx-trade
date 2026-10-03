@@ -5,6 +5,7 @@ import { AnalysisSpinner } from "./AnalysisProgress";
 import useDiscussion, { type DiscussionSubjectType } from "./useDiscussion";
 import { discussionLiveMarketView, type DiscussionLiveMarket } from "./discussionLiveMarket";
 import "./AnalysisDiscussion.css";
+import { localizeReportText } from "./zhPunctuation";
 
 export type AnalysisDiscussionProps = {
   subjectType: DiscussionSubjectType;
@@ -134,7 +135,7 @@ function DiscussionSession({
             {message.role === "assistant" && message.status === "failed" && message.content &&
               <p className="discussion-incomplete-note" role="note">{uiText("回覆未完成；以下僅為已收到的部分內容。")}</p>}
             {message.content && (message.role === "assistant"
-              ? <div lang={replyLocale}><DiscussionContent content={message.content} /></div>
+              ? <div lang={replyLocale}><DiscussionContent content={localizeReportText(message.content, replyLocale)} /></div>
               : <p className="discussion-user-content">{message.content}</p>)}
             {message.role === "assistant" && ["queued", "running"].includes(message.status) &&
               <p className={`discussion-pending ${message.content ? "discussion-receiving" : ""}`}>
