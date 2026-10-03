@@ -15,8 +15,10 @@ const CLAUDE = {
   windows: {
     install: "irm https://claude.ai/install.ps1 | iex",
     alternatives: ["winget install Anthropic.ClaudeCode", "npm install -g @anthropic-ai/claude-code"],
-    // The native installer's own location: works before PATH reaches a new window.
+    // The native installer's own location: works even when it did not reach PATH.
     fullPath: '& "$env:USERPROFILE\\.local\\bin\\claude.exe" auth login',
+    // Claude Code's documented fix: add that location to the user's PATH.
+    addToPath: "[Environment]::SetEnvironmentVariable('PATH', [Environment]::GetEnvironmentVariable('PATH', 'User') + \";$env:USERPROFILE\\.local\\bin\", 'User')",
   },
   posix: {
     install: "curl -fsSL https://claude.ai/install.sh | bash",
@@ -141,9 +143,15 @@ export default function CliSetupDialog({ provider, reason, checking, error, onRe
                 : uiText("在終端機登入 Claude 帳號，並依瀏覽器指示完成授權：")}</p>
             <Command value={SIGN_IN_COMMAND} />
             <p className="cli-setup-hint">{windows
-              ? uiText("如果出現「無法辨識 claude」，代表 PATH 還沒更新。不必自己設定，改執行這行即可：")
+              ? uiText("如果仍出現「無法辨識 claude」，是 Windows 版安裝程式沒有把它加入 PATH。不必自己設定，改執行這行登入即可：")
               : uiText("如果出現「command not found」，改執行這行即可：")}</p>
             <Command value={CLAUDE[platform].fullPath} />
+            {windows && (
+              <details className="cli-setup-alternatives">
+                <summary>{uiText("想在任何視窗直接輸入 claude？執行這行後再開新視窗：")}</summary>
+                <Command value={CLAUDE.windows.addToPath} />
+              </details>
+            )}
           </li>
         )}
         <li>
