@@ -12,7 +12,7 @@ ORIGIN = "https://cloud.test"
 def cloud(monkeypatch):
     monkeypatch.setenv("TXINTRADE_CLOUD_ORIGIN", ORIGIN)
     smart_money.clear_cache()
-    state = {"down": False, "calls": []}
+    state = {"down": False, "missing": False, "calls": []}
     real_client = httpx.Client
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -20,6 +20,8 @@ def cloud(monkeypatch):
         assert "Authorization" not in request.headers
         if state["down"]:
             return httpx.Response(503)
+        if state["missing"]:  # A cloud that has not been given smart money yet.
+            return httpx.Response(404)
         if request.url.path == "/smart-money/overview":
             return httpx.Response(200, json={"assets": [{"asset": "BTC"}, {"asset": "ETH"}]})
         if request.url.path == "/smart-money/assets/LINK":
@@ -80,3 +82,11 @@ def test_untracked_assets_are_404_and_malformed_requests_never_reach_the_cloud(c
 def test_remote_access_cannot_reach_smart_money_yet():
     from trade_helper.cloud_routes import allowed
     assert not allowed({"method": "GET", "path": "/api/v1/smart-money/overview"})
+
+
+
+def test_a_cloud_without_smart_money_is_unavailable_not_untracked(cloud):
+    cloud["missing"] = True
+    response = TestClient(app).get("/api/v1/smart-money/overview")
+    assert response.status_code == 503
+    assert response.json()["detail"] == {"code": "smart_money_unavailable"}

@@ -34,7 +34,8 @@ def _fetch(path: str) -> dict:
     try:
         with httpx.Client(timeout=15) as client:
             response = client.get(f"{cloud_origin()}{path}", headers={"Accept": "application/json"})
-        if response.status_code == 404:
+        # Only a coin can be untracked; any other 404 means the cloud lacks this feature.
+        if response.status_code == 404 and path.startswith("/smart-money/assets/"):
             raise HTTPException(404, {"code": "asset_not_tracked"})
         response.raise_for_status()
         if len(response.content) > MAX_BYTES:
