@@ -60,6 +60,8 @@ if (mode !== "start") {
     "--copy-metadata", "tx-trade-api",
     "--collect-data", "trade_helper",
     "--collect-submodules", "uvicorn", "--hidden-import", "sqlite3",
+    // Windows has no system time zone database; zoneinfo reads tzdata's files.
+    ...(windows ? ["--collect-data", "tzdata", "--hidden-import", "tzdata"] : []),
     "--exclude-module", "psycopg", "--exclude-module", "psycopg_binary",
     "--exclude-module", "keyring", "--exclude-module", "keyrings",
     "--distpath", build, "--workpath", join(build, "pyinstaller"),

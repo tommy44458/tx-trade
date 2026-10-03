@@ -4,7 +4,11 @@ import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { runInNewContext } from "node:vm";
-import test from "node:test";
+import nodeTest from "node:test";
+
+// These run main.mjs in a simulated macOS process with POSIX paths throughout;
+// its logic is platform-neutral and the macOS job covers it.
+const test = process.platform === "win32" ? nodeTest.skip : nodeTest;
 import { createDesktopUpdater, notesForLocale, updatesAllowed } from "../updater.mjs";
 
 const signedPolicy = { enabled: true, signed: true, platform: "darwin", arch: "arm64", channel: "stable" };

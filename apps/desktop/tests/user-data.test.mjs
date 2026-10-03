@@ -99,7 +99,7 @@ test("a stale lock left by an exited build does not block migration", t => {
 
 test("a failed move keeps using the legacy profile instead of starting empty", () => {
   const fs = {
-    existsSync: path => path.includes("/txTrade/") || path.endsWith("/txTrade"),
+    existsSync: path => /[\\/]txTrade([\\/]|$)/.test(path),
     mkdirSync: () => {},
     readlinkSync: () => { throw new Error("no lock"); },
     renameSync: () => { throw new Error("permission denied"); },
