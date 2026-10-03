@@ -297,9 +297,52 @@
     grid-column: 1 / -1;
   }
 }
+.sm-dots {
+  display: none;
+}
 @media (max-width: 700px) {
+  /* Swipe through the overview: one card at a time, the next one peeking in. */
   .sm-overview {
-    grid-template-columns: minmax(0, 1fr);
+    display: flex;
+    gap: var(--space-3);
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+  .sm-overview::-webkit-scrollbar {
+    display: none;
+  }
+  .sm-overview .sm-card {
+    flex: 0 0 86%;
+    scroll-snap-align: start;
+  }
+  .sm-dots {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    margin-top: calc(var(--space-6) * -1 + var(--space-1));
+  }
+  /* A finger-sized target around a small dot. */
+  .sm-dots button {
+    display: grid;
+    place-items: center;
+    min-width: 22px;
+    height: 22px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+  .sm-dots button::after {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--border-strong);
+  }
+  .sm-dots button[aria-current="true"]::after {
+    width: 16px;
+    background: var(--accent);
   }
   .sm-detail {
     padding: var(--space-5);

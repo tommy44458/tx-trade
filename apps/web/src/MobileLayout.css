@@ -97,6 +97,21 @@
   .sidebar .nav small {
     display: none;
   }
+  /* Four tabs at most: the merged "Markets" tab stands in for events and fund flows. */
+  .sidebar .nav.nav-wide-only {
+    display: none;
+  }
+  .sidebar .nav.nav-phone-only {
+    display: flex;
+  }
+  .markets-switch {
+    display: flex;
+    margin-bottom: var(--space-5);
+  }
+  .markets-switch button {
+    flex: 1;
+    white-space: nowrap;
+  }
   /* The account sits at the right of the navigation bar. */
   .sidebar .sidebar-foot.account-menu {
     display: block;

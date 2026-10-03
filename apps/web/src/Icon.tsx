@@ -4,6 +4,7 @@ export type IconName =
   | "events"
   | "history"
   | "flows"
+  | "pulse"
   | "settings"
   | "refresh"
   | "arrow"
@@ -19,6 +20,7 @@ const paths: Record<IconName, string> = {
   events: "M4 6h16v14H4zM8 3v6M16 3v6M4 10h16M8 14h2M14 14h2M8 17h2",
   history: "M3 11a9 9 0 1 1 2 7M3 4v7h7M12 7v5l3 2",
   flows: "M4 8h13M13 4l4 4-4 4M20 16H7M11 12l-4 4 4 4",
+  pulse: "M3 12h4l3-7 4 14 3-7h4",
   settings:
     "M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8M10 3h4l1 3 3 1 3 3v4l-3 3-3 1-1 3h-4l-1-3-3-1-3-3v-4l3-3 3-1z",
   refresh:

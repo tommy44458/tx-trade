@@ -1,4 +1,4 @@
-// Smart money data from the cloud monitor, and the small pure helpers its page uses.
+// Fund flows data (the "smart money" monitor) from the cloud, and the small pure helpers its page uses.
 
 export type Coverage = "large_only" | "exchange_and_whales" | "exchange";
 export type FlowKind = "exchange_in" | "exchange_out" | "exchange_move" | "whale";

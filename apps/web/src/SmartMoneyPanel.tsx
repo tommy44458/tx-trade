@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Icon from "./Icon";
 import { uiText, type UiLocale } from "./i18n/index.ts";
 import { apiFetch } from "./transport";
@@ -203,13 +203,23 @@ export default function SmartMoneyPanel({ marketId, locale }: { marketId: string
   }, [shown, span, tracked, refresh]);
 
   const stable = overview?.stablecoins;
+  // Phones swipe through the overview cards; the dots follow and jump.
+  const overviewRef = useRef<HTMLElement>(null);
+  const [card, setCard] = useState(0);
+  const cardStep = () => {
+    const strip = overviewRef.current;
+    const cards = strip ? (Array.from(strip.children) as HTMLElement[]) : [];
+    return cards.length > 1 ? cards[1].offsetLeft - cards[0].offsetLeft : 1;
+  };
+  const showCard = (index: number) =>
+    overviewRef.current?.scrollTo({ left: index * cardStep(), behavior: "smooth" });
   const options = useMemo(() => tracked?.map((t) => t.asset) ?? [], [tracked]);
 
   return (
     <div className="smart-money">
       <div className="page-title">
         <div>
-          <h1>{uiText("聰明錢")}</h1>
+          <h1>{uiText("資金流向")}</h1>
           <p>{uiText("追蹤大額資金進出交易所與巨鯨轉帳。資金流入交易所常是準備賣出，流出多是提領持有，但只是線索，不是買賣訊號。")}</p>
         </div>
         <button className="secondary-button" disabled={loading} onClick={() => setRefresh((n) => n + 1)}>
@@ -223,7 +233,8 @@ export default function SmartMoneyPanel({ marketId, locale }: { marketId: string
       {overview && (
         <>
           <Freshness sync={overview.sync} stale={overview.stale} locale={locale} />
-          <section className="sm-overview" aria-label={uiText("BTC 與 ETH 總覽")}>
+          <section className="sm-overview" ref={overviewRef} aria-label={uiText("BTC、ETH 與穩定幣，左右滑動切換")}
+            onScroll={(event) => setCard(Math.round(event.currentTarget.scrollLeft / cardStep()))}>
             {overview.assets.map((a) => (
               <article key={a.asset} className="panel sm-card">
                 <header>
@@ -260,6 +271,12 @@ export default function SmartMoneyPanel({ marketId, locale }: { marketId: string
               </article>
             )}
           </section>
+          <div className="sm-dots">
+            {Array.from({ length: (overview.assets.length) + (stable ? 1 : 0) }, (_, i) => (
+              <button key={i} type="button" aria-current={card === i} onClick={() => showCard(i)}
+                aria-label={uiText("第 {{p0}} 張，共 {{p1}} 張", { p0: i + 1, p1: overview.assets.length + (stable ? 1 : 0) })} />
+            ))}
+          </div>
 
           <section className="panel sm-detail" aria-labelledby="sm-detail-title">
             <div className="sm-detail-head">

@@ -884,12 +884,14 @@ function App({ remoteSection, remoteIdentity, remoteMenu, remoteStatus }: {
     { id: "market", label: uiText("市場分析"), icon: "market" },
     { id: "positions", label: uiText("我的持倉"), icon: "positions" },
     // On-chain data is read from the cloud by the computer; the remote page does not offer it yet.
-    ...(isRemoteMode() ? [] : [{ id: "smartMoney" as const, label: uiText("聰明錢"), icon: "flows" as const }]),
+    ...(isRemoteMode() ? [] : [{ id: "smartMoney" as const, label: uiText("資金流向"), icon: "flows" as const }]),
     { id: "events", label: uiText("經濟事件"), icon: "events" },
     { id: "history", label: uiText("分析紀錄"), icon: "history" },
     { id: "settings", label: uiText("設定"), icon: "settings" },
   ];
+  const lastMarketsPage = useRef<"events" | "smartMoney">("events");
   const openPage = (id: typeof view) => {
+    if (id === "events" || id === "smartMoney") lastMarketsPage.current = id;
     if (id !== view || viewingHistoricalPosition) latestPositionAnalysis.invalidate();
     if (id === "positions" && view === "positions" && !viewingHistoricalPosition)
       latestPositionAnalysis.refresh();
@@ -913,10 +915,18 @@ function App({ remoteSection, remoteIdentity, remoteMenu, remoteStatus }: {
         )
         .catch((e) => setError(e.message));
   };
+  // Phones show four tabs: economic events and fund flows share one "Markets" tab,
+  // which reopens whichever of the two was seen last.
+  const mergedMarkets = pages.some((page) => page.id === "smartMoney");
+  const isMarketsPage = view === "events" || view === "smartMoney";
   const navButton = (page: (typeof pages)[number]) => (
     <button
       key={page.id}
-      className={view === page.id ? "nav active" : "nav"}
+      className={[
+        "nav",
+        view === page.id ? "active" : "",
+        mergedMarkets && (page.id === "events" || page.id === "smartMoney") ? "nav-wide-only" : "",
+      ].filter(Boolean).join(" ")}
       aria-current={view === page.id ? "page" : undefined}
       onClick={() => openPage(page.id)}
     >
@@ -1055,7 +1065,20 @@ function App({ remoteSection, remoteIdentity, remoteMenu, remoteStatus }: {
         </a>
         <div className="nav-label">{uiText("工作空間")}</div>
         <nav aria-label={uiText("主要導覽")}>
-          {pages.filter((page) => page.id !== "settings").map(navButton)}
+          {pages.filter((page) => page.id !== "settings").flatMap((page) => [
+            navButton(page),
+            // On phones the merged tab takes the place right after My positions.
+            ...(mergedMarkets && page.id === "positions" ? [
+              <button key="markets"
+                className={isMarketsPage ? "nav nav-phone-only active" : "nav nav-phone-only"}
+                aria-current={isMarketsPage ? "page" : undefined}
+                onClick={() => openPage(lastMarketsPage.current)}
+              >
+                <Icon name="pulse" />
+                <span className="nav-text">{uiText("市場動態")}</span>
+              </button>,
+            ] : []),
+          ])}
         </nav>
         <UpdateNotice />
         <AccountMenu account={account} settingsActive={view === "settings"} onOpenSettings={() => openPage("settings")}>
@@ -1741,6 +1764,16 @@ function App({ remoteSection, remoteIdentity, remoteMenu, remoteStatus }: {
                 )}
               </div>
             </>
+          )}
+          {mergedMarkets && isMarketsPage && (
+            <div className="segments markets-switch" role="group" aria-label={uiText("市場動態")}>
+              {(["events", "smartMoney"] as const).map((id) => (
+                <button key={id} type="button" aria-pressed={view === id}
+                  className={view === id ? "chosen" : ""} onClick={() => openPage(id)}>
+                  {pages.find((page) => page.id === id)?.label}
+                </button>
+              ))}
+            </div>
           )}
           {view === "smartMoney" && <SmartMoneyPanel marketId={marketId} locale={locale} />}
           {view === "events" && (
