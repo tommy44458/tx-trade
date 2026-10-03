@@ -328,7 +328,7 @@ export default function CandlestickChart({
       layout: {
         background: { type: ColorType.Solid, color: theme.background },
         textColor: theme.text,
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Helvetica Neue", "Segoe UI", sans-serif',
         fontSize: 11,
         // Required by the Lightweight Charts license: links to tradingview.com.
         attributionLogo: true,

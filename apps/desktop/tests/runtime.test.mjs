@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { once } from "node:events";
+import { EventEmitter, once } from "node:events";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -119,4 +119,48 @@ test("cleanup kills a private worker after its supervisor has already exited", {
   } finally {
     try { process.kill(-leader.pid, "SIGKILL"); } catch { /* Test cleanup already finished. */ }
   }
+});
+
+test("on Windows the backend gets UTF-8 and a stdin lifeline instead of POSIX signals", () => {
+  const env = backendEnvironment({ inherited: {}, dataDir: "C:\\data", port: 1, token: "t", platform: "win32" });
+  assert.equal(env.PYTHONUTF8, "1");
+  assert.equal(env.APP_DESKTOP_LIFELINE, "stdin");
+  const mac = backendEnvironment({ inherited: {}, dataDir: "/data", port: 1, token: "t", platform: "darwin" });
+  assert.equal(mac.APP_DESKTOP_LIFELINE, undefined);
+});
+
+function fakeBackend({ exitsOnStdinEnd }) {
+  const child = new EventEmitter();
+  Object.assign(child, { pid: 4321, exitCode: null, signalCode: null, ended: false });
+  child.kill = () => { throw new Error("kill() is a hard stop on Windows"); };
+  child.stdin = { end: () => {
+    child.ended = true;
+    if (exitsOnStdinEnd) setTimeout(() => { child.exitCode = 0; child.emit("exit", 0); }, 10);
+  } };
+  return child;
+}
+
+function fakeRun(calls) {
+  return (command, args) => {
+    calls.push([command, ...args]);
+    const killer = new EventEmitter();
+    setTimeout(() => killer.emit("exit", 0), 5);
+    return killer;
+  };
+}
+
+test("on Windows stopping closes the lifeline and forces nothing when the backend exits", async () => {
+  const child = fakeBackend({ exitsOnStdinEnd: true });
+  const calls = [];
+  await stopBackend(child, { platform: "win32", run: fakeRun(calls), graceMs: 1000 });
+  assert.equal(child.ended, true);
+  assert.deepEqual(calls, []);
+});
+
+test("on Windows a backend that ignores its lifeline has its process tree ended", async () => {
+  const child = fakeBackend({ exitsOnStdinEnd: false });
+  const calls = [];
+  await stopBackend(child, { platform: "win32", run: fakeRun(calls), graceMs: 50 });
+  assert.equal(child.ended, true);
+  assert.deepEqual(calls, [["taskkill", "/pid", "4321", "/T", "/F"]]);
 });

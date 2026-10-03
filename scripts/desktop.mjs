@@ -14,13 +14,21 @@ if (!["start", "package", "test-release", "release"].includes(mode)) {
 const officialRelease = mode === "release";
 const distributable = officialRelease || mode === "test-release";
 const state = checkReleaseState(root, { requirePrepared: officialRelease });
-if (distributable && (process.platform !== "darwin" || process.arch !== "arm64")) {
-  throw new Error("Release installers currently support macOS arm64 only; build on an Apple Silicon Mac.");
+const mac = process.platform === "darwin" && process.arch === "arm64";
+const windows = process.platform === "win32" && process.arch === "x64";
+// Windows builds are unsigned test installers until a code signing certificate exists.
+if (officialRelease && !mac) {
+  throw new Error("Official releases currently support macOS arm64 only; build on an Apple Silicon Mac.");
+}
+if (distributable && !mac && !windows) {
+  throw new Error("Test installers are built on an Apple Silicon Mac or on Windows x64.");
 }
 if (officialRelease) assertReleaseEnvironment(state, process.env);
 
 async function run(command, args, cwd = root) {
-  const child = spawn(command, args, { cwd, stdio: "inherit", env: process.env });
+  // Node only starts a Windows .cmd (such as pnpm.cmd) through a shell.
+  const child = spawn(command, args, { cwd, stdio: "inherit", env: process.env,
+    shell: process.platform === "win32" && command.endsWith(".cmd") });
   await new Promise((resolvePromise, reject) => {
     child.once("error", reject);
     child.once("exit", code => code === 0 ? resolvePromise() : reject(new Error(`${command} failed (${code})`)));
@@ -45,6 +53,9 @@ if (mode !== "start") {
   }, null, 2)}\n`);
   await run("uv", ["run", "--frozen", "--with", "pyinstaller==6.22.3", "python", "-m", "PyInstaller",
     "--noconfirm", "--clean", "--onedir", "--name", "trade-helper-backend",
+    // UTF-8 files and pipes everywhere; Windows would otherwise use the locale
+    // code page (cp950 for Traditional Chinese). Frozen apps ignore PYTHONUTF8.
+    "--python-option", "X utf8",
     "--paths", join(root, "apps/api/src"),
     "--collect-submodules", "trade_helper",
     "--copy-metadata", "tx-trade-api",
@@ -74,9 +85,18 @@ if (mode !== "start") {
     // Never let electron-builder publish. CI uploads only validated files to a draft.
     rmSync(join(desktop, "release"), { recursive: true, force: true });
     await run(pnpm, ["exec", "electron-builder", "--config", generated,
-      "--mac", "--arm64", "--publish", "never"], desktop);
-    if (officialRelease) await notarizeDiskImage(root);
-    await validateReleaseArtifacts(root, { official: officialRelease });
+      ...(windows ? ["--win", "--x64"] : ["--mac", "--arm64"]), "--publish", "never"], desktop);
+    if (windows) {
+      const installer = join(desktop, "release", `txinTrade-${state.version}-win-x64.exe`);
+      const backend = join(desktop, "release", "win-unpacked", "resources", "backend", "trade-helper-backend.exe");
+      for (const file of [installer, backend]) {
+        if (!existsSync(file)) throw new Error(`Missing Windows build output: ${file}`);
+      }
+      console.log(`Built unsigned Windows test installer ${installer}`);
+    } else {
+      if (officialRelease) await notarizeDiskImage(root);
+      await validateReleaseArtifacts(root, { official: officialRelease });
+    }
   } else {
     await run(pnpm, ["package"], join(root, "apps/desktop"));
   }

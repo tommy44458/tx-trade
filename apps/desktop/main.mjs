@@ -74,7 +74,7 @@ function startupPage(failed = false) {
   return `<!doctype html><html lang="${uiLocale}"><head><meta charset="UTF-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
   <title>txinTrade</title><style>
-  :root{color-scheme:light dark;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',system-ui,sans-serif;
+  :root{color-scheme:light dark;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue','Segoe UI','Microsoft JhengHei',system-ui,sans-serif;
     --canvas:light-dark(#f5f5f7,#151517);--text:light-dark(#1d1d1f,#f5f5f7);--muted:light-dark(#58585f,#a1a1ab);
     --accent:light-dark(#0066cc,#75b6ff);--danger:light-dark(#c13543,#ff98a3);--settle:cubic-bezier(.32,.72,0,1)}
   body{margin:0;display:grid;place-items:center;min-height:100vh;background:var(--canvas);color:var(--text);

@@ -15,6 +15,7 @@ from fastapi import HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from .platform_process import NO_WINDOW, contain_descendants
 from .product_version import product_version
 
 SERVICES = (
@@ -78,6 +79,20 @@ def monitor_services(children, server, stopped: threading.Event, failed: threadi
             return
 
 
+def watch_lifeline(stream, stop) -> None:
+    """Stop when the desktop app closes our stdin, including when it crashes.
+
+    Windows has no SIGTERM to ask for a clean exit and does not reparent an
+    orphan, so the app keeps a pipe open instead: end-of-file means stop.
+    """
+    try:
+        while stream.read(4096):
+            pass
+    except (OSError, ValueError):
+        pass
+    stop()
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--version", action="version", version=f"txinTrade {product_version()}")
@@ -96,6 +111,8 @@ def main(argv: list[str] | None = None) -> None:
         return
     if not args.web_dir or not 1 <= args.port <= 65535:
         parser.error("--web-dir and a valid --port are required")
+    # Workers and model CLIs end with this process on Windows, however it ends.
+    contain_descendants()
     from .api import app
     from .db import init_db
     from .desktop_updates import reset_desktop_update_gate
@@ -119,9 +136,13 @@ def main(argv: list[str] | None = None) -> None:
 
     signal.signal(signal.SIGTERM, shutdown)
     signal.signal(signal.SIGINT, shutdown)
+    if os.environ.get("APP_DESKTOP_LIFELINE") == "stdin":
+        threading.Thread(target=watch_lifeline, args=(sys.stdin.buffer, lambda: shutdown(None, None)),
+                         daemon=True).start()
     try:
         if not args.no_workers:
-            children.extend(subprocess.Popen(service_command(service)) for service in SERVICES)
+            children.extend(subprocess.Popen(service_command(service), stdin=subprocess.DEVNULL,
+                                             creationflags=NO_WINDOW) for service in SERVICES)
             threading.Thread(target=monitor_services, args=(children, server, stopped, failed, os.getppid()),
                              daemon=True).start()
         server.run()

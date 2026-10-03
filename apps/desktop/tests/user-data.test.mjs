@@ -11,8 +11,16 @@ function fixture(t) {
   const appData = mkdtempSync(join(tmpdir(), "txintrade-user-data-"));
   t.after(() => rmSync(appData, { recursive: true, force: true }));
   const current = join(appData, "txinTrade");
-  return { appData, current, legacy: name => join(appData, name) };
+  // The earlier products only shipped for macOS; migration is exercised there.
+  return { appData, current, legacy: name => join(appData, name), platform: "darwin" };
 }
+
+test("Windows never had an earlier profile, so nothing is migrated there", t => {
+  const f = fixture(t);
+  seed(f.legacy("txTrade"));
+  assert.deepEqual(resolveUserData({ ...f, platform: "win32", alive: dead }), { path: f.current, migrated: false });
+  assert.equal(read(f.legacy("txTrade")), "existing workspace");
+});
 
 function seed(directory, content = "existing workspace") {
   mkdirSync(join(directory, "data", "backups"), { recursive: true });

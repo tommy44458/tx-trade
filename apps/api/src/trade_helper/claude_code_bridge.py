@@ -10,7 +10,6 @@ through an in-process MCP server carried over the CLI's stdio control channel.
 import json
 import os
 import queue
-import signal
 import subprocess
 import tempfile
 import threading
@@ -23,6 +22,7 @@ from fastapi import APIRouter, HTTPException
 from .auth_metadata import read_metadata, write_metadata
 from .cli_paths import find_executable
 from .local_settings import desktop_mode, patch_preferences, preferences
+from .platform_process import NO_WINDOW, WINDOWS, launch_command, stop_process
 
 router = APIRouter(prefix="/api/v1/auth/claude_code", tags=["Claude Code authorization"])
 
@@ -78,6 +78,12 @@ def effort_level(value: str) -> str:
     return {"minimal": "low", "ultra": "max"}.get(value, value)
 
 
+def _own_group() -> bool:
+    # Outside the desktop app the CLI gets its own POSIX process group, so it can
+    # be stopped with its children; Windows stops the process tree instead.
+    return not desktop_mode() and not WINDOWS
+
+
 class ClaudeCodeSession:
     """One headless Claude Code run: system prompt, one user turn, final text."""
 
@@ -90,10 +96,11 @@ class ClaudeCodeSession:
         self.tools: dict[str, dict] = {}
         self.tool_handler = None
         self.process = None
-        self.workspace = tempfile.TemporaryDirectory(prefix="ath-claude-")
+        # A CLI child that Windows has not released yet must not fail the run.
+        self.workspace = tempfile.TemporaryDirectory(prefix="ath-claude-", ignore_cleanup_errors=True)
 
     def _command(self, model: str, effort: str, prompt_file: Path, max_turns: int) -> list[str]:
-        command = [claude_executable(), "-p", "--output-format", "stream-json", "--verbose",
+        command = [*launch_command(claude_executable()), "-p", "--output-format", "stream-json", "--verbose",
                    "--input-format", "stream-json", "--include-partial-messages",
                    "--system-prompt-file", str(prompt_file), "--tools", "",
                    "--strict-mcp-config", "--permission-mode", "dontAsk",
@@ -223,13 +230,13 @@ class ClaudeCodeSession:
         self.tools = {item["name"]: item for item in tools}
         self.tool_handler = tool_handler
         prompt_file = Path(self.workspace.name) / "system-prompt.txt"
-        prompt_file.write_text(f"{instructions}\n\n{developer_instructions}")
+        prompt_file.write_text(f"{instructions}\n\n{developer_instructions}", encoding="utf-8")
         # Six turns: up to four optional tool calls, then the report.
         command = self._command(model, effort, prompt_file, 6 if self.tools else 1)
         self.process = self.process_factory(
             command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
-            text=True, bufsize=1, env=_environment(), cwd=self.workspace.name,
-            start_new_session=not desktop_mode())
+            text=True, encoding="utf-8", errors="replace", bufsize=1, env=_environment(),
+            cwd=self.workspace.name, start_new_session=_own_group(), creationflags=NO_WINDOW)
         threading.Thread(target=self._read, daemon=True).start()
         self.send({"type": "control_request", "request_id": "ath-initialize",
                    "request": {"subtype": "initialize", "hooks": None}})
@@ -278,30 +285,18 @@ class ClaudeCodeSession:
 
     def close(self):
         process = self.process
-        if process and process.poll() is None:
-            group = not desktop_mode()
-            try:
-                if group:
-                    os.killpg(process.pid, signal.SIGTERM)
-                else:
-                    process.terminate()
-                process.wait(timeout=3)
-            except (ProcessLookupError, subprocess.TimeoutExpired):
-                if process.poll() is None:
-                    if group:
-                        os.killpg(process.pid, signal.SIGKILL)
-                    else:
-                        process.kill()
-                    process.wait(timeout=3)
+        if process:
+            stop_process(process, own_group=_own_group())
         self.workspace.cleanup()
 
 
 def _cli_status(runner=subprocess.run) -> dict:
     """Ask the CLI itself; tokens stay in Claude Code's own storage."""
     try:
-        completed = runner([claude_executable(), "auth", "status", "--json"],
-                           capture_output=True, text=True, timeout=15,
-                           env=_environment(), stdin=subprocess.DEVNULL)
+        completed = runner([*launch_command(claude_executable()), "auth", "status", "--json"],
+                           capture_output=True, text=True, encoding="utf-8", errors="replace",
+                           timeout=15, env=_environment(), stdin=subprocess.DEVNULL,
+                           creationflags=NO_WINDOW)
         value = json.loads(completed.stdout or "{}")
     except subprocess.TimeoutExpired as exc:
         raise ClaudeCodeError("Claude Code 暫時無法回應，請稍後重試。") from exc

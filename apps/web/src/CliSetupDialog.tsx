@@ -12,6 +12,11 @@ const INSTALL_COMMANDS: Record<CliSetupProvider, string[]> = {
   codex: ["npm install -g @openai/codex", "brew install --cask codex"],
   claude_code: ["curl -fsSL https://claude.ai/install.sh | bash", "npm install -g @anthropic-ai/claude-code"],
 };
+// Windows runs these in PowerShell; Homebrew and bash installers do not exist there.
+const WINDOWS_INSTALL_COMMANDS: Record<CliSetupProvider, string[]> = {
+  codex: ["npm install -g @openai/codex"],
+  claude_code: ["irm https://claude.ai/install.ps1 | iex", "npm install -g @anthropic-ai/claude-code"],
+};
 const SIGN_IN_COMMAND = "claude auth login";
 
 function Command({ value }: { value: string }) {
@@ -43,7 +48,8 @@ export default function CliSetupDialog({ provider, reason, checking, error, onRe
     return () => element?.close();
   }, []);
   const claude = provider === "claude_code";
-  const commands = INSTALL_COMMANDS[provider];
+  const windows = window.tradeHelper?.platform === "win32";
+  const commands = (windows ? WINDOWS_INSTALL_COMMANDS : INSTALL_COMMANDS)[provider];
   const title = reason === "signin" ? uiText("Claude Code 尚未登入")
     : claude ? uiText("找不到 Claude Code CLI") : uiText("找不到 Codex CLI");
   return (
@@ -65,13 +71,15 @@ export default function CliSetupDialog({ provider, reason, checking, error, onRe
       <ol className="cli-setup-steps">
         {reason === "install" && (
           <li>
-            <p>{uiText("開啟「終端機」，執行以下其中一個安裝指令：")}</p>
+            <p>{windows ? uiText("開啟「PowerShell」，執行以下其中一個安裝指令：")
+              : uiText("開啟「終端機」，執行以下其中一個安裝指令：")}</p>
             {commands.map(command => <Command key={command} value={command} />)}
           </li>
         )}
         {claude ? (
           <li>
-            <p>{uiText("在終端機登入 Claude 帳號，並依瀏覽器指示完成授權：")}</p>
+            <p>{windows ? uiText("在 PowerShell 登入 Claude 帳號，並依瀏覽器指示完成授權：")
+              : uiText("在終端機登入 Claude 帳號，並依瀏覽器指示完成授權：")}</p>
             <Command value={SIGN_IN_COMMAND} />
           </li>
         ) : (

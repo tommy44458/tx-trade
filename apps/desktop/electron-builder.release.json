@@ -23,5 +23,15 @@
     "notarize": true,
     "binaries": ["Contents/Resources/backend/trade-helper-backend"]
   },
-  "dmg": { "sign": true }
+  "dmg": { "sign": true },
+  "win": {
+    "target": [{ "target": "nsis", "arch": ["x64"] }],
+    "icon": "resources/icon.png"
+  },
+  "nsis": {
+    "oneClick": true,
+    "perMachine": false,
+    "deleteAppDataOnUninstall": false,
+    "shortcutName": "txinTrade"
+  }
 }

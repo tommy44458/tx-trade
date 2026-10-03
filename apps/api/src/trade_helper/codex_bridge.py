@@ -9,7 +9,6 @@ import atexit
 import json
 import os
 import queue
-import signal
 import subprocess
 import tempfile
 import threading
@@ -23,6 +22,7 @@ from .cli_paths import find_executable
 from .codex_auth_storage import LocalCodexAuth
 from .credential_store import CredentialStoreError, delete_credentials
 from .local_settings import desktop_mode, patch_preferences, preferences
+from .platform_process import NO_WINDOW, WINDOWS, launch_command, stop_process
 
 router = APIRouter(prefix="/api/v1/auth/codex", tags=["Codex authorization"])
 
@@ -82,9 +82,11 @@ class CodexRpc:
         self.lock = threading.RLock()
         self.deferred: list[dict] = []
         self.isolated = isolated
-        self.owns_process_group = not desktop_mode()
+        # Outside the desktop app the CLI gets its own POSIX process group; Windows
+        # stops the process tree instead.
+        self.owns_process_group = not desktop_mode() and not WINDOWS
         self.tool_handler = None
-        self.workspace = tempfile.TemporaryDirectory(prefix="ath-codex-")
+        self.workspace = tempfile.TemporaryDirectory(prefix="ath-codex-", ignore_cleanup_errors=True)
         environment = dict(os.environ)
         for key in list(environment):
             if (key.startswith(("OPENAI_", "BINGX_", "TYPESAFE_", "APP_DESKTOP_TOKEN"))
@@ -98,7 +100,7 @@ class CodexRpc:
                 self.workspace.cleanup()
                 raise CodexError("無法讀取本應用程式的 Codex 授權，請在設定重新登入。") from exc
             environment["CODEX_HOME"] = str(self.local_auth.home)
-        command = [codex_executable(), "app-server", "--listen", "stdio://"]
+        command = [*launch_command(codex_executable()), "app-server", "--listen", "stdio://"]
         overrides = _restricted_config()
         # Prevent both isolated and shared CLI sessions from opening an OS
         # credential store; a keyring-only shared login must reconnect here.
@@ -107,9 +109,11 @@ class CodexRpc:
             command += ["-c", f"{key}={json.dumps(value)}"]
         try:
             self.process = process_factory(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                                           stderr=subprocess.DEVNULL, text=True, bufsize=1,
+                                           stderr=subprocess.DEVNULL, text=True, encoding="utf-8",
+                                           errors="replace", bufsize=1,
                                            env=environment, cwd=self.workspace.name,
-                                           start_new_session=self.owns_process_group)
+                                           start_new_session=self.owns_process_group,
+                                           creationflags=NO_WINDOW)
             self.reader = threading.Thread(target=self._read, daemon=True)
             self.reader.start()
             self.request("initialize", {
@@ -321,20 +325,8 @@ class CodexRpc:
 
     def close(self):
         process = getattr(self, "process", None)
-        if process and process.poll() is None:
-            try:
-                if self.owns_process_group:
-                    os.killpg(process.pid, signal.SIGTERM)
-                else:
-                    process.terminate()
-                process.wait(timeout=3)
-            except (ProcessLookupError, subprocess.TimeoutExpired):
-                if process.poll() is None:
-                    if self.owns_process_group:
-                        os.killpg(process.pid, signal.SIGKILL)
-                    else:
-                        process.kill()
-                    process.wait(timeout=3)
+        if process:
+            stop_process(process, own_group=self.owns_process_group)
         try:
             if self.local_auth is not None:
                 self.local_auth.close()
