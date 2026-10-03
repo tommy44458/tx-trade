@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { assertReleaseEnvironment, assertReleaseTag, validateUpdateMetadata, withInstallerDigest } from "../release-assets.mjs";
+import { assertReleaseEnvironment, assertReleaseTag, validateUpdateMetadata, validateWindowsUpdateMetadata,
+  windowsAssetNames, withInstallerDigest } from "../release-assets.mjs";
 
 const state = { version: "1.2.3", channel: "stable" };
 const tagEnvironment = { GITHUB_REF_TYPE: "tag", GITHUB_REF_NAME: "v1.2.3",
@@ -56,4 +57,34 @@ test("stapling the DMG updates only its digest, and the update path keeps the ZI
   assert.equal(updated.sha512, "zip-digest");
   assert.equal(metadata.files[1].sha512, "old");
   assert.throws(() => withInstallerDigest(metadata, "other.dmg", { sha512: "x", size: 1 }), /no entry/);
+});
+
+test("Windows releases are tag-bound but need no signing credentials", () => {
+  assert.doesNotThrow(() => assertReleaseEnvironment(state, { ...tagEnvironment, GITHUB_ACTIONS: "true" },
+    { platform: "win32" }));
+  assert.throws(() => assertReleaseEnvironment(state, { ...tagEnvironment, GITHUB_ACTIONS: "true",
+    GITHUB_REF_NAME: "v9.9.9", GITHUB_REF: "refs/tags/v9.9.9" }, { platform: "win32" }), /exact version tag/);
+  assert.throws(() => assertReleaseEnvironment(state, tagEnvironment, { platform: "darwin" }), /credentials are missing/);
+});
+
+test("Windows update metadata must point at the one installer with its exact digest", () => {
+  const names = windowsAssetNames(state);
+  assert.deepEqual(names, { installer: "txinTrade-1.2.3-win-x64.exe", blockmap: "txinTrade-1.2.3-win-x64.exe.blockmap",
+    metadata: "latest.yml", checksums: "SHA256SUMS-win.txt" });
+  assert.equal(windowsAssetNames({ version: "1.3.0-beta.1", channel: "beta" }).metadata, "beta.yml");
+  const installer = { name: names.installer, sha512: "digest", size: 10 };
+  const good = { version: "1.2.3", path: names.installer, sha512: "digest",
+    files: [{ url: names.installer, sha512: "digest", size: 10 }] };
+  assert.doesNotThrow(() => validateWindowsUpdateMetadata(good, state, installer));
+  for (const bad of [
+    { ...good, version: "1.2.2" },
+    { ...good, files: [...good.files, { url: "extra.exe", sha512: "digest", size: 10 }] },
+    { ...good, files: [{ ...good.files[0], url: "../evil.exe" }] },
+    { ...good, files: [{ ...good.files[0], sha512: "other" }] },
+    { ...good, files: [{ ...good.files[0], size: 11 }] },
+    { ...good, sha512: "other" },
+    { ...good, path: "other.exe" },
+  ]) {
+    assert.throws(() => validateWindowsUpdateMetadata(bad, state, installer), JSON.stringify(bad));
+  }
 });

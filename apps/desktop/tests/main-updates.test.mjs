@@ -5,7 +5,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { runInNewContext } from "node:vm";
 import test from "node:test";
-import { createDesktopUpdater } from "../updater.mjs";
+import { createDesktopUpdater, updatesAllowed } from "../updater.mjs";
 
 const signedPolicy = { enabled: true, signed: true, platform: "darwin", arch: "arm64", channel: "stable" };
 const update = { version: "0.3.0", releaseNotes: "An update for the isolated test" };
@@ -127,6 +127,7 @@ async function harness(options = {}) {
     validateLocale: value => { assert.ok(["zh-TW", "en-US"].includes(value)); return value; },
     readSavedTheme: () => "system", validateTheme: value => value,
     readReleaseInfo: () => ({ version: app.getVersion(), channel: "stable", prepared: true, notes: "Isolated notes" }),
+    updatesAllowed,
     createDesktopUpdater: value => {
       calls.updater = createDesktopUpdater({ ...value, platform: fakeProcess.platform, arch: fakeProcess.arch,
         timers: { setTimeout(fn, delay) { const id = ++nextTimer; timers.set(id, { fn, delay }); return id; },

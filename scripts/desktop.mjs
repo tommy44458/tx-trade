@@ -3,7 +3,8 @@ import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } fr
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { checkReleaseState } from "./release.mjs";
-import { assertReleaseEnvironment, notarizeDiskImage, validateReleaseArtifacts } from "./release-assets.mjs";
+import { assertReleaseEnvironment, notarizeDiskImage, validateReleaseArtifacts, validateWindowsArtifacts }
+  from "./release-assets.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const pnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
@@ -16,12 +17,10 @@ const distributable = officialRelease || mode === "test-release";
 const state = checkReleaseState(root, { requirePrepared: officialRelease });
 const mac = process.platform === "darwin" && process.arch === "arm64";
 const windows = process.platform === "win32" && process.arch === "x64";
-// Windows builds are unsigned test installers until a code signing certificate exists.
-if (officialRelease && !mac) {
-  throw new Error("Official releases currently support macOS arm64 only; build on an Apple Silicon Mac.");
-}
+// macOS releases are signed and notarized. Windows releases are unsigned until a
+// code signing certificate exists; their updates rest on the published SHA-512.
 if (distributable && !mac && !windows) {
-  throw new Error("Test installers are built on an Apple Silicon Mac or on Windows x64.");
+  throw new Error("Installers are built on an Apple Silicon Mac or on Windows x64.");
 }
 if (officialRelease) assertReleaseEnvironment(state, process.env);
 
@@ -48,7 +47,7 @@ if (mode !== "start") {
   const build = join(root, "apps/desktop/build");
   mkdirSync(build, { recursive: true });
   writeFileSync(join(build, "update-policy.json"), `${JSON.stringify({
-    enabled: officialRelease, signed: officialRelease, channel: state.channel,
+    enabled: officialRelease, signed: officialRelease && mac, channel: state.channel,
     platform: process.platform, arch: process.arch,
   }, null, 2)}\n`);
   await run("uv", ["run", "--frozen", "--with", "pyinstaller==6.22.3", "python", "-m", "PyInstaller",
@@ -73,7 +72,8 @@ if (mode !== "start") {
     const desktop = join(root, "apps/desktop");
     const config = JSON.parse(readFileSync(join(desktop, "electron-builder.release.json"), "utf8"));
     config.publish.channel = state.channel === "beta" ? "beta" : "latest";
-    if (!officialRelease) {
+    // No Windows code signing certificate yet: never require or attempt signing there.
+    if (!officialRelease || windows) {
       config.forceCodeSigning = false;
       config.mac.identity = "-";
       config.mac.hardenedRuntime = false;
@@ -87,12 +87,8 @@ if (mode !== "start") {
     await run(pnpm, ["exec", "electron-builder", "--config", generated,
       ...(windows ? ["--win", "--x64"] : ["--mac", "--arm64"]), "--publish", "never"], desktop);
     if (windows) {
-      const installer = join(desktop, "release", `txinTrade-${state.version}-win-x64.exe`);
-      const backend = join(desktop, "release", "win-unpacked", "resources", "backend", "trade-helper-backend.exe");
-      for (const file of [installer, backend]) {
-        if (!existsSync(file)) throw new Error(`Missing Windows build output: ${file}`);
-      }
-      console.log(`Built unsigned Windows test installer ${installer}`);
+      const info = await validateWindowsArtifacts(root, { official: officialRelease });
+      console.log(`Validated ${info.assets.length} unsigned Windows ${officialRelease ? "release" : "test"} assets.`);
     } else {
       if (officialRelease) await notarizeDiskImage(root);
       await validateReleaseArtifacts(root, { official: officialRelease });

@@ -23,7 +23,13 @@ export function assertReleaseTag(state, environment = process.env) {
   return expected;
 }
 
-export function assertReleaseEnvironment(state, environment = process.env) {
+export function assertReleaseEnvironment(state, environment = process.env, { platform = process.platform } = {}) {
+  // Windows releases are unsigned until a code signing certificate exists; they
+  // still require the exact version tag and repository.
+  if (platform === "win32") {
+    if (environment.GITHUB_ACTIONS === "true") assertReleaseTag(state, environment);
+    return;
+  }
   const missing = signingVariables.filter(name => !environment[name]?.trim());
   if (missing.length) {
     throw new Error(`Official release signing/notarization credentials are missing: ${missing.join(", ")}. Use test-release for an explicitly unsigned test build.`);
@@ -155,14 +161,19 @@ function digestFile(path) {
     sha256: createHash("sha256").update(bytes).digest("hex") };
 }
 
-async function smokeTestBackend(root, app, version) {
+// Python on Windows needs its system directories and profile to start.
+const windowsEnvironment = ["SystemRoot", "WINDIR", "TEMP", "TMP", "USERPROFILE", "APPDATA",
+  "LOCALAPPDATA", "PATHEXT", "COMSPEC"];
+
+async function smokeTestBackend(root, resources, version) {
   const { availablePort, backendEnvironment, spawnBackend, stopBackend, waitForBackend } =
     await import(pathToFileURL(join(root, "apps/desktop/runtime.mjs")).href);
   // Signing credentials and personal API keys must never enter the test backend.
-  const inherited = Object.fromEntries(["PATH", "LANG", "TMPDIR"].filter(name => process.env[name])
+  const names = ["PATH", "LANG", "TMPDIR", ...(process.platform === "win32" ? windowsEnvironment : [])];
+  const inherited = Object.fromEntries(names.filter(name => process.env[name])
     .map(name => [name, process.env[name]]));
-  const resources = join(app, "Contents/Resources");
-  const binary = join(resources, "backend/trade-helper-backend");
+  const binary = join(resources, "backend", process.platform === "win32"
+    ? "trade-helper-backend.exe" : "trade-helper-backend");
   if (command(binary, ["--version"], { env: inherited }).trim() !== `txinTrade ${version}`) {
     throw new Error("Packaged backend version does not match the release.");
   }
@@ -242,7 +253,7 @@ export async function validateReleaseArtifacts(root = defaultRoot, { official = 
     command("xcrun", ["stapler", "validate", dmg]);
     command("spctl", ["--assess", "--type", "open", "--context", "context:primary-signature", "--verbose", dmg]);
   }
-  await smokeTestBackend(root, app, state.version);
+  await smokeTestBackend(root, join(app, "Contents/Resources"), state.version);
   const entries = assets.map(asset => digestFile(join(directory, asset)));
   const checksums = "SHA256SUMS.txt";
   writeFileSync(join(directory, checksums), entries.map(entry => `${entry.sha256}  ${entry.name}\n`).join(""));
@@ -251,6 +262,60 @@ export async function validateReleaseArtifacts(root = defaultRoot, { official = 
     signed: official, tag: `v${state.version}`, commit: environment.GITHUB_SHA ?? null, assets: entries };
   writeFileSync(join(directory, "release-info.json"), `${JSON.stringify(info, null, 2)}\n`);
   if (official) writeFileSync(join(directory, "release-notes.md"), releaseNotes(root));
+  return info;
+}
+
+/** The Windows release file names; latest.yml/beta.yml sits beside the macOS latest-mac.yml. */
+export function windowsAssetNames(state) {
+  const installer = `txinTrade-${state.version}-win-x64.exe`;
+  return { installer, blockmap: `${installer}.blockmap`,
+    metadata: `${state.channel === "beta" ? "beta" : "latest"}.yml`, checksums: "SHA256SUMS-win.txt" };
+}
+
+export function validateWindowsUpdateMetadata(metadata, state, installer) {
+  if (metadata?.version !== state.version || !Array.isArray(metadata.files) || metadata.files.length !== 1) {
+    throw new Error("Windows update metadata must contain the exact product version and one installer.");
+  }
+  const [entry] = metadata.files;
+  if (typeof entry.url !== "string" || entry.url !== installer.name || basename(entry.url) !== entry.url) {
+    throw new Error("Windows update metadata contains an unexpected or unsafe installer URL.");
+  }
+  // Unsigned updates rest on this digest: the updater refuses an installer that differs.
+  if (entry.sha512 !== installer.sha512 || entry.size !== installer.size ||
+      metadata.path !== installer.name || metadata.sha512 !== installer.sha512) {
+    throw new Error("Windows update metadata digest/size does not match the installer.");
+  }
+}
+
+/** Unsigned NSIS installer for Windows x64: update metadata, updater policy, and a backend start. */
+export async function validateWindowsArtifacts(root = defaultRoot, { official = true, environment = process.env } = {}) {
+  const state = checkReleaseState(root, { requirePrepared: official });
+  if (official) assertReleaseEnvironment(state, environment, { platform: "win32" });
+  const directory = join(root, "apps/desktop/release");
+  const names = windowsAssetNames(state);
+  const assets = [names.installer, names.blockmap, names.metadata];
+  for (const asset of assets) {
+    const path = join(directory, asset);
+    if (!existsSync(path) || !statSync(path).isFile() || statSync(path).size === 0) {
+      throw new Error(`Missing or empty Windows release asset: ${asset}.`);
+    }
+  }
+  const yaml = builderModules(root)("js-yaml");
+  validateWindowsUpdateMetadata(yaml.load(readFileSync(join(directory, names.metadata), "utf8")), state,
+    digestFile(join(directory, names.installer)));
+  const resources = join(directory, "win-unpacked", "resources");
+  const policy = JSON.parse(readFileSync(join(resources, "update-policy.json"), "utf8"));
+  if (policy.enabled !== official || policy.signed !== false || policy.channel !== state.channel ||
+      policy.platform !== "win32" || policy.arch !== "x64") {
+    throw new Error("Packaged Windows updater policy does not match the release mode/version channel.");
+  }
+  await smokeTestBackend(root, resources, state.version);
+  const entries = assets.map(asset => digestFile(join(directory, asset)));
+  writeFileSync(join(directory, names.checksums), entries.map(entry => `${entry.sha256}  ${entry.name}\n`).join(""));
+  entries.push(digestFile(join(directory, names.checksums)));
+  const info = { version: state.version, channel: state.channel, platform: "win32", arch: "x64",
+    signed: false, tag: `v${state.version}`, commit: environment.GITHUB_SHA ?? null, assets: entries };
+  writeFileSync(join(directory, "release-info.json"), `${JSON.stringify(info, null, 2)}\n`);
   return info;
 }
 

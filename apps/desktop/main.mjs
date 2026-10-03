@@ -9,7 +9,7 @@ import { availablePort, backendCommand, backendEnvironment, developmentConfig, e
 import { NATIVE_STRINGS, readSavedLocale, validateLocale } from "./locales.mjs";
 import { readSavedTheme, validateTheme } from "./themes.mjs";
 import { readReleaseInfo } from "./release-info.mjs";
-import { createDesktopUpdater } from "./updater.mjs";
+import { createDesktopUpdater, updatesAllowed } from "./updater.mjs";
 import { resolveUserData } from "./user-data.mjs";
 
 const repoDir = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
@@ -305,10 +305,8 @@ async function initializeUpdater() {
   const validVersion = version && version.slice(1).filter(part => part !== undefined)
     .every(part => Number.isSafeInteger(Number(part)));
   const channel = version?.[4] === undefined ? "stable" : "beta";
-  if (app.isPackaged && distributionPolicy.enabled === true && distributionPolicy.signed === true
-      && process.platform === "darwin" && process.arch === "arm64"
-      && distributionPolicy.platform === "darwin" && distributionPolicy.arch === "arm64"
-      && validVersion && distributionPolicy.channel === channel) {
+  if (validVersion && updatesAllowed({ packaged: app.isPackaged, platform: process.platform,
+    arch: process.arch, policy: distributionPolicy, channel })) {
     try {
       const engine = await import("electron-updater");
       autoUpdater = engine.default.autoUpdater;

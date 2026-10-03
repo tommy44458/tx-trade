@@ -110,6 +110,28 @@ test("missing, unsigned, mismatched, development and unsupported distributions n
   }
 });
 
+const windowsPolicy = { enabled: true, signed: false, platform: "win32", arch: "x64", channel: "stable" };
+
+test("an unsigned Windows x64 release updates, installing silently and relaunching", async () => {
+  const f = fixture({ platform: "win32", arch: "x64", distributionPolicy: windowsPolicy });
+  assert.equal(f.updater.state.enabled, true);
+  await downloaded(f);
+  await f.updater.install();
+  assert.deepEqual(f.calls, ["check", "download", "prepare", "stop", ["quitAndInstall", true, true]]);
+});
+
+test("Windows test builds, other Windows architectures and unsigned macOS builds never update", () => {
+  for (const options of [
+    { platform: "win32", arch: "x64", distributionPolicy: { ...windowsPolicy, enabled: false } },
+    { platform: "win32", arch: "arm64", distributionPolicy: { ...windowsPolicy, arch: "arm64" } },
+    { platform: "win32", arch: "x64", distributionPolicy: { ...windowsPolicy, platform: "darwin" } },
+    { platform: "win32", arch: "x64", distributionPolicy: { ...windowsPolicy, channel: "beta" } },
+    { platform: "darwin", arch: "arm64", distributionPolicy: { ...policy, signed: false } },
+  ]) {
+    assert.equal(fixture(options).updater.state.enabled, false, JSON.stringify(options));
+  }
+});
+
 test("signed builds configure bundled metadata, explicit download and installation, without enabling downgrades", () => {
   for (const channel of ["stable", "beta"]) {
     const engine = new EventEmitter();
