@@ -7,7 +7,8 @@ Keys, AI sign-in, cloud sign-in, updates and raw streams are never listed.
 import json
 import re
 
-_ID = r"[A-Za-z0-9_.:-]{1,128}"
+# A segment of dots alone would walk up this computer's path ("/positions/../close").
+_ID = r"(?!\.+(?:/|$))[A-Za-z0-9_.:-]{1,128}"
 _ROUTES: tuple[tuple[str, re.Pattern[str]], ...] = tuple((method, re.compile(pattern)) for method, pattern in (
     ("GET", r"/api/v1/(session|settings|markets|market-context|candles|quotes|news|events|positions|analyses)"),
     ("GET", r"/api/v1/events/macro-interpretation"),

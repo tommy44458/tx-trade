@@ -13,6 +13,7 @@ from trade_helper.cloud_routes import allowed
     {"method": "POST", "path": "/api/v1/discussions/analysis/ana_1/messages/msg_1/retry", "body": {}},
     {"method": "PATCH", "path": "/api/v1/settings", "body": {"favorite_market_ids": ["binance:perp:BTCUSDT"]}},
     {"method": "DELETE", "path": "/api/v1/positions/pos_1"},
+    {"method": "POST", "path": "/api/v1/positions/pos_1.2/close"},
 ])
 def test_screens_reach_their_routes(request_):
     assert allowed(request_)
@@ -26,6 +27,11 @@ def test_screens_reach_their_routes(request_):
     {"method": "GET", "path": "/api/v1/discussions/analysis/ana_1/stream"},
     {"method": "POST", "path": "/api/v1/integrations/binance/test"},
     {"method": "GET", "path": "/api/v1/analyses/../settings"},
+    # A segment of dots alone would be resolved to a route one level up.
+    {"method": "POST", "path": "/api/v1/positions/../close"},
+    {"method": "POST", "path": "/api/v1/positions/./close"},
+    {"method": "DELETE", "path": "/api/v1/positions/.."},
+    {"method": "GET", "path": "/api/v1/analyses/.."},
     {"method": "GET", "path": "/api/v1/analyses/ana_1/"},
     {"method": "PUT", "path": "/api/v1/settings", "body": {"favorite_market_ids": []}},
     {"method": "PATCH", "path": "/api/v1/settings", "body": {"binance_api_key": "k"}},
@@ -45,3 +51,5 @@ def test_only_a_discussion_reply_may_stream():
     assert not allowed({"method": "GET", "path": path})
     assert not allowed({"method": "GET", "path": "/api/v1/positions", "stream": True})
     assert not allowed({"method": "GET", "path": path, "stream": True, "query": "limit=100"})
+    assert not allowed({"method": "GET", "path": "/api/v1/discussions/analysis/../stream", "stream": True,
+                        "connection_id": "c"})
