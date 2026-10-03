@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { createServer } from "node:net";
-import { existsSync, readFileSync } from "node:fs";
+import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parse } from "dotenv";
 
@@ -118,3 +118,24 @@ export function externalUrl(raw, { developmentOrigin } = {}) {
   }
   return parsed.href;
 }
+
+/**
+ * Copy the database, with its WAL and shared-memory files, before an update while the
+ * local service is not running (it failed to start, so it cannot make its own backup).
+ * SQLite applies the WAL when the copy is opened, so recent writes are kept.
+ */
+export function backupDatabaseFiles(dataDir, version, { fs = { existsSync, mkdirSync, copyFileSync, chmodSync }, now = Date.now } = {}) {
+  const source = join(dataDir, "trade_helper.sqlite3");
+  if (!fs.existsSync(source)) throw new Error("UPDATE_BACKUP_FAILED");
+  const backups = join(dataDir, "backups");
+  fs.mkdirSync(backups, { recursive: true, mode: 0o700 });
+  const stamp = new Date(now()).toISOString().replace(/[-:]/g, "").replace(/\.\d+Z$/, "Z");
+  const target = join(backups, `trade_helper-before-update-${version}-${stamp}-offline.sqlite3`);
+  for (const suffix of ["", "-wal", "-shm"]) {
+    if (!fs.existsSync(source + suffix)) continue;
+    fs.copyFileSync(source + suffix, target + suffix);
+    fs.chmodSync(target + suffix, 0o600);
+  }
+  return target;
+}
+

@@ -27,6 +27,10 @@ export const NATIVE_STRINGS = Object.freeze({
     failureBody: "無法準備本地資料庫或啟動服務。請檢查資料目錄是否可寫入，以及是否有足夠的磁碟空間。",
     failureHint: "選單「設定 → 開啟資料目錄」可查看資料；「開啟後端記錄」可查看錯誤原因。",
     retry: "重新啟動", retryFailed: "無法重新啟動，請查看後端記錄。",
+    newerTitle: "需要更新 txinTrade",
+    newerBody: "你的資料來自較新版本的 txinTrade，這個版本無法開啟。請更新到最新版，資料不會遺失。",
+    newerHint: "更新前會先備份本地資料。",
+    checkNow: "檢查更新", downloadLatest: "下載最新版",
   },
   "en-US": {
     settings: "Settings", openData: "Open Data Folder", openLog: "Open Backend Log",
@@ -52,6 +56,10 @@ export const NATIVE_STRINGS = Object.freeze({
     failureBody: "The local database or service could not start. Check that the data folder is writable and that enough disk space is available.",
     failureHint: "Use Settings → Open Data Folder to view your data, or Open Backend Log to check the error.",
     retry: "Restart", retryFailed: "Restart failed. Check the backend log for details.",
+    newerTitle: "Update txinTrade",
+    newerBody: "Your data comes from a newer version of txinTrade, which this version cannot open. Update to the latest version; your data is kept.",
+    newerHint: "Local data is backed up before the update.",
+    checkNow: "Check for Updates", downloadLatest: "Download the Latest Version",
   },
 });
 

@@ -17,6 +17,8 @@ from fastapi.staticfiles import StaticFiles
 
 from .product_version import product_version
 
+# Exit code for a database upgraded by a newer txinTrade (sysexits EX_DATAERR).
+DATABASE_FROM_NEWER_VERSION_EXIT = 65
 SERVICES = (
     "worker", "shadow_v4", "event_sync", "macro_actual_sync", "news_sync",
     "sec_news_sync", "news_classification_worker",
@@ -97,11 +99,16 @@ def main(argv: list[str] | None = None) -> None:
     if not args.web_dir or not 1 <= args.port <= 65535:
         parser.error("--web-dir and a valid --port are required")
     from .api import app
-    from .db import init_db
+    from .db import DatabaseFromNewerVersion, init_db
     from .desktop_updates import reset_desktop_update_gate
 
     # Apply embedded-database migrations before workers begin sharing the WAL file.
-    init_db()
+    try:
+        init_db()
+    except DatabaseFromNewerVersion:
+        # The desktop app reads this exit code and offers the update instead of a generic failure.
+        print("txinTrade: the local database is from a newer version; update the app.", file=sys.stderr)
+        raise SystemExit(DATABASE_FROM_NEWER_VERSION_EXIT) from None
     reset_desktop_update_gate()
     mount_web(app, args.web_dir)
     children: list[subprocess.Popen] = []

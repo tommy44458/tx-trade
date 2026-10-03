@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import Icon from "./Icon";
 import { uiText, type UiLocale } from "./i18n/index.ts";
 import { apiFetch } from "./transport";
@@ -59,13 +59,16 @@ function NetFlow({ totals, asset, locale }: { totals: FlowTotals; asset: string;
   );
 }
 
-function FlowBars({ series, locale, label, legend = true }: {
+function FlowBars({ series, locale, label, legend = true, asset }: {
   series: FlowSeries;
   locale: UiLocale;
   label: string;
   /** The overview cards are narrow; the detail chart below carries the legend. */
   legend?: boolean;
+  /** The coin, to show amounts in its own units beside the dollars. */
+  asset?: string;
 }) {
+  const [active, setActive] = useState<number | null>(null);
   const scale = seriesScale(series.points);
   const n = series.points.length;
   const when = (t: number) =>
@@ -73,28 +76,52 @@ function FlowBars({ series, locale, label, legend = true }: {
       ? { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }
       : { month: "numeric", day: "numeric" });
   if (!n) return null;
+  // The column under the pointer or finger: hover on a desktop, press and drag on a phone.
+  const pick = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const box = event.currentTarget.getBoundingClientRect();
+    setActive(Math.min(n - 1, Math.max(0, Math.floor(((event.clientX - box.left) / box.width) * n))));
+  };
+  const point = active === null ? null : series.points[active];
+  const amount = (value: number) => asset ? ` · ${formatAmount(value, locale)} ${asset}` : "";
+  const position = active === null ? 0 : ((active + 0.5) / n) * 100;
   return (
     <figure className="sm-bars">
-      <svg viewBox={`0 0 ${n} 100`} preserveAspectRatio="none" role="img" aria-label={label}>
-        <line x1="0" x2={n} y1="50" y2="50" className="sm-axis" />
-        {series.points.map((p, i) => (
-          <g key={p.t}>
-            <title>
-              {`${when(p.t)}  ${uiText("流入")} ${formatUsd(p.inflow_usd, locale)} · ${uiText("流出")} ${formatUsd(p.outflow_usd, locale)}`}
-            </title>
-            {p.inflow_usd > 0 && (
-              <rect className="sm-bar-in" x={i + 0.15} width={0.7}
-                y={50 - (p.inflow_usd / scale) * 48} height={(p.inflow_usd / scale) * 48} />
-            )}
-            {p.outflow_usd > 0 && (
-              <rect className="sm-bar-out" x={i + 0.15} width={0.7}
-                y={50} height={(p.outflow_usd / scale) * 48} />
-            )}
-            {/* An invisible full-height target so a hover anywhere in the column shows its numbers. */}
-            <rect x={i} width={1} y={0} height={100} fill="transparent" />
-          </g>
-        ))}
-      </svg>
+      <div className={legend ? "sm-plot sm-plot-scrub" : "sm-plot"} tabIndex={0} aria-label={label}
+        onPointerMove={pick} onPointerDown={pick} onPointerLeave={() => setActive(null)}
+        onBlur={() => setActive(null)}
+        onKeyDown={(event) => {
+          if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+            event.preventDefault();
+            const step = event.key === "ArrowLeft" ? -1 : 1;
+            setActive((current) => Math.min(n - 1, Math.max(0, (current ?? (step > 0 ? -1 : n)) + step)));
+          } else if (event.key === "Escape") setActive(null);
+        }}>
+        <svg viewBox={`0 0 ${n} 100`} preserveAspectRatio="none" aria-hidden="true">
+          {active !== null && <rect className="sm-column" x={active} width={1} y={0} height={100} />}
+          <line x1="0" x2={n} y1="50" y2="50" className="sm-axis" />
+          {series.points.map((p, i) => (
+            <g key={p.t} className={active !== null && active !== i ? "sm-dim" : undefined}>
+              {p.inflow_usd > 0 && (
+                <rect className="sm-bar-in" x={i + 0.15} width={0.7}
+                  y={50 - (p.inflow_usd / scale) * 48} height={(p.inflow_usd / scale) * 48} />
+              )}
+              {p.outflow_usd > 0 && (
+                <rect className="sm-bar-out" x={i + 0.15} width={0.7}
+                  y={50} height={(p.outflow_usd / scale) * 48} />
+              )}
+            </g>
+          ))}
+        </svg>
+        {point && (
+          <div className={`sm-tip${position > 66 ? " sm-tip-left" : position < 34 ? " sm-tip-right" : ""}`}
+            style={{ left: `${position}%` }} role="status">
+            <strong>{when(point.t)}</strong>
+            <span><i className="sm-bar-in" />{uiText("流入")} {formatUsd(point.inflow_usd, locale)}{amount(point.inflow)}</span>
+            <span><i className="sm-bar-out" />{uiText("流出")} {formatUsd(point.outflow_usd, locale)}{amount(point.outflow)}</span>
+            <span>{uiText("淨流量")} {formatUsd(point.inflow_usd - point.outflow_usd, locale, true)}</span>
+          </div>
+        )}
+      </div>
       <figcaption>
         <span>{when(series.points[0].t)}</span>
         {legend && (
@@ -117,12 +144,20 @@ function eventTitle(event: FlowEvent): string {
   return uiText("巨鯨轉帳");
 }
 
+const EVENTS_PER_PAGE = 10;
+
 function EventList({ events, asset, locale }: { events: FlowEvent[]; asset: string; locale: UiLocale }) {
+  const [page, setPage] = useState(0);
   if (!events.length)
     return <p className="sm-empty">{uiText("這段期間沒有 100 萬美元以上的單筆移動。")}</p>;
+  const pages = Math.ceil(events.length / EVENTS_PER_PAGE);
+  // A refresh can shorten the list; stay on the last page that still exists.
+  const current = Math.min(page, pages - 1);
+  const shown = events.slice(current * EVENTS_PER_PAGE, (current + 1) * EVENTS_PER_PAGE);
   return (
-    <ol className="sm-events">
-      {events.map((event) => (
+    <>
+    <ol className="sm-events" start={current * EVENTS_PER_PAGE + 1}>
+      {shown.map((event) => (
         <li key={`${event.tx}:${event.kind}:${event.to_address}`} className={`sm-event sm-event-${event.kind}`}>
           <div className="sm-event-main">
             <strong>{eventTitle(event)}</strong>
@@ -142,6 +177,14 @@ function EventList({ events, asset, locale }: { events: FlowEvent[]; asset: stri
         </li>
       ))}
     </ol>
+    {pages > 1 && (
+      <nav className="sm-pages" aria-label={uiText("大額移動分頁")}>
+        <button type="button" disabled={current === 0} onClick={() => setPage(current - 1)}>{uiText("上一頁")}</button>
+        <span>{uiText("第 {{p0}} / {{p1}} 頁，共 {{p2}} 筆", { p0: current + 1, p1: pages, p2: events.length })}</span>
+        <button type="button" disabled={current === pages - 1} onClick={() => setPage(current + 1)}>{uiText("下一頁")}</button>
+      </nav>
+    )}
+    </>
   );
 }
 
@@ -280,7 +323,7 @@ export default function SmartMoneyPanel({ marketId, locale, conversation, onStar
                   <div><dt>{uiText("巨鯨轉帳")}</dt><dd>{a["1d"].whale_count}</dd></div>
                   <div><dt>{uiText("7 天交易所淨流入")}</dt><dd>{formatUsd(a["7d"].net_usd, locale, true)}</dd></div>
                 </dl>
-                <FlowBars series={a.series} locale={locale} legend={false} label={uiText("{{p0}} 過去 7 天每小時交易所流入與流出", { p0: a.asset })} />
+                <FlowBars series={a.series} locale={locale} legend={false} asset={a.asset} label={uiText("{{p0}} 過去 7 天每小時交易所流入與流出", { p0: a.asset })} />
               </article>
             ))}
             {stable && (
@@ -346,10 +389,11 @@ export default function SmartMoneyPanel({ marketId, locale, conversation, onStar
                   <div><dt>{uiText("流出")}</dt><dd>{formatAmount(detail.totals.outflow, locale)} <small>{formatUsd(detail.totals.outflow_usd, locale)}</small></dd></div>
                   <div><dt>{uiText("巨鯨轉帳")}</dt><dd>{detail.totals.whale_count}</dd></div>
                 </dl>
-                <FlowBars series={detail.series} locale={locale}
+                <FlowBars series={detail.series} locale={locale} asset={shown}
                   label={uiText("{{p0}} 交易所流入與流出", { p0: shown })} />
                 <h3 className="sm-events-title">{uiText("100 萬美元以上的單筆移動")}</h3>
-                <EventList events={detail.events} asset={shown} locale={locale} />
+                {/* A new coin or period starts again at the first page. */}
+                <EventList key={`${shown}:${span}`} events={detail.events} asset={shown} locale={locale} />
               </>
             )}
           </section>
