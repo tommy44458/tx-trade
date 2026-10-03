@@ -8,6 +8,10 @@ The product version is managed in `version.json`. Dates record release preparati
 
 - A new Smart money page follows large exchange inflows and outflows, whale transfers and stablecoin supply.
 
+### Fixed
+
+- The BLS calendar is read again, so CPI and jobs report dates show; its time zone name had stopped it.
+
 ## [1.0.5] - 2026-10-03
 
 ### Changed
