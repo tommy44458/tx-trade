@@ -5,7 +5,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { runInNewContext } from "node:vm";
 import test from "node:test";
-import { createDesktopUpdater, updatesAllowed } from "../updater.mjs";
+import { createDesktopUpdater, notesForLocale, updatesAllowed } from "../updater.mjs";
 
 const signedPolicy = { enabled: true, signed: true, platform: "darwin", arch: "arm64", channel: "stable" };
 const update = { version: "0.3.0", releaseNotes: "An update for the isolated test" };
@@ -47,7 +47,12 @@ async function harness(options = {}) {
       assert.ok(["userData", "appData"].includes(name));
       return name === "appData" ? "/isolated/app-data" : "/isolated/user-data";
     },
-    setPath: () => { throw new Error("user data stays in its isolated location"); },
+    setPath: (name, path) => {
+      // Only a build run from source moves, to its own folder, never the installed app's.
+      assert.equal(app.isPackaged, false, "an installed app keeps its user data where it is");
+      assert.deepEqual([name, path], ["userData", "/isolated/app-data/txinTrade Dev"]);
+      calls.devUserData = path;
+    },
     whenReady: () => ({ then(callback) { calls.boot = Promise.resolve().then(callback); return calls.boot; } }),
     quit() {
       const event = { prevented: false, preventDefault() { this.prevented = true; } };
@@ -120,7 +125,18 @@ async function harness(options = {}) {
       child.exitCode = 0;
       child.emit("exit", 0);
     },
-    waitForBackend: async () => {},
+    waitForBackend: async () => {
+      // A backend that exits during startup: with code 65 its database is from a newer version.
+      if (options.backendExit !== undefined) {
+        calls.spawns.at(-1).exitCode = options.backendExit;
+        throw new Error("isolated backend exited");
+      }
+    },
+    backupDatabaseFiles: (dataDir, version) => {
+      calls.backups ??= [];
+      calls.backups.push([dataDir, version]);
+      return "/isolated/user-data/data/backups/offline.sqlite3";
+    },
     resolveUserData: ({ current }) => ({ path: current, migrated: false }),
     delay: async ms => { calls.startupDelays ??= []; calls.startupDelays.push(ms); },
     NATIVE_STRINGS: strings, readSavedLocale: () => options.locale ?? "zh-TW",
@@ -128,6 +144,7 @@ async function harness(options = {}) {
     readSavedTheme: () => "system", validateTheme: value => value,
     readReleaseInfo: () => ({ version: app.getVersion(), channel: "stable", prepared: true, notes: "Isolated notes" }),
     updatesAllowed,
+    notesForLocale,
     createDesktopUpdater: value => {
       calls.updater = createDesktopUpdater({ ...value, platform: fakeProcess.platform, arch: fakeProcess.arch,
         timers: { setTimeout(fn, delay) { const id = ++nextTimer; timers.set(id, { fn, delay }); return id; },
@@ -376,3 +393,69 @@ test("the window's update notice reads the state and opens the update dialog, fo
   assert.throws(() => h.invokeFrom(stranger, "desktop:show-update"), /Invalid window/);
   assert.equal(h.calls.dialogs.length, shown + 1);
 });
+
+test("once the app page registers, update prompts open its scrollable window instead of a native dialog", async () => {
+  const h = await harness({ locale: "zh-TW" });
+  h.invoke("desktop:update-prompt-ready");
+  await h.calls.updater.check();
+  await flush();
+  const dialogs = h.calls.dialogs.length;
+  await h.main.showUpdateDialog();
+  assert.equal(h.calls.dialogs.length, dialogs, "no native dialog while the page shows prompts");
+  const [channel, prompt] = h.calls.sent.filter(([name]) => name === "desktop:update-prompt").at(-1);
+  assert.equal(channel, "desktop:update-prompt");
+  assert.equal(prompt.action, "download");
+  assert.equal(prompt.actionLabel, strings["zh-TW"].downloadUpdate);
+  assert.equal(prompt.dismissLabel, strings["zh-TW"].later);
+  assert.equal(typeof prompt.notes, "string");
+  // Choosing Download in the page downloads, exactly as the native button did.
+  h.invoke("desktop:update-respond", "download");
+  await flush();
+  assert.equal(h.calls.updater.state.status, "downloaded");
+  assert.throws(() => h.invoke("desktop:update-respond", "rm -rf"), /Unknown update action/);
+  // A reloaded page has not registered yet: the native dialog is used again.
+  h.calls.window.webContents.emit("did-start-loading");
+  await h.main.showUpdateDialog();
+  await flush();
+  assert.equal(h.calls.dialogs.length, dialogs + 1);
+});
+
+test("a database from a newer version gets its own screen, and the update is offered at once", async () => {
+  const h = await harness({ backendExit: 65, locale: "en-US" });
+  const page = decodeURIComponent(h.calls.window.urls.at(-1));
+  assert.ok(page.includes(strings["en-US"].newerTitle));
+  assert.ok(page.includes("https://txintrade.com/download"));
+  assert.ok(!page.includes(strings["en-US"].failureBody));
+  await flush();
+  // No waiting for the scheduled check: the update window is already offered.
+  assert.equal(h.calls.dialogs.at(-1).buttons[0], "Download Update");
+  // Installing works without the local service: the app backs the database up itself.
+  await h.calls.updater.download();
+  await flush();
+  h.menuItem("Install Update").click();
+  await flush();
+  assert.equal(h.calls.updater.state.status, "installing");
+  assert.deepEqual(h.calls.backups, [["/isolated/user-data/data", "0.2.0"]]);
+  assert.equal(h.calls.fetches.filter(f => f.url.endsWith("/desktop-updates/prepare")).length, 0);
+  assert.equal(h.calls.nativeRequested, true);
+});
+
+test("any other startup failure keeps the usual screen and still checks for updates", async () => {
+  const h = await harness({ backendExit: 1, locale: "en-US" });
+  const page = decodeURIComponent(h.calls.window.urls.at(-1));
+  assert.ok(page.includes(strings["en-US"].failureBody));
+  assert.ok(!page.includes(strings["en-US"].newerTitle));
+  // The updater started before the backend, so its first check is scheduled regardless.
+  assert.equal(h.calls.imports, 1);
+  assert.ok([...h.timers.values()].some(timer => timer.delay >= 5000 && timer.delay <= 15000));
+});
+
+test("the update window checks first when nothing has been found yet", async () => {
+  const h = await harness({ locale: "en-US" });
+  assert.equal(h.calls.updater.state.status, "idle");
+  await h.invoke("desktop:show-update");
+  await flush();
+  assert.equal(h.calls.updater.state.status, "available");
+  assert.equal(h.calls.dialogs.at(-1).buttons[0], "Download Update");
+});
+

@@ -12,6 +12,13 @@ contextBridge.exposeInMainWorld("tradeHelper", Object.freeze({
   updateTheme: theme => ipcRenderer.invoke("desktop:update-theme", theme),
   updateState: () => ipcRenderer.invoke("desktop:update-state"),
   showUpdate: () => ipcRenderer.invoke("desktop:show-update"),
+  updatePromptReady: () => ipcRenderer.invoke("desktop:update-prompt-ready"),
+  updateRespond: action => ipcRenderer.invoke("desktop:update-respond", action),
+  onUpdatePrompt: listener => {
+    const forward = (_event, prompt) => listener(prompt);
+    ipcRenderer.on("desktop:update-prompt", forward);
+    return () => ipcRenderer.removeListener("desktop:update-prompt", forward);
+  },
   onUpdateState: listener => {
     const forward = (_event, state) => listener(state);
     ipcRenderer.on("desktop:update-state", forward);

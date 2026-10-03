@@ -116,6 +116,18 @@ export function relayTransport(
 ): (path: string, init?: RequestInit) => Promise<Response> {
   return async (path, init = {}) => {
     const url = new URL(path, "http://local");
+    // Fund flows are public cloud data, the same for everyone: read them from the cloud
+    // directly, so they show even while the computer is asleep or runs an older version.
+    // Follow-up snapshots belong to the computer and go through the relay like the rest.
+    const publicFlows = /^\/api\/v1\/smart-money\/(overview|assets(\/[A-Z0-9]{2,12})?)$/.exec(url.pathname);
+    if (publicFlows && (init.method ?? "GET").toUpperCase() === "GET") {
+      try {
+        return await fetch(`${CLOUD_ORIGIN}/smart-money/${publicFlows[1]}${url.search}`, { signal: init.signal });
+      } catch (reason) {
+        if ((reason as Error).name === "AbortError") throw reason;
+        return Response.json({ detail: options.describe("network") }, { status: 503 });
+      }
+    }
     const headers = new Headers(init.headers);
     const key = headers.get("Idempotency-Key");
     const request = {

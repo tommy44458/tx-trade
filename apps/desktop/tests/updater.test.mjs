@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
-import { createDesktopUpdater } from "../updater.mjs";
+import { createDesktopUpdater, releaseNotes, notesForLocale } from "../updater.mjs";
 
 const policy = { enabled: true, signed: true, platform: "darwin", arch: "arm64", channel: "stable" };
 const update = { version: "0.3.0", releaseNotes: "<p>New feature</p>" };
@@ -254,7 +254,9 @@ test("downloads are explicit, progress bounded, notes plain text and installatio
   pending.resolve([]);
   await task;
   assert.equal(f.updater.state.status, "downloaded");
-  assert.equal(f.updater.state.releaseNotes, "Ready");
+  // Notes keep their shape (a heading stays a heading) but never carry markup.
+  assert.equal(f.updater.state.releaseNotes, "# Ready");
+  assert.doesNotMatch(f.updater.state.releaseNotes, /</);
   assert.equal(f.updater.state.canInstall, true);
   assert.deepEqual(f.calls, ["check", "download"]);
   await f.updater.check();
@@ -507,4 +509,17 @@ test("dispose ignores stale network events but retains an error sink until the r
   await flush();
   assert.equal(f.updater.state.status, "disabled");
   assert.equal(f.engine.listenerCount("error"), 0);
+});
+
+test("GitHub's HTML release notes become plain bullets, in the reader's language only", () => {
+  const html = "<h1>txinTrade 1.0.5</h1>\n<h2>繁體中文</h2>\n<h3>變更</h3>\n<ul>\n<li>持倉改為價格階梯。</li>\n"
+    + "<li>A &amp; B &lt;ok&gt;</li>\n</ul>\n<h2>English</h2>\n<h3>Changed</h3>\n<ul>\n<li>Positions use the ladder.</li>\n</ul>";
+  const notes = releaseNotes({ releaseNotes: html });
+  assert.doesNotMatch(notes, /<\/?(?:h[1-6]|ul|li|p)\b/i);
+  // Escaped text is decoded once: "<ok>" was content, not markup.
+  assert.match(notes, /^- A & B <ok>$/m);
+  assert.equal(notesForLocale(notes, "zh-TW"), "### 變更\n\n- 持倉改為價格階梯。\n\n- A & B <ok>");
+  assert.equal(notesForLocale(notes, "en-US"), "### Changed\n\n- Positions use the ladder.");
+  // Notes without both language sections are shown whole, minus the release title.
+  assert.equal(notesForLocale("# txinTrade 1.0.5\n\n- Only one list", "zh-TW"), "- Only one list");
 });

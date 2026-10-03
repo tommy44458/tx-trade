@@ -107,7 +107,7 @@ def test_exact_fresh_quote_forming_and_eight_closed_bars_without_mutating_saved_
     assert Decimal(result["comparison"]["change_since_analysis_pct"]) == Decimal("1.12345678901234567890123456789")
     assert result["comparison"]["analysis_price"] == "100.0000"
     assert result["not_refreshed"] == ["support_resistance", "indicators", "higher_timeframes",
-                                       "market_reference", "positions", "macro"]
+                                       "market_reference", "fund_flows", "positions", "macro"]
     assert result["data_basis"] == "new_public_market_observation"
     assert len(requests) == 2
     assert live.QUOTE_PATH == "/fapi/v2/ticker/price"

@@ -373,4 +373,4 @@ def test_schema_seven_upgrade_preserves_messages_and_adds_null_evidence(client):
         assert all(row["live_market_json"] is None for row in current)
         assert db.execute("SELECT * FROM discussion_sessions").fetchone() == session
         assert db.execute("SELECT * FROM analyses").fetchone() == analysis_row
-        assert db.execute("PRAGMA user_version").fetchone()["user_version"] == SCHEMA_VERSION == 9
+        assert db.execute("PRAGMA user_version").fetchone()["user_version"] == SCHEMA_VERSION

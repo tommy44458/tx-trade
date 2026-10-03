@@ -7,7 +7,22 @@ export type DesktopUpdateState = {
   canInstall: boolean;
 } | null;
 
+/** What the update window shows, already in the app's language (built by the desktop shell). */
+export type DesktopUpdatePrompt = {
+  tone: "info" | "warning";
+  title: string;
+  message: string;
+  details: string[];
+  notes: string;
+  action: "check" | "download" | "install" | "cancel" | null;
+  actionLabel: string | null;
+  dismissLabel: string;
+};
+
 export type DesktopBridge = {
+  updatePromptReady?: () => Promise<void>;
+  updateRespond?: (action: NonNullable<DesktopUpdatePrompt["action"]>) => Promise<void>;
+  onUpdatePrompt?: (listener: (prompt: DesktopUpdatePrompt) => void) => () => void;
   updateState?: () => Promise<DesktopUpdateState>;
   showUpdate?: () => Promise<void>;
   onUpdateState?: (listener: (state: DesktopUpdateState) => void) => () => void;

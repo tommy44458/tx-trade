@@ -59,6 +59,28 @@ function hasNotes(content) {
   return content.split(/\r?\n/).some(line => line.trim() && !/^\s*#/.test(line));
 }
 
+// Release notes become the in-app update window, so each item stays a single short sentence.
+const NOTE_LIMIT = { cjk: 60, latin: 160 };
+
+function checkNoteItems(content, label, version) {
+  const items = [];
+  for (const line of content.split(/\r?\n/)) {
+    if (/^\s*-\s+/.test(line)) items.push(line.replace(/^\s*-\s+/, "").trim());
+    else if (line.trim() && !/^\s*#/.test(line) && items.length) items[items.length - 1] += ` ${line.trim()}`;
+  }
+  for (const item of items) {
+    const cjk = /[\u3400-\u9fff]/.test(item);
+    const limit = cjk ? NOTE_LIMIT.cjk : NOTE_LIMIT.latin;
+    if ([...item].length > limit) {
+      throw new Error(`${label}: ${version} note is longer than ${limit} characters: ${item}`);
+    }
+    const body = item.replace(/[.。!！?？]\s*$/, "");
+    if (/[。！？]|[.!?]\s+[A-Z]/.test(body)) {
+      throw new Error(`${label}: ${version} note must be one sentence: ${item}`);
+    }
+  }
+}
+
 export function parseChangelog(source, label = "changelog") {
   const headings = [...source.matchAll(/^## (.+)$/gm)];
   if (!headings.length) throw new Error(`${label}: missing ## [Unreleased] section.`);
@@ -78,6 +100,7 @@ export function parseChangelog(source, label = "changelog") {
     const section = sections[index];
     if (seen.has(section.version)) throw new Error(`${label}: duplicate section ${section.version}.`);
     seen.add(section.version);
+    checkNoteItems(section.content, label, section.version);
     if (index === 0) continue;
     parseVersion(section.version);
     if (!section.date || !validDate(section.date)) {

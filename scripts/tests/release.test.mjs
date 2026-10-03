@@ -115,6 +115,16 @@ test("canonical manifest and missing changelog validation are explicit", t => {
   assert.throws(() => checkReleaseState(root), /ENOENT/);
 });
 
+test("changelog items must each be one short sentence", () => {
+  const head = "## [Unreleased]\n\n";
+  assert.doesNotThrow(() => parseChangelog(`${head}- Thousands like 8,500 and v1.0.4 stay as one sentence.\n- 中文一句話，可以有逗號。\n`));
+  assert.throws(() => parseChangelog(`${head}- First sentence. Second sentence.\n`), /one sentence/);
+  assert.throws(() => parseChangelog(`${head}- 第一句。第二句。\n`), /one sentence/);
+  assert.throws(() => parseChangelog(`${head}- ${"字".repeat(61)}\n`), /longer than 60/);
+  assert.throws(() => parseChangelog(`${head}- ${"word ".repeat(40)}\n`), /longer than 160/);
+  assert.throws(() => parseChangelog(`${head}## [0.2.0] - 2026-10-02\n\n- One sentence\n  that wraps. Then another.\n`), /0\.2\.0 note must be one sentence/);
+});
+
 test("changelogs reject duplicate sections, missing notes, invalid dates, and unordered releases", () => {
   const unreleased = "# Changes\n\n## [Unreleased]\n\n";
   assert.throws(() => parseChangelog("# No sections\n"), /missing/);

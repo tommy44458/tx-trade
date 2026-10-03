@@ -81,6 +81,22 @@ def test_offline_runtime_smoke_starts_only_private_api_without_workers(monkeypat
     assert mounts == [tmp_path]
 
 
+def test_a_database_from_a_newer_version_exits_with_its_own_code(monkeypatch, tmp_path):
+    from trade_helper import db
+
+    monkeypatch.setenv("APP_DESKTOP", "1")
+    monkeypatch.setenv("APP_DESKTOP_TOKEN", "isolated-offline-package-token")
+    db.init_db()
+    with db.connect() as database:
+        database.execute(f"PRAGMA user_version={db.SCHEMA_VERSION + 1}")
+    monkeypatch.setattr(desktop_runtime.uvicorn, "Server",
+                        lambda _config: pytest.fail("A newer database must stop before serving"))
+    with pytest.raises(SystemExit) as stopped:
+        desktop_runtime.main(["--port", "18741", "--web-dir", str(tmp_path), "--no-workers"])
+    # The desktop app reads this code to offer the update instead of a generic failure.
+    assert stopped.value.code == desktop_runtime.DATABASE_FROM_NEWER_VERSION_EXIT == 65
+
+
 def test_offline_smoke_cannot_be_combined_with_a_background_service(monkeypatch):
     monkeypatch.setenv("APP_DESKTOP", "1")
     monkeypatch.setenv("APP_DESKTOP_TOKEN", "isolated-offline-package-token")

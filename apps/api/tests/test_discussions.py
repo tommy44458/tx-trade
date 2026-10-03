@@ -385,7 +385,7 @@ def test_schema_upgrade_preserves_old_report_and_initializes_empty_discussion_ta
         db.execute("PRAGMA user_version=3")
     init_db()
     with connect(readonly=True) as db:
-        assert db.execute("PRAGMA user_version").fetchone()["user_version"] == SCHEMA_VERSION == 9
+        assert db.execute("PRAGMA user_version").fetchone()["user_version"] == SCHEMA_VERSION
         assert db.execute("SELECT report_json FROM analyses").fetchone()["report_json"]
         assert db.execute("SELECT count(*) AS n FROM discussion_sessions").fetchone()["n"] == 0
 

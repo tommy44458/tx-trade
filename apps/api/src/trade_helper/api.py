@@ -38,6 +38,7 @@ from .desktop_updates import (
 from .desktop_updates import router as desktop_updates_router
 from .discussions import router as discussions_router
 from .events import event_snapshot
+from .fund_flows import router as fund_flow_snapshots_router
 from .indicator_preferences import (
     INITIAL_INDICATOR_CATALOG_VERSION,
     INITIAL_INDICATOR_DEFAULT_PARAMETERS,
@@ -63,6 +64,7 @@ from .models import AnalysisRequest, PositionInput, PositionUpdate
 from .news import news_snapshot
 from .position_chart_snapshot import router as position_chart_snapshot_router
 from .product_version import product_version
+from .smart_money import router as smart_money_router
 
 
 @asynccontextmanager
@@ -94,6 +96,8 @@ app.include_router(macro_interpretation_router)
 app.include_router(position_chart_snapshot_router)
 app.include_router(discussions_router)
 app.include_router(desktop_updates_router)
+app.include_router(smart_money_router)
+app.include_router(fund_flow_snapshots_router)
 
 
 @app.exception_handler(RequestValidationError)

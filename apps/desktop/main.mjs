@@ -5,11 +5,11 @@ import { dirname, join, resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { availablePort, backendCommand, backendEnvironment, developmentConfig, externalUrl,
-  spawnBackend, stopBackend, waitForBackend } from "./runtime.mjs";
+  backupDatabaseFiles, spawnBackend, stopBackend, waitForBackend } from "./runtime.mjs";
 import { NATIVE_STRINGS, readSavedLocale, validateLocale } from "./locales.mjs";
 import { readSavedTheme, validateTheme } from "./themes.mjs";
 import { readReleaseInfo } from "./release-info.mjs";
-import { createDesktopUpdater, updatesAllowed } from "./updater.mjs";
+import { createDesktopUpdater, notesForLocale, updatesAllowed } from "./updater.mjs";
 import { resolveUserData } from "./user-data.mjs";
 
 const repoDir = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
@@ -26,14 +26,22 @@ let backendLog;
 let uiLocale = "zh-TW";
 let updater;
 let updateDialogOpen = false;
+// Set once the app page has its own update window; a navigation or reload clears it.
+let updatePromptsInWindow = false;
 let manualUpdateChecks = 0;
 let updateMenuKey;
 const updateNotices = new Set();
 
 app.setName("txinTrade");
 // Must run before the single-instance lock, which creates the new profile directory.
-const userData = resolveUserData({ appData: app.getPath("appData"), current: app.getPath("userData") });
-if (userData.path !== app.getPath("userData")) app.setPath("userData", userData.path);
+if (!app.isPackaged) {
+  // Builds run from source keep their own data: a schema from unreleased code must never
+  // reach the installed app's database, which would then refuse to open it.
+  app.setPath("userData", join(app.getPath("appData"), "txinTrade Dev"));
+} else {
+  const userData = resolveUserData({ appData: app.getPath("appData"), current: app.getPath("userData") });
+  if (userData.path !== app.getPath("userData")) app.setPath("userData", userData.path);
+}
 if (!app.requestSingleInstanceLock()) app.quit();
 app.on("second-instance", () => {
   if (window?.isMinimized()) window.restore();
@@ -50,6 +58,10 @@ function runUpdateAction(action) {
   void Promise.resolve().then(action).catch(() => {});
 }
 
+const LATEST_DOWNLOAD_URL = "https://txintrade.com/download";
+// desktop_runtime.DATABASE_FROM_NEWER_VERSION_EXIT
+const DATABASE_FROM_NEWER_VERSION_EXIT = 65;
+
 // The startup page stays visible long enough for its one-time introduction to settle.
 const STARTUP_MINIMUM_MS = 3000;
 const STARTUP_EXIT_MS = 240;
@@ -64,10 +76,16 @@ function startupWordmark() {
     <div class="shine" aria-hidden="true">${letters}</div></div>`;
 }
 
-function startupPage(failed = false) {
+/** The startup page: starting, a failure, or a database only a newer version can open. */
+function startupPage(failure = null) {
   const text = NATIVE_STRINGS[uiLocale];
-  const title = failed ? text.failed : text.starting;
-  const body = failed
+  const failed = failure !== null;
+  const title = failure === "database-newer" ? text.newerTitle : failed ? text.failed : text.starting;
+  const body = failure === "database-newer"
+    ? `<section class="failure"><h1>${title}</h1><p>${text.newerBody}</p><p class="hint">${text.newerHint}</p>
+       <button id="check">${text.checkNow}</button> <button id="download" class="secondary">${text.downloadLatest}</button>
+       <p id="error" role="alert"></p></section>`
+    : failed
     ? `<section class="failure"><h1>${title}</h1><p>${text.failureBody}</p><p class="hint">${text.failureHint}</p>
        <button id="retry">${text.retry}</button><p id="error" role="alert"></p></section>`
     : `<p class="status" role="status"><span class="sr">${title}. </span>${text.preparing}</p>`;
@@ -99,6 +117,7 @@ function startupPage(failed = false) {
     min-height:44px;padding:0 20px;cursor:pointer;margin-top:12px}
   button:focus-visible{outline:3px solid color-mix(in srgb,var(--accent) 45%,transparent);outline-offset:2px}
   button:disabled{opacity:.6}.hint{font-size:12px!important}#error{color:var(--danger)}
+  button.secondary{background:transparent;color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
   @keyframes letter{from{opacity:0;filter:blur(10px);transform:translateY(12px)}}
   @keyframes sweep{0%{background-position:100% 0}65%,100%{background-position:0 0}}
   @keyframes fade{from{opacity:0}to{opacity:1}}
@@ -106,7 +125,9 @@ function startupPage(failed = false) {
   @media(prefers-reduced-motion:reduce){.letters span{animation:fade .4s ease both}.shine{display:none}}
   </style></head><body><main>${startupWordmark()}
   ${body}</main>
-  <script>document.querySelector('#retry')?.addEventListener('click',async()=>{
+  <script>document.querySelector('#check')?.addEventListener('click',()=>window.tradeHelper.showUpdate());
+  document.querySelector('#download')?.addEventListener('click',()=>window.tradeHelper.openExternal(${JSON.stringify(LATEST_DOWNLOAD_URL)}));
+  document.querySelector('#retry')?.addEventListener('click',async()=>{
     const button=document.querySelector('#retry');button.disabled=true;
     try{await window.tradeHelper.retryStartup()}
     catch{document.querySelector('#error').textContent=${JSON.stringify(text.retryFailed)};button.disabled=false}
@@ -179,9 +200,8 @@ function updateMessage(state, text) {
     installing: text.updateInstalling, error: text.updateError })[state.status] || text.updateError;
 }
 
-async function showUpdateDialog() {
-  if (updateDialogOpen || closing || !window || window.isDestroyed()) return;
-  updateDialogOpen = true;
+/** What the update window says and offers for the current state, in the app's language. */
+function updatePrompt() {
   const state = updater?.state;
   const text = NATIVE_STRINGS[uiLocale];
   const details = [`${text.updateInstalledVersion}: ${app.getVersion()}`];
@@ -191,22 +211,24 @@ async function showUpdateDialog() {
     details.push(`${text.updateActiveTasks}: ${state.activeTasks}`, text.updateWaitingDetail);
   } else if (state?.canInstall) details.push(text.updateDownloadedDetail);
   else if (state?.enabled && state.status === "idle") details.push(text.updateIdleDetail);
-  if (state?.releaseNotes) details.push(state.releaseNotes);
-  let action;
+  let action = null;
   if (state?.status === "waiting-for-idle") action = "cancel";
   else if (state?.canInstall && state.status !== "installing") action = "install";
   else if (state?.status === "available") action = "download";
   else if (state?.enabled && ["idle", "error"].includes(state.status)) action = "check";
-  const label = { cancel: text.cancelUpdateWait, install: text.restartNow,
-    download: text.downloadUpdate, check: text.checkUpdates }[action];
-  let response;
-  try {
-    ({ response } = await dialog.showMessageBox(window, { type: state?.status === "error" ? "warning" : "info",
-      title: text.updateStatus, message: updateMessage(state, text), detail: details.join("\n\n"),
-      buttons: action ? [label, text.later] : [text.close],
-      defaultId: 0, cancelId: action ? 1 : 0, noLink: true }));
-  } finally { updateDialogOpen = false; }
-  if (response !== 0 || closing) return;
+  return {
+    tone: state?.status === "error" ? "warning" : "info",
+    title: text.updateStatus, message: updateMessage(state, text), details,
+    notes: state?.releaseNotes ? notesForLocale(state.releaseNotes, uiLocale) : "",
+    action, actionLabel: action ? { cancel: text.cancelUpdateWait, install: text.restartNow,
+      download: text.downloadUpdate, check: text.checkUpdates }[action] : null,
+    dismissLabel: action ? text.later : text.close,
+  };
+}
+
+/** Run what the user chose in the update window, if it still applies to the current state. */
+function performUpdateAction(action) {
+  if (closing) return;
   if (action === "check") runUpdateAction(checkForUpdates);
   else if (action === "download" && updater?.state.status === "available") {
     runUpdateAction(async () => {
@@ -215,6 +237,32 @@ async function showUpdateDialog() {
     });
   } else if (action === "install" && updater?.state.canInstall) installUpdate();
   else if (action === "cancel" && updater?.state.status === "waiting-for-idle") runUpdateAction(cancelUpdateWait);
+}
+
+/**
+ * Inside the app the update window scrolls, so long notes never cover the screen. Before the app
+ * has loaded (startup, a failed backend) the native dialog is the fallback.
+ */
+async function showUpdateDialog() {
+  if (closing || !window || window.isDestroyed()) return;
+  const prompt = updatePrompt();
+  if (updatePromptsInWindow) {
+    try {
+      window.webContents.send("desktop:update-prompt", prompt);
+      return;
+    } catch { updatePromptsInWindow = false; }
+  }
+  if (updateDialogOpen) return;
+  updateDialogOpen = true;
+  const details = prompt.notes ? [...prompt.details, prompt.notes] : prompt.details;
+  let response;
+  try {
+    ({ response } = await dialog.showMessageBox(window, { type: prompt.tone,
+      title: prompt.title, message: prompt.message, detail: details.join("\n\n"),
+      buttons: prompt.action ? [prompt.actionLabel, prompt.dismissLabel] : [prompt.dismissLabel],
+      defaultId: 0, cancelId: prompt.action ? 1 : 0, noLink: true }));
+  } finally { updateDialogOpen = false; }
+  if (response === 0 && prompt.action) performUpdateAction(prompt.action);
 }
 
 async function checkForUpdates() {
@@ -276,6 +324,27 @@ function updateStateChanged(state) {
   runUpdateAction(showUpdateDialog);
 }
 
+/** The local service failed to start or has stopped: nothing can be drained or back itself up. */
+function backendDown() {
+  return !starting && (startupFailed || !backend || backend.exitCode !== null || backend.signalCode !== null);
+}
+
+async function prepareUpdate() {
+  if (!backendDown()) return updateBackendRequest("prepare");
+  // No work can be running without the service; back the database files up directly.
+  try {
+    const backup = backupDatabaseFiles(join(app.getPath("userData"), "data"), app.getVersion());
+    return { ready: true, active_tasks: 0, backup_path: backup };
+  } catch {
+    throw Object.assign(new Error("UPDATE_BACKUP_FAILED"), { code: "UPDATE_BACKUP_FAILED" });
+  }
+}
+
+async function cancelUpdatePreparation() {
+  // Without a running service there is no update gate to release.
+  if (!backendDown()) await updateBackendRequest("cancel");
+}
+
 async function updateBackendRequest(action) {
   if (!origin || startupFailed || starting || !backend || backend.exitCode !== null
       || backend.signalCode !== null) throw new Error("UPDATE_PREPARE_FAILED");
@@ -313,8 +382,8 @@ async function initializeUpdater() {
     } catch { /* A missing update engine keeps this App usable with updates disabled. */ }
   }
   updater = createDesktopUpdater({ app, autoUpdater, distributionPolicy,
-    prepareUpdate: () => updateBackendRequest("prepare"),
-    cancelUpdate: () => updateBackendRequest("cancel"),
+    prepareUpdate,
+    cancelUpdate: cancelUpdatePreparation,
     stopBackend: async () => {
       closing = true;
       await stopBackend(backend);
@@ -328,9 +397,9 @@ async function initializeUpdater() {
   await updater.start();
 }
 
-async function showStartup(failed = false) {
-  startupFailed = failed;
-  await window.loadURL(`data:text/html;charset=UTF-8,${encodeURIComponent(startupPage(failed))}`);
+async function showStartup(failure = null) {
+  startupFailed = failure !== null;
+  await window.loadURL(`data:text/html;charset=UTF-8,${encodeURIComponent(startupPage(failure))}`);
   window.show();
 }
 
@@ -370,7 +439,7 @@ async function startBackend() {
     const activeBackend = backend;
     backend.once("exit", () => {
       if (!closing && !starting && activeBackend === backend) {
-        stopBackend(activeBackend).then(() => showStartup(true)).catch(() => {});
+        stopBackend(activeBackend).then(() => showStartup("failed")).catch(() => {});
       }
     });
     await finishStartupPage(startupShownAt);
@@ -379,8 +448,12 @@ async function startBackend() {
     startupFailed = false;
     window.show();
   } catch {
+    // The backend says, by its exit code, when the database comes from a newer version.
+    const newer = backend?.exitCode === DATABASE_FROM_NEWER_VERSION_EXIT;
     await stopBackend(backend);
-    await showStartup(true);
+    await showStartup(newer ? "database-newer" : "failed");
+    // Offer the update at once; this version can do nothing else with that data.
+    if (newer) runUpdateAction(checkForUpdates);
   } finally { starting = false; }
 }
 
@@ -421,6 +494,8 @@ app.whenReady().then(async () => {
     }
     callback({ responseHeaders });
   });
+  // A new page has not registered its update window yet: use the native dialog until it does.
+  window.webContents.on("did-start-loading", () => { updatePromptsInWindow = false; });
   window.webContents.on("will-navigate", (event, url) => {
     if (!origin || new URL(url).origin !== origin) event.preventDefault();
   });
@@ -451,7 +526,18 @@ app.whenReady().then(async () => {
   });
   ipcMain.handle("desktop:show-update", event => {
     trustedSender(event);
-    runUpdateAction(showUpdateDialog);
+    // With nothing found yet, asking for the update window checks first.
+    const status = updater?.state.status;
+    runUpdateAction(updater?.state.enabled && ["idle", "error"].includes(status) ? checkForUpdates : showUpdateDialog);
+  });
+  ipcMain.handle("desktop:update-prompt-ready", event => {
+    trustedSender(event);
+    updatePromptsInWindow = true;
+  });
+  ipcMain.handle("desktop:update-respond", (event, action) => {
+    trustedSender(event);
+    if (!["check", "download", "install", "cancel"].includes(action)) throw new Error("Unknown update action");
+    performUpdateAction(action);
   });
   ipcMain.handle("desktop:update-locale", (event, locale) => {
     trustedSender(event);
@@ -469,8 +555,10 @@ app.whenReady().then(async () => {
     }
   });
   updateNativeMenu();
-  await startBackend();
+  // Updates must not depend on the local service: a version that cannot open its data
+  // (a newer database, a broken install) still finds and installs its fix.
   await initializeUpdater();
+  await startBackend();
 });
 
 app.on("window-all-closed", () => app.quit());

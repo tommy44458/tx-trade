@@ -1457,3 +1457,10 @@ select,
     backdrop-filter: none;
   }
 }
+
+/* Phones merge economic events and fund flows into one tab; wide screens list both. */
+.nav.nav-phone-only,
+.markets-switch {
+  display: none;
+}
+

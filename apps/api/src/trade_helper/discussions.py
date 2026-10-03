@@ -31,7 +31,7 @@ from .prompts_artifacts import load_prompt_artifact, save_prompt_artifact
 from .task_locale_errors import localized_task_error
 
 router = APIRouter(prefix="/api/v1/discussions", tags=["Analysis discussion"])
-SubjectType = Literal["analysis", "macro"]
+SubjectType = Literal["analysis", "macro", "fund_flows"]
 HISTORY_TURNS = 40
 HISTORY_MAX_CHARS = 60_000
 STREAM_POLL_SECONDS = 0.3
@@ -190,7 +190,8 @@ def send_message(subject_type: SubjectType, subject_id: str, body: DiscussionMes
         require_task_start_allowed(db)
         _expire_claims(db, utc_now())
         subject, context = load_subject(db, subject_type, subject_id, user_id,
-                                        output_locale=body.output_locale if subject_type == "macro" else None)
+                                        output_locale=body.output_locale
+                                        if subject_type in ("macro", "fund_flows") else None)
         session = _session(db, subject_type, subject_id, user_id)
         if session:
             existing = db.execute(
@@ -211,11 +212,12 @@ def send_message(subject_type: SubjectType, subject_id: str, body: DiscussionMes
             session_id = new_id("dis")
             db.execute(
                 """INSERT INTO discussion_sessions
-                   (id,user_id,subject_type,subject_id,analysis_id,macro_id,subject_json,
-                    context_json,created_at,updated_at,output_locale) VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
+                   (id,user_id,subject_type,subject_id,analysis_id,macro_id,fund_flow_id,subject_json,
+                    context_json,created_at,updated_at,output_locale) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)""",
                 (session_id, user_id, subject_type, subject_id,
                  subject_id if subject_type == "analysis" else None,
                  subject_id if subject_type == "macro" else None,
+                 subject_id if subject_type == "fund_flows" else None,
                  json.dumps(subject, ensure_ascii=False), json.dumps(context, ensure_ascii=False),
                  now, now, context.get("output_locale") or "zh-TW"),
             )

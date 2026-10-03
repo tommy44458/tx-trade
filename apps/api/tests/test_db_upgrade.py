@@ -152,7 +152,7 @@ def test_schema_nine_removes_retired_chatgpt_authorization_only():
             database.execute("INSERT INTO auth_metadata VALUES (?,?,'2026-10-01')", (provider, "{}"))
         database.execute("INSERT INTO app_preferences VALUES ('owner',?,'2026-10-01')",
                          (json.dumps(preferences),))
-        database.execute("DELETE FROM schema_migrations WHERE version=9")
+        database.execute("DELETE FROM schema_migrations WHERE version>=9")
         database.execute("PRAGMA user_version=8")
     storage.init_db()
     with storage.connect(readonly=True) as database:
