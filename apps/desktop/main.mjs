@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, shell } from "electron";
+import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeTheme, shell } from "electron";
 import { randomBytes } from "node:crypto";
 import { createWriteStream, mkdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -507,6 +507,13 @@ app.whenReady().then(async () => {
     trustedSender(event);
     await shell.openExternal(externalUrl(url, {
       developmentOrigin: app.isPackaged ? undefined : process.env.TXINTRADE_CLOUD_ORIGIN }));
+  });
+  // The page has no clipboard permission (every web permission is denied), so the
+  // shell copies plain text for it, such as the CLI setup commands.
+  ipcMain.handle("desktop:copy-text", (event, text) => {
+    trustedSender(event);
+    if (typeof text !== "string" || !text || text.length > 4000) throw new Error("Invalid text");
+    clipboard.writeText(text);
   });
   ipcMain.handle("desktop:focus-window", event => {
     trustedSender(event);

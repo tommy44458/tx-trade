@@ -120,6 +120,32 @@ def test_windows_finds_programs_by_extension_in_install_locations(tmp_path, monk
         == str(tmp_path / ".claude/local/claude.exe")
 
 
+def test_windows_finds_codex_standalone_and_never_mistakes_the_claude_desktop_alias(
+        tmp_path, monkeypatch):
+    monkeypatch.setattr(cli_paths, "WINDOWS", True)
+    local = tmp_path / "AppData/Local"
+    monkeypatch.setenv("LOCALAPPDATA", str(local))
+    monkeypatch.delenv("APPDATA", raising=False)
+    monkeypatch.delenv("NVM_SYMLINK", raising=False)
+    monkeypatch.setattr(cli_paths.Path, "home", lambda: tmp_path)
+    # Codex's standalone installer, with no PATH change visible to this app yet.
+    monkeypatch.setattr(cli_paths.shutil, "which", lambda name: None)
+    codex = local / "Programs/OpenAI/Codex/bin/codex.exe"
+    codex.parent.mkdir(parents=True)
+    codex.write_text("", encoding="utf-8")
+    assert cli_paths.find_executable("codex") == str(codex)
+    # Claude's desktop app puts a Claude.exe alias first on PATH; it is not the CLI.
+    alias = local / "Microsoft/WindowsApps/Claude.exe"
+    alias.parent.mkdir(parents=True)
+    alias.write_text("", encoding="utf-8")
+    monkeypatch.setattr(cli_paths.shutil, "which", lambda name: str(alias))
+    assert cli_paths.find_executable("claude") is None
+    cli = tmp_path / ".local/bin/claude.exe"
+    cli.parent.mkdir(parents=True)
+    cli.write_text("", encoding="utf-8")
+    assert cli_paths.find_executable("claude") == str(cli)
+
+
 def _hold(path, ready, release):
     with platform_process.exclusive_file_lock(path):
         ready.set()

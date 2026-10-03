@@ -7,27 +7,63 @@ import "./CliSetupDialog.css";
 export type CliSetupProvider = "codex" | "claude_code";
 export type CliSetupReason = "install" | "signin";
 
-// Shell commands are product-neutral and are not translated.
-const INSTALL_COMMANDS: Record<CliSetupProvider, string[]> = {
-  codex: ["npm install -g @openai/codex", "brew install --cask codex"],
-  claude_code: ["curl -fsSL https://claude.ai/install.sh | bash", "npm install -g @anthropic-ai/claude-code"],
-};
-// Windows runs these in PowerShell; Homebrew and bash installers do not exist there.
-const WINDOWS_INSTALL_COMMANDS: Record<CliSetupProvider, string[]> = {
-  codex: ["npm install -g @openai/codex"],
-  claude_code: ["irm https://claude.ai/install.ps1 | iex", "npm install -g @anthropic-ai/claude-code"],
-};
+type Platform = "windows" | "posix";
+
+// Shell commands are product-neutral and are not translated. The first install
+// command is each vendor's official standalone installer, which needs no Node.js.
+const CLAUDE = {
+  windows: {
+    install: "irm https://claude.ai/install.ps1 | iex",
+    alternatives: ["winget install Anthropic.ClaudeCode", "npm install -g @anthropic-ai/claude-code"],
+    // The native installer's own location: works before PATH reaches a new window.
+    fullPath: '& "$env:USERPROFILE\\.local\\bin\\claude.exe" auth login',
+  },
+  posix: {
+    install: "curl -fsSL https://claude.ai/install.sh | bash",
+    alternatives: ["brew install --cask claude-code", "npm install -g @anthropic-ai/claude-code"],
+    fullPath: "~/.local/bin/claude auth login",
+  },
+} as const;
+const CODEX = {
+  windows: {
+    install: 'powershell -ExecutionPolicy ByPass -c "irm https://chatgpt.com/codex/install.ps1 | iex"',
+    alternatives: ["npm install -g @openai/codex"],
+  },
+  posix: {
+    install: "curl -fsSL https://chatgpt.com/codex/install.sh | sh",
+    alternatives: ["brew install --cask codex", "npm install -g @openai/codex"],
+  },
+} as const;
 const SIGN_IN_COMMAND = "claude auth login";
 
+async function copy(value: string) {
+  // The desktop app denies the page clipboard access; its shell copies instead.
+  const desktop = window.tradeHelper?.copyText;
+  if (desktop) return desktop(value);
+  if (!navigator.clipboard) throw new Error("clipboard unavailable");
+  return navigator.clipboard.writeText(value);
+}
+
 function Command({ value }: { value: string }) {
-  const [copied, setCopied] = useState(false);
+  const [state, setState] = useState<"idle" | "copied" | "failed">("idle");
   return (
     <div className="cli-setup-command">
       <code>{value}</code>
       <button type="button" className="settings-secondary" onClick={() => {
-        void navigator.clipboard?.writeText(value).then(() => setCopied(true), () => {});
-      }}>{copied ? uiText("已複製") : uiText("複製")}</button>
+        void copy(value).then(() => setState("copied"), () => setState("failed"));
+      }}>{state === "copied" ? uiText("已複製") : uiText("複製")}</button>
+      {state === "failed" && <span className="cli-setup-copy-failed" role="status">
+        {uiText("無法複製，請直接選取指令")}</span>}
     </div>
+  );
+}
+
+function Alternatives({ commands }: { commands: readonly string[] }) {
+  return (
+    <details className="cli-setup-alternatives">
+      <summary>{uiText("或改用其他安裝方式")}</summary>
+      {commands.map(command => <Command key={command} value={command} />)}
+    </details>
   );
 }
 
@@ -48,10 +84,13 @@ export default function CliSetupDialog({ provider, reason, checking, error, onRe
     return () => element?.close();
   }, []);
   const claude = provider === "claude_code";
-  const windows = window.tradeHelper?.platform === "win32";
-  const commands = (windows ? WINDOWS_INSTALL_COMMANDS : INSTALL_COMMANDS)[provider];
+  const platform: Platform = window.tradeHelper?.platform === "win32" ? "windows" : "posix";
+  const windows = platform === "windows";
+  const install = reason === "install";
   const title = reason === "signin" ? uiText("Claude Code 尚未登入")
     : claude ? uiText("找不到 Claude Code CLI") : uiText("找不到 Codex CLI");
+  const openShell = windows ? uiText("從開始功能表搜尋並開啟「PowerShell」，貼上這行後按 Enter：")
+    : uiText("開啟「終端機」（應用程式 › 工具程式），貼上這行後按 Return：");
   return (
     <dialog ref={dialog} className="cli-setup-dialog" aria-labelledby="cli-setup-title"
       onCancel={event => { event.preventDefault(); onClose(); }}>
@@ -62,30 +101,56 @@ export default function CliSetupDialog({ provider, reason, checking, error, onRe
         </button>
       </div>
       <p className="settings-help">
-        {reason === "signin"
+        {!install
           ? uiText("Claude Code 已安裝，但尚未登入 Claude 帳號。請依下列步驟完成後重新檢查。")
           : claude
-            ? uiText("使用 Claude Code 分析前，需要先在這台電腦安裝 Claude Code CLI 並登入 Claude 帳號。")
-            : uiText("使用 Codex 分析前，需要先在這台電腦安裝 Codex CLI。")}
+            ? uiText("使用 Claude Code 分析，需要在這台電腦安裝 Claude Code 命令列工具，並登入付費的 Claude 帳號（Pro、Max、Team 或 Enterprise；免費方案不含 Claude Code）。")
+            : uiText("使用 Codex 分析，需要在這台電腦安裝 Codex 命令列工具，之後在 txinTrade 裡用 ChatGPT 帳號登入。")}
       </p>
+      {install && (claude || windows) && (
+        <p className="cli-setup-note">
+          {claude
+            ? uiText("只安裝 Claude 桌面版還不夠：txinTrade 需要的是 Claude Code 命令列工具，可以和桌面版同時安裝。")
+            : uiText("只安裝 ChatGPT 桌面版還不夠：請另外安裝 Codex 命令列工具。")}
+        </p>
+      )}
       <ol className="cli-setup-steps">
-        {reason === "install" && (
+        {install && claude && (
           <li>
-            <p>{windows ? uiText("開啟「PowerShell」，執行以下其中一個安裝指令：")
-              : uiText("開啟「終端機」，執行以下其中一個安裝指令：")}</p>
-            {commands.map(command => <Command key={command} value={command} />)}
+            <p>{openShell}</p>
+            <Command value={CLAUDE[platform].install} />
+            <Alternatives commands={CLAUDE[platform].alternatives} />
           </li>
         )}
-        {claude ? (
+        {install && !claude && (
           <li>
-            <p>{windows ? uiText("在 PowerShell 登入 Claude 帳號，並依瀏覽器指示完成授權：")
-              : uiText("在終端機登入 Claude 帳號，並依瀏覽器指示完成授權：")}</p>
+            <p>{openShell}</p>
+            <Command value={CODEX[platform].install} />
+            <p className="cli-setup-hint">{uiText("這個官方安裝程式不需要 Node.js 或 npm。")}</p>
+            <Alternatives commands={CODEX[platform].alternatives} />
+          </li>
+        )}
+        {claude && (
+          <li>
+            <p>{install
+              ? windows
+                ? uiText("安裝完成後，關閉這個 PowerShell，再開一個新的視窗（新視窗才會用到更新後的 PATH），執行登入指令並依瀏覽器指示完成授權：")
+                : uiText("安裝完成後，開一個新的終端機視窗，執行登入指令並依瀏覽器指示完成授權：")
+              : windows
+                ? uiText("在 PowerShell 登入 Claude 帳號，並依瀏覽器指示完成授權：")
+                : uiText("在終端機登入 Claude 帳號，並依瀏覽器指示完成授權：")}</p>
             <Command value={SIGN_IN_COMMAND} />
+            <p className="cli-setup-hint">{windows
+              ? uiText("如果出現「無法辨識 claude」，代表 PATH 還沒更新。不必自己設定，改執行這行即可：")
+              : uiText("如果出現「command not found」，改執行這行即可：")}</p>
+            <Command value={CLAUDE[platform].fullPath} />
           </li>
-        ) : (
-          <li><p>{uiText("安裝完成後按「重新檢查」，再按「連線 Codex」以 ChatGPT 帳號登入。")}</p></li>
         )}
-        {claude && <li><p>{uiText("完成後回到這裡按「重新檢查」。")}</p></li>}
+        <li>
+          <p>{claude
+            ? uiText("完成後回到這裡按「重新檢查」。txinTrade 會自動找到 Claude Code，不需要重新開啟 App。")
+            : uiText("安裝完成後回到這裡按「重新檢查」，再按「連線 Codex」用 ChatGPT 帳號登入；不需要在命令列登入，也不必設定 PATH。")}</p>
+        </li>
       </ol>
       {error && <p className="settings-inline-error" role="alert">{error}</p>}
       <div className="settings-actions">

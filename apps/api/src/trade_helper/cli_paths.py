@@ -18,6 +18,9 @@ def _common_directories() -> list[Path]:
         roots = {key: Path(environ[key]) for key in ("APPDATA", "LOCALAPPDATA", "NVM_SYMLINK")
                  if environ.get(key)}
         directories = [home / ".local/bin"]  # Claude Code's native installer
+        if "LOCALAPPDATA" in roots:
+            # Codex's standalone installer (chatgpt.com/codex/install.ps1).
+            directories.append(roots["LOCALAPPDATA"] / "Programs/OpenAI/Codex/bin")
         if "APPDATA" in roots:
             directories.append(roots["APPDATA"] / "npm")  # npm install -g
         if "LOCALAPPDATA" in roots:
@@ -40,11 +43,13 @@ def _names(name: str) -> list[str]:
 
 def _runnable(candidate: str) -> bool:
     path = Path(candidate)
-    if not path.is_file():
-        return False
     if WINDOWS:
-        return path.suffix.lower() in WINDOWS_PROGRAM_SUFFIXES
-    return os.access(candidate, os.X_OK)
+        # Desktop apps register execution aliases here: Claude's desktop app adds
+        # Claude.exe, which is not the Claude Code CLI and would open its window.
+        if "\\microsoft\\windowsapps\\" in str(candidate).replace("/", "\\").lower():
+            return False
+        return path.is_file() and path.suffix.lower() in WINDOWS_PROGRAM_SUFFIXES
+    return path.is_file() and os.access(candidate, os.X_OK)
 
 
 def find_executable(name: str, override: str | None = None,

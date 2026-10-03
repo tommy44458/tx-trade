@@ -27,6 +27,8 @@ export type DesktopBridge = {
   showUpdate?: () => Promise<void>;
   onUpdateState?: (listener: (state: DesktopUpdateState) => void) => () => void;
   openExternal: (url: string) => Promise<void>;
+  /** The page has no clipboard permission in the desktop app; the shell copies for it. */
+  copyText?: (text: string) => Promise<void>;
   focusWindow?: () => Promise<void>;
   updateLocale?: (locale: import("./i18n/index.ts").UiLocale) => Promise<void>;
   updateTheme?: (theme: import("./uiTheme.ts").UiTheme) => Promise<void>;
