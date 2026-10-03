@@ -23,11 +23,38 @@ function newerVersion(candidate, current) {
   return candidate.beta > current.beta;
 }
 
-function releaseNotes(info) {
+const ENTITIES = { amp: "&", lt: "<", gt: ">", quot: "\"", "#39": "'", apos: "'", nbsp: " " };
+
+/** GitHub sends release notes as HTML; keep their shape (headings, bullets) as plain Markdown-like text. */
+export function releaseNotes(info) {
   const notes = Array.isArray(info?.releaseNotes)
     ? info.releaseNotes.map(item => typeof item?.note === "string" ? item.note : "").join("\n\n")
     : typeof info?.releaseNotes === "string" ? info.releaseNotes : "";
-  return notes.replace(/<[^>]*>/g, "").replace(/\r\n/g, "\n").slice(0, 24000).trim();
+  return notes
+    .replace(/\r\n/g, "\n")
+    .replace(/<h([1-6])[^>]*>/gi, (_, level) => `\n${"#".repeat(Number(level))} `)
+    .replace(/<li[^>]*>/gi, "\n- ")
+    .replace(/<br\s*\/?>|<\/(?:p|li|h[1-6]|ul|ol|div)>/gi, "\n")
+    .replace(/<[^>]*>/g, "")
+    .replace(/&(amp|lt|gt|quot|#39|apos|nbsp);/g, (_, name) => ENTITIES[name])
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .slice(0, 24000).trim();
+}
+
+/**
+ * Release notes carry both languages ("## 繁體中文" then "## English"); show only the reader's,
+ * without the release title. Notes in another shape are returned as they are.
+ */
+export function notesForLocale(notes, locale) {
+  const text = String(notes ?? "");
+  const sections = [...text.matchAll(/^## (繁體中文|English)\s*$/gm)];
+  if (sections.length < 2) return text.replace(/^# .*\n+/, "").trim();
+  const wanted = locale === "zh-TW" ? "繁體中文" : "English";
+  const index = sections.findIndex(match => match[1] === wanted);
+  const start = sections[index].index + sections[index][0].length;
+  const end = sections[index + 1]?.index ?? text.length;
+  return text.slice(start, end).trim();
 }
 
 function updateError(code) {

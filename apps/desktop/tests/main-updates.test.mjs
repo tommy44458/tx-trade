@@ -5,7 +5,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { runInNewContext } from "node:vm";
 import test from "node:test";
-import { createDesktopUpdater } from "../updater.mjs";
+import { createDesktopUpdater, notesForLocale } from "../updater.mjs";
 
 const signedPolicy = { enabled: true, signed: true, platform: "darwin", arch: "arm64", channel: "stable" };
 const update = { version: "0.3.0", releaseNotes: "An update for the isolated test" };
@@ -127,6 +127,7 @@ async function harness(options = {}) {
     validateLocale: value => { assert.ok(["zh-TW", "en-US"].includes(value)); return value; },
     readSavedTheme: () => "system", validateTheme: value => value,
     readReleaseInfo: () => ({ version: app.getVersion(), channel: "stable", prepared: true, notes: "Isolated notes" }),
+    notesForLocale,
     createDesktopUpdater: value => {
       calls.updater = createDesktopUpdater({ ...value, platform: fakeProcess.platform, arch: fakeProcess.arch,
         timers: { setTimeout(fn, delay) { const id = ++nextTimer; timers.set(id, { fn, delay }); return id; },
@@ -374,4 +375,30 @@ test("the window's update notice reads the state and opens the update dialog, fo
   assert.throws(() => h.invokeFrom(stranger, "desktop:update-state"), /Invalid window/);
   assert.throws(() => h.invokeFrom(stranger, "desktop:show-update"), /Invalid window/);
   assert.equal(h.calls.dialogs.length, shown + 1);
+});
+
+test("once the app page registers, update prompts open its scrollable window instead of a native dialog", async () => {
+  const h = await harness({ locale: "zh-TW" });
+  h.invoke("desktop:update-prompt-ready");
+  await h.calls.updater.check();
+  await flush();
+  const dialogs = h.calls.dialogs.length;
+  await h.main.showUpdateDialog();
+  assert.equal(h.calls.dialogs.length, dialogs, "no native dialog while the page shows prompts");
+  const [channel, prompt] = h.calls.sent.filter(([name]) => name === "desktop:update-prompt").at(-1);
+  assert.equal(channel, "desktop:update-prompt");
+  assert.equal(prompt.action, "download");
+  assert.equal(prompt.actionLabel, strings["zh-TW"].downloadUpdate);
+  assert.equal(prompt.dismissLabel, strings["zh-TW"].later);
+  assert.equal(typeof prompt.notes, "string");
+  // Choosing Download in the page downloads, exactly as the native button did.
+  h.invoke("desktop:update-respond", "download");
+  await flush();
+  assert.equal(h.calls.updater.state.status, "downloaded");
+  assert.throws(() => h.invoke("desktop:update-respond", "rm -rf"), /Unknown update action/);
+  // A reloaded page has not registered yet: the native dialog is used again.
+  h.calls.window.webContents.emit("did-start-loading");
+  await h.main.showUpdateDialog();
+  await flush();
+  assert.equal(h.calls.dialogs.length, dialogs + 1);
 });

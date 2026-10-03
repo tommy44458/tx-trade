@@ -9,7 +9,7 @@ import { availablePort, backendCommand, backendEnvironment, developmentConfig, e
 import { NATIVE_STRINGS, readSavedLocale, validateLocale } from "./locales.mjs";
 import { readSavedTheme, validateTheme } from "./themes.mjs";
 import { readReleaseInfo } from "./release-info.mjs";
-import { createDesktopUpdater } from "./updater.mjs";
+import { createDesktopUpdater, notesForLocale } from "./updater.mjs";
 import { resolveUserData } from "./user-data.mjs";
 
 const repoDir = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
@@ -26,6 +26,8 @@ let backendLog;
 let uiLocale = "zh-TW";
 let updater;
 let updateDialogOpen = false;
+// Set once the app page has its own update window; a navigation or reload clears it.
+let updatePromptsInWindow = false;
 let manualUpdateChecks = 0;
 let updateMenuKey;
 const updateNotices = new Set();
@@ -179,9 +181,8 @@ function updateMessage(state, text) {
     installing: text.updateInstalling, error: text.updateError })[state.status] || text.updateError;
 }
 
-async function showUpdateDialog() {
-  if (updateDialogOpen || closing || !window || window.isDestroyed()) return;
-  updateDialogOpen = true;
+/** What the update window says and offers for the current state, in the app's language. */
+function updatePrompt() {
   const state = updater?.state;
   const text = NATIVE_STRINGS[uiLocale];
   const details = [`${text.updateInstalledVersion}: ${app.getVersion()}`];
@@ -191,22 +192,24 @@ async function showUpdateDialog() {
     details.push(`${text.updateActiveTasks}: ${state.activeTasks}`, text.updateWaitingDetail);
   } else if (state?.canInstall) details.push(text.updateDownloadedDetail);
   else if (state?.enabled && state.status === "idle") details.push(text.updateIdleDetail);
-  if (state?.releaseNotes) details.push(state.releaseNotes);
-  let action;
+  let action = null;
   if (state?.status === "waiting-for-idle") action = "cancel";
   else if (state?.canInstall && state.status !== "installing") action = "install";
   else if (state?.status === "available") action = "download";
   else if (state?.enabled && ["idle", "error"].includes(state.status)) action = "check";
-  const label = { cancel: text.cancelUpdateWait, install: text.restartNow,
-    download: text.downloadUpdate, check: text.checkUpdates }[action];
-  let response;
-  try {
-    ({ response } = await dialog.showMessageBox(window, { type: state?.status === "error" ? "warning" : "info",
-      title: text.updateStatus, message: updateMessage(state, text), detail: details.join("\n\n"),
-      buttons: action ? [label, text.later] : [text.close],
-      defaultId: 0, cancelId: action ? 1 : 0, noLink: true }));
-  } finally { updateDialogOpen = false; }
-  if (response !== 0 || closing) return;
+  return {
+    tone: state?.status === "error" ? "warning" : "info",
+    title: text.updateStatus, message: updateMessage(state, text), details,
+    notes: state?.releaseNotes ? notesForLocale(state.releaseNotes, uiLocale) : "",
+    action, actionLabel: action ? { cancel: text.cancelUpdateWait, install: text.restartNow,
+      download: text.downloadUpdate, check: text.checkUpdates }[action] : null,
+    dismissLabel: action ? text.later : text.close,
+  };
+}
+
+/** Run what the user chose in the update window, if it still applies to the current state. */
+function performUpdateAction(action) {
+  if (closing) return;
   if (action === "check") runUpdateAction(checkForUpdates);
   else if (action === "download" && updater?.state.status === "available") {
     runUpdateAction(async () => {
@@ -215,6 +218,32 @@ async function showUpdateDialog() {
     });
   } else if (action === "install" && updater?.state.canInstall) installUpdate();
   else if (action === "cancel" && updater?.state.status === "waiting-for-idle") runUpdateAction(cancelUpdateWait);
+}
+
+/**
+ * Inside the app the update window scrolls, so long notes never cover the screen. Before the app
+ * has loaded (startup, a failed backend) the native dialog is the fallback.
+ */
+async function showUpdateDialog() {
+  if (closing || !window || window.isDestroyed()) return;
+  const prompt = updatePrompt();
+  if (updatePromptsInWindow) {
+    try {
+      window.webContents.send("desktop:update-prompt", prompt);
+      return;
+    } catch { updatePromptsInWindow = false; }
+  }
+  if (updateDialogOpen) return;
+  updateDialogOpen = true;
+  const details = prompt.notes ? [...prompt.details, prompt.notes] : prompt.details;
+  let response;
+  try {
+    ({ response } = await dialog.showMessageBox(window, { type: prompt.tone,
+      title: prompt.title, message: prompt.message, detail: details.join("\n\n"),
+      buttons: prompt.action ? [prompt.actionLabel, prompt.dismissLabel] : [prompt.dismissLabel],
+      defaultId: 0, cancelId: prompt.action ? 1 : 0, noLink: true }));
+  } finally { updateDialogOpen = false; }
+  if (response === 0 && prompt.action) performUpdateAction(prompt.action);
 }
 
 async function checkForUpdates() {
@@ -423,6 +452,8 @@ app.whenReady().then(async () => {
     }
     callback({ responseHeaders });
   });
+  // A new page has not registered its update window yet: use the native dialog until it does.
+  window.webContents.on("did-start-loading", () => { updatePromptsInWindow = false; });
   window.webContents.on("will-navigate", (event, url) => {
     if (!origin || new URL(url).origin !== origin) event.preventDefault();
   });
@@ -454,6 +485,15 @@ app.whenReady().then(async () => {
   ipcMain.handle("desktop:show-update", event => {
     trustedSender(event);
     runUpdateAction(showUpdateDialog);
+  });
+  ipcMain.handle("desktop:update-prompt-ready", event => {
+    trustedSender(event);
+    updatePromptsInWindow = true;
+  });
+  ipcMain.handle("desktop:update-respond", (event, action) => {
+    trustedSender(event);
+    if (!["check", "download", "install", "cancel"].includes(action)) throw new Error("Unknown update action");
+    performUpdateAction(action);
   });
   ipcMain.handle("desktop:update-locale", (event, locale) => {
     trustedSender(event);

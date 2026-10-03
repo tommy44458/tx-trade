@@ -50,6 +50,7 @@ import { importedPositionFacts, isManualPosition, liquidationSourceLabel, positi
 import Icon, { type IconName } from "./Icon";
 import AccountMenu from "./AccountMenu";
 import { CLOUD_ACCOUNT_CHANGED } from "./cloudAccountEvents";
+import UpdateDialog from "./UpdateDialog";
 import UpdateNotice from "./UpdateNotice";
 import LocalCloudMenu from "./LocalCloudMenu";
 import DerivativesContext, { type DerivativesData } from "./DerivativesContext";
@@ -1032,6 +1033,7 @@ function App({ remoteSection, remoteIdentity, remoteMenu, remoteStatus }: {
 
   return (
     <div className="shell">
+      {remoteIdentity === undefined && <UpdateDialog />}
       <a className="skip-link" href="#main-content">{uiText("跳至主要內容")}</a>
       <aside className="sidebar">
         <a
