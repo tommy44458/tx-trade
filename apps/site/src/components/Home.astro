@@ -1,11 +1,11 @@
 ---
 import { t } from "../i18n";
-import { DOWNLOAD_MAC, DOWNLOAD_WINDOWS, RELEASED, REPOSITORY, localePath, type Locale } from "../site";
+import { RELEASED, REPOSITORY, downloadLink, localePath, type Locale } from "../site";
 
 interface Props { locale: Locale }
 const { locale } = Astro.props;
 const text = t(locale).home;
-const download = RELEASED ? DOWNLOAD_MAC : localePath("/download", locale);
+const download = RELEASED ? downloadLink("mac", "home", locale) : localePath("/download", locale);
 
 // The headline rises word by word; the two product names carry the logo's shine.
 const names = /(Claude Code|Codex)/;
@@ -33,7 +33,7 @@ const words = text.heroTitle.split(names).flatMap((part) =>
   <p class="lead wrap fade" style="--d:0.35s">{text.heroSubtitle}</p>
   <div class="actions fade" style="--d:0.5s">
     <a class="button" href={download} data-download
-      data-windows-href={DOWNLOAD_WINDOWS} data-windows-label={text.downloadWindows}>{RELEASED ? text.download : text.comingSoon}</a>
+      data-windows-href={downloadLink("windows", "home", locale)} data-windows-label={text.downloadWindows}>{RELEASED ? text.download : text.comingSoon}</a>
     <a class="button secondary" href={REPOSITORY} target="_blank" rel="noopener">{text.github} <span class="arrow" aria-hidden="true">↗</span></a>
   </div>
   <p class="caption fade" style="--d:0.6s">

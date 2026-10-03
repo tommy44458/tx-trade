@@ -9,6 +9,12 @@
     { "pattern": "txintrade.com", "custom_domain": true },
     { "pattern": "www.txintrade.com", "custom_domain": true }
   ],
+  // Download counts: see migrations/ and worker/index.js.
+  "d1_databases": [
+    { "binding": "DB", "database_name": "txintrade-site", "database_id": "0ed4f4f4-4aff-4651-9a5b-9ef42a0df718" }
+  ],
+  // Records GitHub's release download counts once a day.
+  "triggers": { "crons": ["5 0 * * *"] },
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",

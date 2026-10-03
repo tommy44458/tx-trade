@@ -1,17 +1,18 @@
 ---
 import { t } from "../i18n";
-import { DOWNLOAD_MAC, DOWNLOAD_WINDOWS, RELEASED, RELEASES, REPOSITORY, VERSION, WEB_APP, type Locale } from "../site";
+import { RELEASED, downloadLink, RELEASES, REPOSITORY, VERSION, WEB_APP, type Locale } from "../site";
 
 interface Props { locale: Locale }
-const text = t(Astro.props.locale).download;
+const { locale } = Astro.props;
+const text = t(locale).download;
 ---
 <section class="wrap page">
   <h1>{text.heading}</h1>
   <p class="lead">{text.intro}</p>
   {RELEASED ? (
     <div class="actions">
-      <a class="button" href={DOWNLOAD_MAC} data-platform="mac">{text.button}</a>
-      <a class="button secondary" href={DOWNLOAD_WINDOWS} data-platform="windows">{text.buttonWindows}</a>
+      <a class="button" href={downloadLink("mac", "download", locale)} data-platform="mac">{text.button}</a>
+      <a class="button secondary" href={downloadLink("windows", "download", locale)} data-platform="windows">{text.buttonWindows}</a>
       <span class="version">{text.version} {VERSION}</span>
     </div>
   ) : (

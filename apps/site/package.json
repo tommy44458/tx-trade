@@ -8,7 +8,8 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "deploy": "node scripts/check-download.mjs && astro build && npx --yes wrangler@4 deploy"
+    "deploy": "node scripts/check-download.mjs && npx --yes wrangler@4 d1 migrations apply txintrade-site --remote && astro build && npx --yes wrangler@4 deploy",
+    "downloads": "node scripts/downloads.mjs"
   },
   "dependencies": {
     "astro": "^7.3.5",
