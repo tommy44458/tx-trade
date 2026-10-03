@@ -30,10 +30,13 @@ const CODEX = {
   windows: {
     install: 'powershell -ExecutionPolicy ByPass -c "irm https://chatgpt.com/codex/install.ps1 | iex"',
     alternatives: ["npm install -g @openai/codex"],
+    // The standalone installer's location; prints a version when Codex is installed.
+    check: '& "$env:LOCALAPPDATA\\Programs\\OpenAI\\Codex\\bin\\codex.exe" --version',
   },
   posix: {
     install: "curl -fsSL https://chatgpt.com/codex/install.sh | sh",
     alternatives: ["brew install --cask codex", "npm install -g @openai/codex"],
+    check: "~/.local/bin/codex --version",
   },
 } as const;
 const SIGN_IN_COMMAND = "claude auth login";
@@ -125,12 +128,26 @@ export default function CliSetupDialog({ provider, reason, checking, error, onRe
           </li>
         )}
         {install && !claude && (
-          <li>
-            <p>{openShell}</p>
-            <Command value={CODEX[platform].install} />
-            <p className="cli-setup-hint">{uiText("這個官方安裝程式不需要 Node.js 或 npm。")}</p>
-            <Alternatives commands={CODEX[platform].alternatives} />
-          </li>
+          <>
+            <li>
+              <p>{openShell}</p>
+              <Command value={CODEX[platform].install} />
+              <p className="cli-setup-hint">{windows
+                ? uiText("請複製整行：裡面已包含允許執行安裝程式的設定。不需要 Node.js 或 npm。")
+                : uiText("這個官方安裝程式不需要 Node.js 或 npm。")}</p>
+              <Alternatives commands={CODEX[platform].alternatives} />
+            </li>
+            <li>
+              <p>{windows
+                ? uiText("等到 PowerShell 不再輸出文字、又出現可以輸入的提示時，就代表裝好了。不需要關掉 PowerShell，也不用設定 PATH。")
+                : uiText("等到終端機不再輸出文字、又出現可以輸入的提示時，就代表裝好了。不需要關掉終端機，也不用設定 PATH。")}</p>
+            </li>
+            <li>
+              <p>{uiText("回到這裡按「重新檢查」，txinTrade 會自己找到 Codex。")}</p>
+              <p className="cli-setup-hint">{uiText("如果還是顯示找不到 Codex，在同一個視窗執行這行：出現版本號就代表已裝好，請再按一次「重新檢查」；出現錯誤則代表沒裝成功，請重做第 1 步，並留意紅色的錯誤訊息。")}</p>
+              <Command value={CODEX[platform].check} />
+            </li>
+          </>
         )}
         {claude && (
           <li>
@@ -146,6 +163,8 @@ export default function CliSetupDialog({ provider, reason, checking, error, onRe
               ? uiText("如果仍出現「無法辨識 claude」，是 Windows 版安裝程式沒有把它加入 PATH。不必自己設定，改執行這行登入即可：")
               : uiText("如果出現「command not found」，改執行這行即可：")}</p>
             <Command value={CLAUDE[platform].fullPath} />
+            {install && <p className="cli-setup-hint">
+              {uiText("如果這行也顯示找不到，代表還沒裝好：請重做第 1 步，並留意紅色的錯誤訊息。")}</p>}
             {windows && (
               <details className="cli-setup-alternatives">
                 <summary>{uiText("想在任何視窗直接輸入 claude？執行這行後再開新視窗：")}</summary>
@@ -157,7 +176,7 @@ export default function CliSetupDialog({ provider, reason, checking, error, onRe
         <li>
           <p>{claude
             ? uiText("完成後回到這裡按「重新檢查」。txinTrade 會自動找到 Claude Code，不需要重新開啟 App。")
-            : uiText("安裝完成後回到這裡按「重新檢查」，再按「連線 Codex」用 ChatGPT 帳號登入；不需要在命令列登入，也不必設定 PATH。")}</p>
+            : uiText("找到 Codex 之後，按「連線 Codex」，在開啟的瀏覽器用 ChatGPT 帳號登入，完成後會自動回到 txinTrade。不需要在命令列登入。")}</p>
         </li>
       </ol>
       {error && <p className="settings-inline-error" role="alert">{error}</p>}
