@@ -1,9 +1,10 @@
 import json
+import os
 import subprocess
-import sys
 from types import SimpleNamespace
 
 import pytest
+from cli_fakes import runnable_script
 
 from trade_helper import codex_bridge
 from trade_helper.local_settings import save_preferences
@@ -12,7 +13,7 @@ from trade_helper.local_settings import save_preferences
 @pytest.fixture
 def fake_codex(tmp_path, monkeypatch):
     executable = tmp_path / "fake-codex"
-    executable.write_text(f"#!{sys.executable}\n" + '''
+    executable = runnable_script(executable, '''
 import json
 import sys
 
@@ -47,7 +48,6 @@ for line in sys.stdin:
         send({'method':'thread/tokenUsage/updated','params':{'threadId':'test-thread','tokenUsage':{'last':{'inputTokens':50,'outputTokens':10},'total':{'inputTokens':100,'outputTokens':20}}}})
         send({'method':'turn/completed','params':{'threadId':'test-thread','turn':{'id':'test-turn','status':'completed'}}})
 ''')
-    executable.chmod(0o700)
     monkeypatch.setattr(codex_bridge, "codex_executable", lambda: str(executable))
     return executable
 
@@ -84,7 +84,7 @@ def test_desktop_codex_inherits_supervisor_group_and_secrets_are_not_in_environm
 
     rpc = codex_bridge.CodexRpc(process_factory=start)
     try:
-        assert captured[0]["start_new_session"] is not desktop
+        assert captured[0]["start_new_session"] is (not desktop and os.name != "nt")
         assert not any(name in captured[0]["env"] for name in
                        ("BINGX_API_KEY", "TYPESAFE_API_KEY", "OPENAI_API_KEY", "DATABASE_URL", "APP_DESKTOP_TOKEN"))
     finally:
@@ -150,7 +150,7 @@ def test_authorized_login_polling_stops_live_probes_after_login_completes(monkey
 
 def test_plain_text_discussion_removes_json_instruction_and_exposes_no_tools(tmp_path, monkeypatch):
     executable = tmp_path / "fake-discussion-codex"
-    executable.write_text(f"#!{sys.executable}\n" + '''
+    executable = runnable_script(executable, '''
 import json
 import sys
 
@@ -181,7 +181,6 @@ for line in sys.stdin:
         send({'method':'item/completed','params':{'threadId':'discussion-thread','item':{'type':'agentMessage','phase':'final_answer','text':'先依原報告的價格結構評估。'}}})
         send({'method':'turn/completed','params':{'threadId':'discussion-thread','turn':{'id':'discussion-turn','status':'completed'}}})
 ''')
-    executable.chmod(0o700)
     monkeypatch.setattr(codex_bridge, "codex_executable", lambda: str(executable))
     rpc = codex_bridge.CodexRpc()
     try:
@@ -199,7 +198,7 @@ def test_cli_uses_file_only_for_all_sessions_and_app_login_round_trips_sqlite(tm
     from trade_helper.credential_store import load_credentials
 
     executable = tmp_path / 'fake-owned-auth-codex'
-    executable.write_text(f'#!{sys.executable}\n' + '''
+    executable = runnable_script(executable, '''
 import json
 import os
 import sys
@@ -225,7 +224,6 @@ for line in sys.stdin:
         path.unlink(missing_ok=True)
         send({'id':m['id'],'result':{}})
 ''')
-    executable.chmod(0o700)
     monkeypatch.setattr(codex_bridge, 'codex_executable', lambda: str(executable))
     shared = tmp_path / 'external-home'
     shared.mkdir()

@@ -1,6 +1,5 @@
 """Separate durable shadow queue: long downloads cannot delay the active v3 report."""
 
-import fcntl
 import json
 import sys
 import time
@@ -18,6 +17,7 @@ from .market_store import (
     init_market_store,
     stamp,
 )
+from .platform_process import exclusive_file_lock
 from .support_levels_v4 import CONFIG_HASH, VERSION, advance, new_state, snapshot
 
 
@@ -105,10 +105,9 @@ def main() -> None:
     assert_local_mode()
     init_db()
     init_market_store()
-    with (data_dir() / "v4_worker.lock").open("w") as lock:
-        # A previous app instance may still be shutting down; wait for its lock
-        # instead of failing, which would stop the whole local backend.
-        fcntl.flock(lock, fcntl.LOCK_EX)
+    # A previous app instance may still be shutting down; wait for its lock
+    # instead of failing, which would stop the whole local backend.
+    with exclusive_file_lock(data_dir() / "v4_worker.lock"):
         while True:
             worked = run_once()
             if "--once" in sys.argv:

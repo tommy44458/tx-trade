@@ -1,4 +1,5 @@
 import multiprocessing
+import os
 import sqlite3
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta, timezone
@@ -44,7 +45,7 @@ def test_database_is_embedded_private_and_ignores_legacy_pg_url(monkeypatch, tmp
         assert db.execute("PRAGMA journal_mode").fetchone() == {"journal_mode": "wal"}
         assert db.execute("PRAGMA foreign_keys").fetchone() == {"foreign_keys": 1}
         assert db.execute("PRAGMA user_version").fetchone() == {"user_version": SCHEMA_VERSION}
-    assert database_path().stat().st_mode & 0o777 == 0o600
+    assert os.name != "posix" or database_path().stat().st_mode & 0o777 == 0o600
 
 
 def test_transaction_exception_rolls_back_and_clean_exit_commits(sqlite_db):

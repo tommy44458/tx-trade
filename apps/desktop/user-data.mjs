@@ -30,7 +30,11 @@ function lockedByRunningBuild(directory, fs, alive) {
 // storage across once; older profiles are left untouched. A profile still in
 // use by a running old build, or one that cannot be moved, stays in use so that
 // local data is never split or lost.
-export function resolveUserData({ appData, current, fs = realFs, alive = processAlive }) {
+export function resolveUserData({ appData, current, fs = realFs, alive = processAlive,
+  platform = process.platform }) {
+  // The earlier names only ever shipped for macOS, and the lock check below
+  // relies on Chromium's macOS/Linux symlink lock.
+  if (platform === "win32") return { path: current, migrated: false };
   if (fs.existsSync(join(current, DATABASE))) return { path: current, migrated: false };
   const legacy = LEGACY_PRODUCT_NAMES.map(name => join(appData, name))
     .find(path => fs.existsSync(join(path, DATABASE)));

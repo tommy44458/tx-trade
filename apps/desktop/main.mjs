@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, shell } from "electron";
+import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeTheme, shell } from "electron";
 import { randomBytes } from "node:crypto";
 import { createWriteStream, mkdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -9,7 +9,7 @@ import { availablePort, backendCommand, backendEnvironment, developmentConfig, e
 import { NATIVE_STRINGS, readSavedLocale, validateLocale } from "./locales.mjs";
 import { readSavedTheme, validateTheme } from "./themes.mjs";
 import { readReleaseInfo } from "./release-info.mjs";
-import { createDesktopUpdater, notesForLocale } from "./updater.mjs";
+import { createDesktopUpdater, notesForLocale, updatesAllowed } from "./updater.mjs";
 import { resolveUserData } from "./user-data.mjs";
 
 const repoDir = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
@@ -92,7 +92,7 @@ function startupPage(failure = null) {
   return `<!doctype html><html lang="${uiLocale}"><head><meta charset="UTF-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
   <title>txinTrade</title><style>
-  :root{color-scheme:light dark;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',system-ui,sans-serif;
+  :root{color-scheme:light dark;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue','Segoe UI','Microsoft JhengHei',system-ui,sans-serif;
     --canvas:light-dark(#f5f5f7,#151517);--text:light-dark(#1d1d1f,#f5f5f7);--muted:light-dark(#58585f,#a1a1ab);
     --accent:light-dark(#0066cc,#75b6ff);--danger:light-dark(#c13543,#ff98a3);--settle:cubic-bezier(.32,.72,0,1)}
   body{margin:0;display:grid;place-items:center;min-height:100vh;background:var(--canvas);color:var(--text);
@@ -374,10 +374,8 @@ async function initializeUpdater() {
   const validVersion = version && version.slice(1).filter(part => part !== undefined)
     .every(part => Number.isSafeInteger(Number(part)));
   const channel = version?.[4] === undefined ? "stable" : "beta";
-  if (app.isPackaged && distributionPolicy.enabled === true && distributionPolicy.signed === true
-      && process.platform === "darwin" && process.arch === "arm64"
-      && distributionPolicy.platform === "darwin" && distributionPolicy.arch === "arm64"
-      && validVersion && distributionPolicy.channel === channel) {
+  if (validVersion && updatesAllowed({ packaged: app.isPackaged, platform: process.platform,
+    arch: process.arch, policy: distributionPolicy, channel })) {
     try {
       const engine = await import("electron-updater");
       autoUpdater = engine.default.autoUpdater;
@@ -509,6 +507,13 @@ app.whenReady().then(async () => {
     trustedSender(event);
     await shell.openExternal(externalUrl(url, {
       developmentOrigin: app.isPackaged ? undefined : process.env.TXINTRADE_CLOUD_ORIGIN }));
+  });
+  // The page has no clipboard permission (every web permission is denied), so the
+  // shell copies plain text for it, such as the CLI setup commands.
+  ipcMain.handle("desktop:copy-text", (event, text) => {
+    trustedSender(event);
+    if (typeof text !== "string" || !text || text.length > 4000) throw new Error("Invalid text");
+    clipboard.writeText(text);
   });
   ipcMain.handle("desktop:focus-window", event => {
     trustedSender(event);

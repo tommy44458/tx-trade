@@ -12,6 +12,19 @@ function parseVersion(value) {
   return { parts, beta, channel: beta === null ? "stable" : "beta" };
 }
 
+/**
+ * In-app updates run only in a released build for its own platform and channel.
+ * macOS also needs the signed distribution marker (Squirrel requires a signature);
+ * Windows releases are unsigned until a certificate exists, so there the updater
+ * rests on the SHA-512 in the release's latest.yml.
+ */
+export function updatesAllowed({ packaged, platform, arch, policy, channel }) {
+  if (packaged !== true || policy?.enabled !== true || policy.platform !== platform
+      || policy.arch !== arch || policy.channel !== channel) return false;
+  if (platform === "darwin" && arch === "arm64") return policy.signed === true;
+  return platform === "win32" && arch === "x64";
+}
+
 function newerVersion(candidate, current) {
   for (let index = 0; index < 3; index += 1) {
     if (candidate.parts[index] !== current.parts[index]) {
@@ -88,10 +101,8 @@ export function createDesktopUpdater({ app, autoUpdater, prepareUpdate, cancelUp
   random = Math.random, startupDelayMs, checkIntervalMs = CHECK_INTERVAL,
   installPollMs = INSTALL_POLL_INTERVAL } = {}) {
   const current = parseVersion(currentVersion);
-  const enabled = app?.isPackaged === true && platform === "darwin" && arch === "arm64"
-    && distributionPolicy?.enabled === true && distributionPolicy?.signed === true
-    && distributionPolicy?.platform === platform && distributionPolicy?.arch === arch
-    && current !== null && distributionPolicy?.channel === current.channel
+  const enabled = current !== null && updatesAllowed({ packaged: app?.isPackaged, platform, arch,
+    policy: distributionPolicy, channel: current.channel })
     && autoUpdater !== undefined && autoUpdater !== null;
   let state = Object.freeze({ status: enabled ? "idle" : "disabled", enabled, currentVersion,
     channel: current?.channel ?? "stable", version: null, percent: 0, releaseNotes: "",
@@ -205,7 +216,8 @@ export function createDesktopUpdater({ app, autoUpdater, prepareUpdate, cancelUp
     autoUpdater.autoInstallOnAppQuit = false;
     autoUpdater.forceDevUpdateConfig = false;
     // Setting channel enables downgrades in electron-updater. Restore both
-    // flags afterwards; stable metadata is latest-mac.yml, not stable-mac.yml.
+    // flags afterwards; stable metadata is latest-mac.yml (macOS) or latest.yml
+    // (Windows), not stable-*.yml.
     autoUpdater.channel = current.channel === "beta" ? "beta" : "latest";
     autoUpdater.allowPrerelease = current.channel === "beta";
     autoUpdater.allowDowngrade = false;
@@ -397,7 +409,9 @@ export function createDesktopUpdater({ app, autoUpdater, prepareUpdate, cancelUp
             app.once("before-quit", beforeQuit);
             try {
               context.nativeRequested = true;
-              autoUpdater.quitAndInstall(false, true);
+              // Windows: run the NSIS installer silently, then relaunch, so the
+              // update looks like the macOS one instead of an installer wizard.
+              autoUpdater.quitAndInstall(platform === "win32", true);
             }
             catch (cause) { cleanup(); reject(cause); }
           });

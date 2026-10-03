@@ -28,7 +28,7 @@
   overflow-x: clip;
   background: var(--g-canvas);
   color: var(--g-text);
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", "PingFang TC", "Noto Sans TC", sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", "Segoe UI", "PingFang TC", "Microsoft JhengHei", "Noto Sans TC", sans-serif;
   letter-spacing: -0.011em;
   -webkit-font-smoothing: antialiased;
 }

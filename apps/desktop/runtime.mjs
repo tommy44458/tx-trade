@@ -23,7 +23,7 @@ export function developmentConfig(repoDir) {
 }
 
 export function backendEnvironment({ inherited = process.env, config = {}, dataDir, port, token,
-  pythonPath }) {
+  pythonPath, platform = process.platform }) {
   const excluded = new Set([...OPTIONAL_SECRET_NAMES, "DATABASE_URL", "MIGRATION_DATABASE_URL", "APP_DB_SCHEMA",
     "APP_DB_PATH", "APP_DATA_DIR"]);
   const safeInherited = Object.fromEntries(Object.entries(inherited).filter(
@@ -37,6 +37,9 @@ export function backendEnvironment({ inherited = process.env, config = {}, dataD
     APP_API_PORT: String(port), APP_DATA_DIR: dataDir,
     APP_DB_PATH: join(dataDir, "trade_helper.sqlite3"), PYTHONUNBUFFERED: "1",
     ...(pythonPath ? { PYTHONPATH: pythonPath } : {}),
+    // Windows: UTF-8 files and pipes for an unpackaged Python (the packaged one
+    // is built in UTF-8 mode), and stdin as the stop signal (see stopBackend).
+    ...(platform === "win32" ? { PYTHONUTF8: "1", APP_DESKTOP_LIFELINE: "stdin" } : {}),
   };
 }
 
@@ -65,10 +68,13 @@ export function backendCommand({ packaged, resourcesDir, repoDir, pythonPath }) 
     cwd: join(repoDir, "apps", "api") };
 }
 
-export function spawnBackend(spec, { port, webDir, env }) {
+export function spawnBackend(spec, { port, webDir, env, platform = process.platform }) {
   return spawn(spec.command, [...spec.args, "--port", String(port), "--web-dir", webDir], {
-    cwd: spec.cwd, env, stdio: ["ignore", "pipe", "pipe"],
-    detached: process.platform !== "win32", windowsHide: true,
+    cwd: spec.cwd, env,
+    // On Windows the open stdin pipe is the backend's lifeline: closing it, or
+    // this app ending in any way, tells the backend to stop.
+    stdio: [platform === "win32" ? "pipe" : "ignore", "pipe", "pipe"],
+    detached: platform !== "win32", windowsHide: true,
   });
 }
 
@@ -89,9 +95,28 @@ export async function waitForBackend(child, origin, token, timeoutMs = 60_000) {
   throw new Error("本地後端啟動逾時。請檢查資料目錄與後端記錄。");
 }
 
-export async function stopBackend(child) {
+const exited = child => child.exitCode !== null || child.signalCode !== null;
+
+export async function stopBackend(child, { platform = process.platform, run = spawn, graceMs = 5000 } = {}) {
   if (!child?.pid) return;
-  if (child.exitCode === null && child.signalCode === null) {
+  if (platform === "win32") {
+    // Windows has no SIGTERM: kill() would end the backend at once, before it
+    // stops its workers. Close its lifeline and let it shut down; the job object
+    // it runs in ends any process it started. Force the tree only if it hangs.
+    if (!exited(child)) {
+      try { child.stdin?.end(); } catch { /* Already closed. */ }
+      await Promise.race([
+        new Promise(resolve => child.once("exit", resolve)),
+        new Promise(resolve => setTimeout(resolve, graceMs)),
+      ]);
+    }
+    if (!exited(child)) {
+      const killer = run("taskkill", ["/pid", String(child.pid), "/T", "/F"], { windowsHide: true });
+      await new Promise(resolve => { killer.once("exit", resolve); killer.once("error", resolve); });
+    }
+    return;
+  }
+  if (!exited(child)) {
     try { child.kill("SIGTERM"); } catch { /* Still try to clean its process group. */ }
     await Promise.race([
       new Promise(resolve => child.once("exit", resolve)),
@@ -99,11 +124,7 @@ export async function stopBackend(child) {
     ]);
   }
   // Stop the entire private group, including workers or a pending Codex turn.
-  if (process.platform !== "win32") {
-    try { process.kill(-child.pid, "SIGKILL"); } catch { /* Already stopped. */ }
-  } else {
-    spawn("taskkill", ["/pid", String(child.pid), "/T", "/F"], { windowsHide: true });
-  }
+  try { process.kill(-child.pid, "SIGKILL"); } catch { /* Already stopped. */ }
 }
 
 export function externalUrl(raw, { developmentOrigin } = {}) {

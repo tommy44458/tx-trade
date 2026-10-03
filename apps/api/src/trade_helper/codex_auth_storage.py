@@ -32,7 +32,7 @@ def _valid_managed_auth(payload) -> bool:
 
 class LocalCodexAuth:
     def __init__(self):
-        self.directory = tempfile.TemporaryDirectory(prefix="ath-codex-auth-")
+        self.directory = tempfile.TemporaryDirectory(prefix="ath-codex-auth-", ignore_cleanup_errors=True)
         self.home = Path(self.directory.name)
         self.home.chmod(0o700)
         self.path = self.home / "auth.json"
@@ -48,7 +48,7 @@ class LocalCodexAuth:
                 self.directory.cleanup()
                 raise ValueError("Invalid app authorization")
             descriptor = os.open(self.path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-            with os.fdopen(descriptor, "w") as file:
+            with os.fdopen(descriptor, "w", encoding="utf-8") as file:
                 json.dump(payload, file, ensure_ascii=False, separators=(",", ":"))
 
     def persist(self) -> None:
@@ -60,7 +60,7 @@ class LocalCodexAuth:
             if self.path.stat().st_size > 256_000:
                 raise ValueError("Invalid app authorization file")
             self.path.chmod(0o600)
-            payload = json.loads(self.path.read_text())
+            payload = json.loads(self.path.read_text(encoding="utf-8"))
             if not _valid_managed_auth(payload):
                 raise ValueError("Invalid app authorization file")
             value = {"auth": payload}

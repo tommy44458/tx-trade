@@ -30,7 +30,8 @@ def backup_database(output: Path) -> Path:
                 raise RuntimeError("備份無法轉為單一檔案")
             if target.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
                 raise RuntimeError("備份完整性檢查失敗")
-        with open(temporary, "rb") as completed:
+        # Windows flushes only a handle opened for writing; read-only fails with EBADF.
+        with open(temporary, "r+b") as completed:
             os.fsync(completed.fileno())
         os.link(temporary, output)
         return output

@@ -1,0 +1,197 @@
+import io
+import multiprocessing
+import os
+import subprocess
+import sys
+import time
+
+import pytest
+
+from trade_helper import cli_paths, platform_process
+from trade_helper.desktop_runtime import watch_lifeline
+
+# A parent that contains its descendants, starts one, reports its PID and waits.
+_CONTAINING_PARENT = """
+import subprocess, sys, time
+from trade_helper.platform_process import contain_descendants
+assert contain_descendants(), "job object not applied"
+child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(120)"])
+print(child.pid, flush=True)
+time.sleep(120)
+"""
+
+
+def _running(pid: int) -> bool:
+    listed = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/NH"], capture_output=True,
+                            text=True, check=False).stdout
+    return str(pid) in listed
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows job objects")
+def test_a_hard_stopped_backend_takes_its_children_with_it():
+    parent = subprocess.Popen([sys.executable, "-c", _CONTAINING_PARENT], stdout=subprocess.PIPE,
+                              text=True)
+    try:
+        child = int(parent.stdout.readline())
+        assert _running(child)
+        # TerminateProcess, as when Windows ends the app: no cleanup code runs.
+        subprocess.run(["taskkill", "/PID", str(parent.pid), "/F"], capture_output=True, check=False)
+        parent.wait(10)
+        deadline = time.monotonic() + 10
+        while _running(child) and time.monotonic() < deadline:
+            time.sleep(0.2)
+        assert not _running(child), "the child outlived its job object"
+    finally:
+        if parent.poll() is None:
+            parent.kill()
+
+# The shim npm writes for `npm install -g @anthropic-ai/claude-code` on Windows.
+NPM_SHIM = r'''@ECHO off
+GOTO start
+:find_dp0
+SET dp0=%~dp0
+EXIT /b
+:start
+SETLOCAL
+CALL :find_dp0
+
+IF EXIST "%dp0%\node.exe" (
+  SET "_prog=%dp0%\node.exe"
+) ELSE (
+  SET "_prog=node"
+  SET PATHEXT=%PATHEXT:;.JS;=;%
+)
+
+endLocal & goto #_undefined_# 2>NUL || title %COMSPEC% & "%_prog%"  "%dp0%\node_modules\@anthropic-ai\claude-code\cli.js" %*
+'''
+
+
+def test_npm_shim_runs_its_script_with_node_and_no_shell(tmp_path, monkeypatch):
+    monkeypatch.setattr(platform_process, "WINDOWS", True)
+    shim = tmp_path / "claude.cmd"
+    shim.write_text(NPM_SHIM, encoding="utf-8")
+    # The shim names its script with backslashes: nested folders on Windows, one
+    # file name elsewhere. Build whichever this platform resolves.
+    script = platform_process.Path(f"{tmp_path}{os.sep}node_modules\\@anthropic-ai\\claude-code\\cli.js")
+    script.parent.mkdir(parents=True, exist_ok=True)
+    script.write_text("", encoding="utf-8")
+    monkeypatch.setattr(platform_process.shutil, "which", lambda name: "C:/node/node.exe")
+    assert platform_process.launch_command(str(shim)) == ["C:/node/node.exe", str(script)]
+
+    # A node.exe next to the shim wins over the one on PATH, as in the shim itself.
+    (tmp_path / "node.exe").write_text("", encoding="utf-8")
+    assert platform_process.launch_command(str(shim))[0] == str(tmp_path / "node.exe")
+
+
+def test_unrecognised_shims_and_native_programs_run_as_they_are(tmp_path, monkeypatch):
+    monkeypatch.setattr(platform_process, "WINDOWS", True)
+    other = tmp_path / "codex.cmd"
+    other.write_text("@echo off\r\nsomething.exe %*\r\n", encoding="utf-8")
+    assert platform_process.launch_command(str(other)) == [str(other)]
+    assert platform_process.launch_command(str(tmp_path / "claude.exe")) == [str(tmp_path / "claude.exe")]
+    monkeypatch.setattr(platform_process, "WINDOWS", False)
+    shim = tmp_path / "claude.cmd"
+    shim.write_text(NPM_SHIM, encoding="utf-8")
+    assert platform_process.launch_command(str(shim)) == [str(shim)]
+
+
+def test_windows_finds_programs_by_extension_in_install_locations(tmp_path, monkeypatch):
+    monkeypatch.setattr(cli_paths, "WINDOWS", True)
+    monkeypatch.setattr(cli_paths.shutil, "which", lambda name: None)
+    appdata = tmp_path / "AppData/Roaming"
+    (appdata / "npm").mkdir(parents=True)
+    monkeypatch.setenv("APPDATA", str(appdata))
+    monkeypatch.delenv("LOCALAPPDATA", raising=False)
+    monkeypatch.delenv("NVM_SYMLINK", raising=False)
+    monkeypatch.setattr(cli_paths.Path, "home", lambda: tmp_path)
+    # A bare file without a program extension is never treated as runnable.
+    (appdata / "npm/codex").write_text("#!/bin/sh", encoding="utf-8")
+    assert cli_paths.find_executable("codex") is None
+    (appdata / "npm/codex.cmd").write_text("", encoding="utf-8")
+    assert cli_paths.find_executable("codex") == str(appdata / "npm/codex.cmd")
+    # A native program in Claude Code's own install location is preferred to a shim.
+    (tmp_path / ".local/bin").mkdir(parents=True)
+    (tmp_path / ".local/bin/codex.exe").write_text("", encoding="utf-8")
+    assert cli_paths.find_executable("codex") == str(tmp_path / ".local/bin/codex.exe")
+    # Extra fallbacks gain the extension too.
+    (tmp_path / ".claude/local").mkdir(parents=True)
+    (tmp_path / ".claude/local/claude.exe").write_text("", encoding="utf-8")
+    assert cli_paths.find_executable("claude", extra=(str(tmp_path / ".claude/local/claude"),)) \
+        == str(tmp_path / ".claude/local/claude.exe")
+
+
+def test_windows_finds_codex_standalone_and_never_mistakes_the_claude_desktop_alias(
+        tmp_path, monkeypatch):
+    monkeypatch.setattr(cli_paths, "WINDOWS", True)
+    local = tmp_path / "AppData/Local"
+    monkeypatch.setenv("LOCALAPPDATA", str(local))
+    monkeypatch.delenv("APPDATA", raising=False)
+    monkeypatch.delenv("NVM_SYMLINK", raising=False)
+    monkeypatch.setattr(cli_paths.Path, "home", lambda: tmp_path)
+    # Codex's standalone installer, with no PATH change visible to this app yet.
+    monkeypatch.setattr(cli_paths.shutil, "which", lambda name: None)
+    codex = local / "Programs/OpenAI/Codex/bin/codex.exe"
+    codex.parent.mkdir(parents=True)
+    codex.write_text("", encoding="utf-8")
+    assert cli_paths.find_executable("codex") == str(codex)
+    # Claude's desktop app puts a Claude.exe alias first on PATH; it is not the CLI.
+    alias = local / "Microsoft/WindowsApps/Claude.exe"
+    alias.parent.mkdir(parents=True)
+    alias.write_text("", encoding="utf-8")
+    monkeypatch.setattr(cli_paths.shutil, "which", lambda name: str(alias))
+    assert cli_paths.find_executable("claude") is None
+    cli = tmp_path / ".local/bin/claude.exe"
+    cli.parent.mkdir(parents=True)
+    cli.write_text("", encoding="utf-8")
+    assert cli_paths.find_executable("claude") == str(cli)
+
+
+def _hold(path, ready, release):
+    with platform_process.exclusive_file_lock(path):
+        ready.set()
+        release.wait(5)
+
+
+def test_exclusive_file_lock_waits_for_another_process(tmp_path):
+    path = tmp_path / "worker.lock"
+    context = multiprocessing.get_context("spawn")
+    ready, release = context.Event(), context.Event()
+    holder = context.Process(target=_hold, args=(path, ready, release))
+    holder.start()
+    try:
+        assert ready.wait(10)
+        started = time.monotonic()
+        release_later = context.Process(target=_release_after, args=(release, 0.4))
+        release_later.start()
+        with platform_process.exclusive_file_lock(path):
+            waited = time.monotonic() - started
+        release_later.join(5)
+        assert waited >= 0.3
+    finally:
+        release.set()
+        holder.join(5)
+
+
+def _release_after(release, seconds):
+    time.sleep(seconds)
+    release.set()
+
+
+def test_lifeline_stops_at_end_of_file():
+    stopped = []
+    watch_lifeline(io.BytesIO(b"anything the app might write"), lambda: stopped.append(True))
+    assert stopped == [True]
+
+    class Broken:
+        def read(self, size):
+            raise OSError("pipe closed")
+
+    watch_lifeline(Broken(), lambda: stopped.append(True))
+    assert stopped == [True, True]
+
+
+def test_contain_descendants_is_a_no_op_off_windows(monkeypatch):
+    monkeypatch.setattr(platform_process, "WINDOWS", False)
+    # On Windows another test may already have contained this test process.
+    monkeypatch.setattr(platform_process, "_job", None)
+    assert platform_process.contain_descendants() is False

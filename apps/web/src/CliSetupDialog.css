@@ -1,6 +1,7 @@
 .cli-setup-dialog {
   width: min(520px, calc(100vw - 32px));
   max-height: calc(100vh - 32px);
+  overflow-y: auto;
   padding: var(--space-6);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -54,9 +55,37 @@
 }
 .cli-setup-command {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
   margin-top: var(--space-2);
+}
+.cli-setup-note {
+  margin: var(--space-3) 0 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.cli-setup-steps p.cli-setup-hint {
+  margin: var(--space-3) 0 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+.cli-setup-alternatives {
+  margin-top: var(--space-2);
+}
+.cli-setup-alternatives summary {
+  width: fit-content;
+  color: var(--accent);
+  font-size: 13px;
+  cursor: pointer;
+}
+.cli-setup-copy-failed {
+  flex-basis: 100%;
+  color: var(--text-secondary);
+  font-size: 12px;
 }
 .cli-setup-command code {
   flex: 1;

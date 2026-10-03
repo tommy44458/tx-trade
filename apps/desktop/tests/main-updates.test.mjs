@@ -4,13 +4,17 @@ import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { runInNewContext } from "node:vm";
-import test from "node:test";
-import { createDesktopUpdater, notesForLocale } from "../updater.mjs";
+import nodeTest from "node:test";
+
+// These run main.mjs in a simulated macOS process with POSIX paths throughout;
+// its logic is platform-neutral and the macOS job covers it.
+const test = process.platform === "win32" ? nodeTest.skip : nodeTest;
+import { createDesktopUpdater, notesForLocale, updatesAllowed } from "../updater.mjs";
 
 const signedPolicy = { enabled: true, signed: true, platform: "darwin", arch: "arm64", channel: "stable" };
 const update = { version: "0.3.0", releaseNotes: "An update for the isolated test" };
 const mainSource = readFileSync(new URL("../main.mjs", import.meta.url), "utf8");
-const stripImports = source => source.replace(/^import\s[\s\S]*?;\n/gm, "");
+const stripImports = source => source.replace(/^import\s[\s\S]*?;\r?\n/gm, "");
 const stringsContext = {};
 runInNewContext(stripImports(readFileSync(new URL("../locales.mjs", import.meta.url), "utf8"))
   .replace(/^export /gm, "") + "\nglobalThis.strings = NATIVE_STRINGS;", stringsContext);
@@ -143,6 +147,7 @@ async function harness(options = {}) {
     validateLocale: value => { assert.ok(["zh-TW", "en-US"].includes(value)); return value; },
     readSavedTheme: () => "system", validateTheme: value => value,
     readReleaseInfo: () => ({ version: app.getVersion(), channel: "stable", prepared: true, notes: "Isolated notes" }),
+    updatesAllowed,
     notesForLocale,
     createDesktopUpdater: value => {
       calls.updater = createDesktopUpdater({ ...value, platform: fakeProcess.platform, arch: fakeProcess.arch,

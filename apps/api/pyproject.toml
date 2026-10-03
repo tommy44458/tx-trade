@@ -11,6 +11,8 @@ dependencies = [
   "PyJWT[crypto]>=2.10",
   "cryptography>=46",
   "websockets>=15",
+  # Windows has no IANA time zone database; zoneinfo reads it from this package.
+  "tzdata>=2024.1; sys_platform == 'win32'",
 ]
 
 [project.optional-dependencies]
@@ -27,7 +29,7 @@ packages = ["src/trade_helper"]
 dev = ["pytest>=8", "ruff>=0.11"]
 
 [tool.pytest.ini_options]
-pythonpath = ["src", "scripts"]
+pythonpath = ["src", "scripts", "tests"]
 testpaths = ["tests"]
 
 [tool.ruff]

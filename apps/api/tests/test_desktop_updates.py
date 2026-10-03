@@ -77,8 +77,8 @@ def test_preparation_preserves_wal_database_and_reuses_private_backup(desktop_cl
         assert backup.execute("SELECT status FROM analyses").fetchone() == ("queued",)
         assert backup.execute("PRAGMA user_version").fetchone() == (SCHEMA_VERSION,)
     if os.name == "posix":
-        assert output.stat().st_mode & 0o777 == 0o600
-        assert output.parent.stat().st_mode & 0o777 == 0o700
+        assert os.name != "posix" or output.stat().st_mode & 0o777 == 0o600
+        assert os.name != "posix" or output.parent.stat().st_mode & 0o777 == 0o700
     repeated = desktop_client.post(f"{PREFIX}/prepare", headers=HEADERS).json()
     assert repeated["backup_path"] == state["backup_path"]
     assert TOKEN.encode() not in output.read_bytes()

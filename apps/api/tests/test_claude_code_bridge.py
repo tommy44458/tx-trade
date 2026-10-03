@@ -1,9 +1,10 @@
 import json
+import os
 import subprocess
-import sys
 import textwrap
 
 import pytest
+from cli_fakes import runnable_script
 from fastapi.testclient import TestClient
 
 from trade_helper import claude_code_bridge
@@ -83,8 +84,7 @@ FAKE_CLI = textwrap.dedent("""
 @pytest.fixture
 def fake_claude(tmp_path, monkeypatch):
     executable = tmp_path / "claude"
-    executable.write_text(f"#!{sys.executable}\n{FAKE_CLI}")
-    executable.chmod(0o755)
+    executable = runnable_script(executable, FAKE_CLI)
     log = tmp_path / "log.jsonl"
     monkeypatch.setenv("FAKE_LOG", str(log))
     monkeypatch.setenv("OPENAI_API_KEY", "app-secret")
@@ -230,13 +230,13 @@ def test_status_reports_missing_cli_without_starting_it(monkeypatch, tmp_path, p
     assert client.get(f"/api/v1/auth/{provider}/status").json()["cli_installed"] is False
     login = client.post(f"/api/v1/auth/{provider}/login").json()
     assert login["auth_url"] is None and login["status"]["cli_installed"] is False
-    executable = tmp_path / "bin" / ("codex" if provider == "codex" else "claude")
-    executable.parent.mkdir()
-    executable.write_text("#!/bin/sh\n")
-    executable.chmod(0o755)
+    (tmp_path / "bin").mkdir()
+    runnable_script(tmp_path / "bin" / ("codex" if provider == "codex" else "claude"), "")
     assert client.get(f"/api/v1/auth/{provider}/status").json()["cli_installed"] is True
 
 
+# A POSIX install layout; Windows looks for .exe/.cmd programs (test_platform_process).
+@pytest.mark.skipif(os.name == "nt", reason="POSIX install layout")
 def test_finder_launched_app_finds_cli_outside_path(monkeypatch, tmp_path):
     from trade_helper import cli_paths
 

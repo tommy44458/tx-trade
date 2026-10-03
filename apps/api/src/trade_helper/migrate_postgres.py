@@ -132,7 +132,8 @@ def import_snapshot(target: Path, rows_by_table: dict, *, archived: dict | None 
             checkpoint = destination.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()
             if checkpoint[0]:
                 raise RuntimeError("資料庫尚有未完成的寫入；未發佈新的資料庫。")
-        with temporary.open("rb") as database_file:
+        # Windows flushes only a handle opened for writing; read-only fails with EBADF.
+        with temporary.open("r+b") as database_file:
             os.fsync(database_file.fileno())
         result = {"status": "migrated", "source": "postgresql", "database": str(target),
                   "schema_version": SCHEMA_VERSION, "migrated_at": utc_now(),

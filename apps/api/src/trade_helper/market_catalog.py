@@ -18,6 +18,7 @@ from pathlib import Path
 import httpx
 
 from .config import data_dir
+from .platform_process import exclusive_file_lock
 
 BASE_URL = "https://fapi.binance.com"
 CACHE_TTL_SECONDS = 15 * 60
@@ -134,18 +135,9 @@ def _save_disk(path: Path, snapshot: CatalogSnapshot) -> None:
 
 @contextmanager
 def _process_lock(path: Path):
-    # POSIX local workers share the same catalog instead of refreshing once per
-    # process. A thread lock still provides single-flight on other platforms.
-    if os.name != "posix":
+    # Local workers share the same catalog instead of refreshing once per process.
+    with exclusive_file_lock(path.with_suffix(".lock")):
         yield
-        return
-    import fcntl
-    with path.with_suffix(".lock").open("a") as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX)
-        try:
-            yield
-        finally:
-            fcntl.flock(lock, fcntl.LOCK_UN)
 
 
 def _install(snapshot: CatalogSnapshot, path: Path) -> CatalogSnapshot:

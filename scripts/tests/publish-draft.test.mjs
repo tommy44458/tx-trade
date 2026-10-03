@@ -8,6 +8,8 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 const sourceRoot = fileURLToPath(new URL("../", import.meta.url));
+// The draft publisher runs on Linux CI; its stand-in gh is a shebang script.
+const linuxPublisher = { skip: process.platform === "win32" && "the publisher runs on Linux" };
 
 function fixture() {
   const root = mkdtempSync(join(tmpdir(), "ai-trade-publish-test-"));
@@ -64,7 +66,7 @@ function calls(f) {
     ? readFileSync(join(f.root, "calls.jsonl"), "utf8").trim().split("\n").map(JSON.parse) : [];
 }
 
-test("draft creation keeps the release unpublished and uploads only verified assets", () => {
+test("draft creation keeps the release unpublished and uploads only verified assets", linuxPublisher, () => {
   const f = fixture();
   try {
     const result = publish(f);
@@ -79,7 +81,7 @@ test("draft creation keeps the release unpublished and uploads only verified ass
   } finally { rmSync(f.root, { recursive: true, force: true }); }
 });
 
-test("reruns replace only an existing draft, while published releases are never changed", () => {
+test("reruns replace only an existing draft, while published releases are never changed", linuxPublisher, () => {
   for (const draft of [true, false]) {
     const f = fixture();
     try {
@@ -100,7 +102,62 @@ test("reruns replace only an existing draft, while published releases are never 
   }
 });
 
-test("tampered assets/notes or a different commit fail before contacting GitHub", () => {
+function windowsAssets(f, overrides = {}) {
+  const names = ["txinTrade-1.2.3-win-x64.exe", "txinTrade-1.2.3-win-x64.exe.blockmap", "latest.yml",
+    "SHA256SUMS-win.txt"];
+  const assets = names.map(name => {
+    const data = `windows asset ${name}\n`;
+    f.put(`windows/${name}`, data);
+    return { name, size: Buffer.byteLength(data), sha256: createHash("sha256").update(data).digest("hex") };
+  });
+  const info = { version: "1.2.3", channel: "stable", tag: "v1.2.3", commit: "test-commit",
+    signed: false, platform: "win32", arch: "x64", assets, ...overrides };
+  f.put("windows/release-info.json", JSON.stringify(info));
+  return info;
+}
+
+function publishBoth(f, releases = []) {
+  return spawnSync(process.execPath, [join(f.root, "scripts/publish-draft.mjs"), join(f.root, "assets"),
+    join(f.root, "windows")], {
+    cwd: f.root, encoding: "utf8", env: {
+      PATH: `${join(f.root, "bin")}${delimiter}${process.env.PATH}`,
+      GITHUB_REF_TYPE: "tag", GITHUB_REF_NAME: "v1.2.3", GITHUB_REF: "refs/tags/v1.2.3",
+      GITHUB_REPOSITORY: "tommy44458/txin-trade", GITHUB_SHA: "test-commit",
+      GH_TOKEN: "test-token", TEST_CALLS: join(f.root, "calls.jsonl"), TEST_RELEASES: JSON.stringify([releases]),
+    },
+  });
+}
+
+test("one draft carries the signed macOS and the unsigned Windows assets", linuxPublisher, () => {
+  const f = fixture();
+  try {
+    windowsAssets(f);
+    const result = publishBoth(f);
+    assert.equal(result.status, 0, result.stderr);
+    const create = calls(f)[1];
+    assert.deepEqual(create.slice(0, 3), ["release", "create", "v1.2.3"]);
+    assert.equal(create.filter(arg => arg.startsWith(join(f.root, "assets"))).length, 7);
+    assert.deepEqual(create.filter(arg => arg.startsWith(join(f.root, "windows"))).map(arg => arg.split(/[\\/]/).at(-1)),
+      ["txinTrade-1.2.3-win-x64.exe", "txinTrade-1.2.3-win-x64.exe.blockmap", "latest.yml", "SHA256SUMS-win.txt"]);
+  } finally { rmSync(f.root, { recursive: true, force: true }); }
+});
+
+test("tampered, mislabelled or incomplete Windows assets fail before contacting GitHub", linuxPublisher, () => {
+  for (const tamper of ["asset", "signed", "platform", "missing"]) {
+    const f = fixture();
+    try {
+      const info = windowsAssets(f, tamper === "signed" ? { signed: true }
+        : tamper === "platform" ? { platform: "darwin" } : {});
+      if (tamper === "asset") f.put(`windows/${info.assets[0].name}`, "tampered bytes");
+      if (tamper === "missing") f.put("windows/release-info.json", JSON.stringify({ ...info, assets: info.assets.slice(1) }));
+      const result = publishBoth(f);
+      assert.notEqual(result.status, 0, tamper);
+      assert.deepEqual(calls(f), [], tamper);
+    } finally { rmSync(f.root, { recursive: true, force: true }); }
+  }
+});
+
+test("tampered assets/notes or a different commit fail before contacting GitHub", linuxPublisher, () => {
   for (const tamper of ["asset", "notes", "commit"]) {
     const f = fixture();
     try {

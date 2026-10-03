@@ -2,37 +2,52 @@ import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
-import { assertReleaseTag, officialRepository, releaseNotes } from "./release-assets.mjs";
+import { assertReleaseTag, officialRepository, releaseNotes, windowsAssetNames } from "./release-assets.mjs";
 import { checkReleaseState } from "./release.mjs";
 
+// Usage: publish-draft.mjs <macOS assets> [<Windows assets>]. Both platforms
+// share one draft; Windows reads latest.yml, macOS latest-mac.yml.
 const directory = resolve(process.argv[2] ?? "release-assets");
-const info = JSON.parse(readFileSync(join(directory, "release-info.json"), "utf8"));
+const windowsDirectory = process.argv[3] ? resolve(process.argv[3]) : null;
 const state = checkReleaseState(undefined, { requirePrepared: true });
 const tag = assertReleaseTag(state);
-if (info.version !== state.version || info.channel !== state.channel || info.tag !== tag ||
-    info.commit !== process.env.GITHUB_SHA || info.signed !== true || info.platform !== "darwin" ||
-    info.arch !== "arm64" || !Array.isArray(info.assets) || info.assets.length !== 6) {
-  throw new Error("Downloaded assets do not match this signed release, tag, and commit.");
+
+function verifiedAssets(folder, { platform, arch, signed, names }) {
+  const info = JSON.parse(readFileSync(join(folder, "release-info.json"), "utf8"));
+  if (info.version !== state.version || info.channel !== state.channel || info.tag !== tag ||
+      info.commit !== process.env.GITHUB_SHA || info.signed !== signed || info.platform !== platform ||
+      info.arch !== arch || !Array.isArray(info.assets) || info.assets.length !== names.length) {
+    throw new Error(`Downloaded ${platform} assets do not match this release, tag, and commit.`);
+  }
+  const expected = new Set(names);
+  const paths = info.assets.map(asset => {
+    if (typeof asset.name !== "string" || basename(asset.name) !== asset.name || !expected.delete(asset.name)) {
+      throw new Error("Unexpected or duplicate artifact filename.");
+    }
+    const path = join(folder, asset.name);
+    const data = readFileSync(path);
+    if (data.length !== asset.size || createHash("sha256").update(data).digest("hex") !== asset.sha256) {
+      throw new Error(`Artifact digest/size mismatch: ${asset.name}.`);
+    }
+    return path;
+  });
+  if (expected.size) throw new Error(`Required ${platform} release assets are missing.`);
+  return paths;
 }
-const expected = new Set([
+
+const assetPaths = verifiedAssets(directory, { platform: "darwin", arch: "arm64", signed: true, names: [
   `txinTrade-${state.version}-mac-arm64.dmg`,
   `txinTrade-${state.version}-mac-arm64.zip`,
   `txinTrade-${state.version}-mac-arm64.dmg.blockmap`,
   `txinTrade-${state.version}-mac-arm64.zip.blockmap`,
   `${state.channel === "beta" ? "beta" : "latest"}-mac.yml`, "SHA256SUMS.txt",
-]);
-const assetPaths = info.assets.map(asset => {
-  if (typeof asset.name !== "string" || basename(asset.name) !== asset.name || !expected.delete(asset.name)) {
-    throw new Error("Unexpected or duplicate artifact filename.");
-  }
-  const path = join(directory, asset.name);
-  const data = readFileSync(path);
-  if (data.length !== asset.size || createHash("sha256").update(data).digest("hex") !== asset.sha256) {
-    throw new Error(`Artifact digest/size mismatch: ${asset.name}.`);
-  }
-  return path;
-});
-if (expected.size) throw new Error("Required release assets are missing.");
+] });
+if (windowsDirectory) {
+  const names = windowsAssetNames(state);
+  // Unsigned until a Windows code signing certificate exists.
+  assetPaths.push(...verifiedAssets(windowsDirectory, { platform: "win32", arch: "x64", signed: false,
+    names: [names.installer, names.blockmap, names.metadata, names.checksums] }));
+}
 const notesPath = join(directory, "release-notes.md");
 if (readFileSync(notesPath, "utf8") !== releaseNotes()) {
   throw new Error("Downloaded release notes do not match this version's bilingual changelog.");

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { once } from "node:events";
+import { EventEmitter, once } from "node:events";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -20,7 +20,7 @@ test("desktop fixes SQLite to its private data directory and ignores legacy data
     config: { DATABASE_URL: "postgresql:///test", MIGRATION_DATABASE_URL: "postgresql:///test",
       APP_DB_PATH: "/config.sqlite3",
       TRADE_DERIVATIVES_CONTEXT_ENABLED: "1" },
-    dataDir: "/private/app/data", port: 51234, token: "private-session",
+    dataDir: "/private/app/data", port: 51234, token: "private-session", platform: "darwin",
   });
   assert.deepEqual(env, {
     PATH: "/bin", TRADE_DERIVATIVES_CONTEXT_ENABLED: "1", APP_MODE: "local",
@@ -121,6 +121,50 @@ test("cleanup kills a private worker after its supervisor has already exited", {
   }
 });
 
+test("on Windows the backend gets UTF-8 and a stdin lifeline instead of POSIX signals", () => {
+  const env = backendEnvironment({ inherited: {}, dataDir: "C:\\data", port: 1, token: "t", platform: "win32" });
+  assert.equal(env.PYTHONUTF8, "1");
+  assert.equal(env.APP_DESKTOP_LIFELINE, "stdin");
+  const mac = backendEnvironment({ inherited: {}, dataDir: "/data", port: 1, token: "t", platform: "darwin" });
+  assert.equal(mac.APP_DESKTOP_LIFELINE, undefined);
+});
+
+function fakeBackend({ exitsOnStdinEnd }) {
+  const child = new EventEmitter();
+  Object.assign(child, { pid: 4321, exitCode: null, signalCode: null, ended: false });
+  child.kill = () => { throw new Error("kill() is a hard stop on Windows"); };
+  child.stdin = { end: () => {
+    child.ended = true;
+    if (exitsOnStdinEnd) setTimeout(() => { child.exitCode = 0; child.emit("exit", 0); }, 10);
+  } };
+  return child;
+}
+
+function fakeRun(calls) {
+  return (command, args) => {
+    calls.push([command, ...args]);
+    const killer = new EventEmitter();
+    setTimeout(() => killer.emit("exit", 0), 5);
+    return killer;
+  };
+}
+
+test("on Windows stopping closes the lifeline and forces nothing when the backend exits", async () => {
+  const child = fakeBackend({ exitsOnStdinEnd: true });
+  const calls = [];
+  await stopBackend(child, { platform: "win32", run: fakeRun(calls), graceMs: 1000 });
+  assert.equal(child.ended, true);
+  assert.deepEqual(calls, []);
+});
+
+test("on Windows a backend that ignores its lifeline has its process tree ended", async () => {
+  const child = fakeBackend({ exitsOnStdinEnd: false });
+  const calls = [];
+  await stopBackend(child, { platform: "win32", run: fakeRun(calls), graceMs: 50 });
+  assert.equal(child.ended, true);
+  assert.deepEqual(calls, [["taskkill", "/pid", "4321", "/T", "/F"]]);
+});
+
 test("an update without the local service backs up the database with its WAL, privately", async () => {
   const { mkdtempSync, writeFileSync, readFileSync, statSync, readdirSync } = await import("node:fs");
   const { tmpdir } = await import("node:os");
@@ -134,7 +178,10 @@ test("an update without the local service backs up the database with its WAL, pr
   assert.equal(readFileSync(target, "utf8"), "main");
   assert.equal(readFileSync(`${target}-wal`, "utf8"), "recent writes");
   assert.deepEqual(readdirSync(joinPath(dataDir, "backups")).length, 2);
-  assert.equal(statSync(target).mode & 0o777, 0o600);
-  assert.equal(statSync(joinPath(dataDir, "backups")).mode & 0o777, 0o700);
+  // Windows has no POSIX modes; the backup stays private inside the user's profile.
+  if (process.platform !== "win32") {
+    assert.equal(statSync(target).mode & 0o777, 0o600);
+    assert.equal(statSync(joinPath(dataDir, "backups")).mode & 0o777, 0o700);
+  }
   assert.throws(() => backupDatabaseFiles(joinPath(dataDir, "missing"), "1.0.6"), /UPDATE_BACKUP_FAILED/);
 });

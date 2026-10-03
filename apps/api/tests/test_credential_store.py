@@ -159,7 +159,7 @@ def test_database_and_sidecars_are_private():
     store.save_credentials("jev", {"api_key": "private-key"})
     database_path().chmod(0o644)
     assert store.load_credentials("jev")
-    assert database_path().stat().st_mode & 0o777 == 0o600
+    assert os.name != "posix" or database_path().stat().st_mode & 0o777 == 0o600
 
 
 def test_storage_error_does_not_reveal_secret(monkeypatch):
