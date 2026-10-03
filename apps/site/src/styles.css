@@ -40,7 +40,8 @@
   }
 }
 * { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+/* Paint the root too: iOS shows it past the page ends and behind its toolbar. */
+html { background: var(--canvas); -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
 body {
   margin: 0;
   background: var(--canvas);

@@ -73,6 +73,14 @@
   --g-device: #1c1c20;
 }
 
+/* While a gate screen shows, the root takes its colour: iOS paints the root past
+   the page ends and behind its toolbar, which would otherwise show a lighter band. */
+:root:has(.gate) { background: #fbfbfd; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]):has(.gate) { background: #0a0a0b; }
+}
+:root[data-theme="dark"]:has(.gate) { background: #0a0a0b; }
+
 /* The soft light behind every screen; stronger on the welcome hero. */
 .gate-aura {
   position: absolute;

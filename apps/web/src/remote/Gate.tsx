@@ -1,7 +1,8 @@
 // The remote page's screens outside the workspace: welcome, setup, offline,
 // subscription and payment confirmation. Presentation only; RemoteApp decides
 // which one shows.
-import type { CSSProperties, ReactNode } from "react";
+import { useEffect, type CSSProperties, type ReactNode } from "react";
+import { setThemeSurface } from "./themeColor.ts";
 import { languageName, setUiLocale, uiLocale, uiText } from "../i18n/index.ts";
 import { rememberBrowserPreference } from "../browserPreferences.ts";
 import GoogleMark from "../GoogleMark";
@@ -64,6 +65,10 @@ function LanguageSwitch() {
 
 /** Page frame: brand bar, content, and the links every page of txinTrade carries. */
 export function GateShell({ account, children, tone }: { account?: ReactNode; children: ReactNode; tone?: "hero" }) {
+  useEffect(() => {
+    setThemeSurface("gate");
+    return () => setThemeSurface("app");
+  }, []);
   return (
     <div className={`gate${tone ? ` gate-tone-${tone}` : ""}`}>
       <div className="gate-aura" aria-hidden="true" />
