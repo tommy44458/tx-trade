@@ -40,7 +40,10 @@ const words = text.heroTitle.split(names).flatMap((part) =>
 
 <section class="stage">
   <figure class="frame">
-    <video data-video autoplay muted loop playsinline preload="metadata" poster="/video/promo-v4-16x9.webp" aria-label={text.videoLabel}>
+    <video data-video autoplay muted loop playsinline preload="metadata" poster="/video/promo-v4-16x9.webp"
+      data-tall-src="/video/promo-v4-9x16.mp4" data-tall-poster="/video/promo-v4-9x16.webp"
+      data-wide-src="/video/promo-v4-16x9.mp4" data-wide-poster="/video/promo-v4-16x9.webp"
+      aria-label={text.videoLabel}>
       <source src="/video/promo-v4-9x16.mp4" type="video/mp4" media="(max-width: 700px)" />
       <source src="/video/promo-v4-16x9.mp4" type="video/mp4" />
     </video>
@@ -78,6 +81,30 @@ const words = text.heroTitle.split(names).flatMap((part) =>
       video.removeAttribute("autoplay");
       video.pause();
     }
+    // Choose the film for the laid-out width, not the width at parse time: some
+    // in-app browsers report a desktop width before applying the viewport, and
+    // a <source media> choice is never revisited. Rotating a phone re-chooses.
+    const tall = window.matchMedia("(max-width: 700px)");
+    const choose = () => {
+      const kind = tall.matches ? "tall" : "wide";
+      const src = video.dataset[`${kind}Src`];
+      const poster = video.dataset[`${kind}Poster`];
+      if (!src || !poster) return;
+      video.style.aspectRatio = tall.matches ? "9 / 16" : "16 / 9";
+      if (video.poster !== new URL(poster, location.href).href) video.poster = poster;
+      if (video.currentSrc && new URL(video.currentSrc).pathname === src) return;
+      const playing = video.autoplay || !video.paused;
+      video.src = src;
+      video.load();
+      if (playing) void video.play().catch(() => {});
+    };
+    // Whatever was loaded, the frame takes the film's own shape, so it is never cropped.
+    video.addEventListener("loadedmetadata", () => {
+      if (video.videoWidth && video.videoHeight)
+        video.style.aspectRatio = `${video.videoWidth} / ${video.videoHeight}`;
+    });
+    tall.addEventListener("change", choose);
+    choose();
     sync();
   }
 </script>
