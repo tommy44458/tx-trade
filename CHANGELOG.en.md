@@ -4,6 +4,8 @@ The product version is managed in `version.json`. Dates record release preparati
 
 ## [Unreleased]
 
+## [1.0.6] - 2026-10-03
+
 ### Added
 
 - A new Fund flows page follows large exchange inflows and outflows, whale transfers and stablecoin supply.
