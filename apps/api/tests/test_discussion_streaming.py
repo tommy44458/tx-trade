@@ -3,7 +3,7 @@ import json
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from threading import Event, Timer
-from time import sleep
+from time import monotonic, sleep
 from types import SimpleNamespace
 
 import pytest
@@ -175,7 +175,10 @@ def test_small_pending_chunk_flushes_during_model_pause_and_snapshots_replace(cl
         assert assistant(client)["content"] == "Hello"
         prefix("Hello there")
         prefix("Hello there")
-        sleep(0.25)
+        # The pause flush runs on a timer; a busy CI runner may fire it late.
+        deadline = monotonic() + 3
+        while assistant(client)["content"] != "Hello there" and monotonic() < deadline:
+            sleep(0.05)
         assert assistant(client)["content"] == "Hello there"
         prefix("Hello there" + "x" * 128)
         assert assistant(client)["content"] == "Hello there" + "x" * 128
