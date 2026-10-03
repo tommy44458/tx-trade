@@ -4,6 +4,11 @@ The product version is managed in `version.json`. Dates record release preparati
 
 ## [Unreleased]
 
+### Fixed
+
+- When your data comes from a newer version, the startup screen says so and offers the update instead of a generic failure.
+- Updates are still checked and can be installed when the local service fails to start.
+
 ## [1.0.6] - 2026-10-03
 
 ### Added

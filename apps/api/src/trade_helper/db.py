@@ -561,6 +561,10 @@ def _migration_10(db: Database) -> None:
             raise RuntimeError("Rebuilding discussion sessions broke a reference")
 
 
+class DatabaseFromNewerVersion(RuntimeError):
+    """The database was upgraded by a newer txinTrade; this version must not touch it."""
+
+
 def init_db() -> None:
     connection = _open_connection()
     try:
@@ -571,7 +575,7 @@ def init_db() -> None:
         connection.execute("BEGIN IMMEDIATE")
         version = connection.execute("PRAGMA user_version").fetchone()["user_version"]
         if version > SCHEMA_VERSION:
-            raise RuntimeError("Local database requires a newer application version")
+            raise DatabaseFromNewerVersion("Local database requires a newer application version")
         db = Database(connection)
         db.execute("""CREATE TABLE IF NOT EXISTS schema_migrations (
             version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL

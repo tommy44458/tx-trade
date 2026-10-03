@@ -120,3 +120,21 @@ test("cleanup kills a private worker after its supervisor has already exited", {
     try { process.kill(-leader.pid, "SIGKILL"); } catch { /* Test cleanup already finished. */ }
   }
 });
+
+test("an update without the local service backs up the database with its WAL, privately", async () => {
+  const { mkdtempSync, writeFileSync, readFileSync, statSync, readdirSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join: joinPath } = await import("node:path");
+  const { backupDatabaseFiles } = await import("../runtime.mjs");
+  const dataDir = mkdtempSync(joinPath(tmpdir(), "txintrade-backup-"));
+  writeFileSync(joinPath(dataDir, "trade_helper.sqlite3"), "main");
+  writeFileSync(joinPath(dataDir, "trade_helper.sqlite3-wal"), "recent writes");
+  const target = backupDatabaseFiles(dataDir, "1.0.6", { now: () => Date.UTC(2026, 9, 3, 9, 30, 15) });
+  assert.equal(target, joinPath(dataDir, "backups", "trade_helper-before-update-1.0.6-20261003T093015Z-offline.sqlite3"));
+  assert.equal(readFileSync(target, "utf8"), "main");
+  assert.equal(readFileSync(`${target}-wal`, "utf8"), "recent writes");
+  assert.deepEqual(readdirSync(joinPath(dataDir, "backups")).length, 2);
+  assert.equal(statSync(target).mode & 0o777, 0o600);
+  assert.equal(statSync(joinPath(dataDir, "backups")).mode & 0o777, 0o700);
+  assert.throws(() => backupDatabaseFiles(joinPath(dataDir, "missing"), "1.0.6"), /UPDATE_BACKUP_FAILED/);
+});

@@ -42,7 +42,7 @@ From a checkout, install **Node.js 24+**, **pnpm**, **Python 3.12+**, and **uv**
 pnpm desktop
 ```
 
-The launcher installs app dependencies, builds the interface, and starts Electron with its private local API and workers. SQLite is created automatically; PostgreSQL and a database password are not required. Desktop setup does not require a `.env` file.
+The launcher installs app dependencies, builds the interface, and starts Electron with its private local API and workers. SQLite is created automatically; PostgreSQL and a database password are not required. Desktop setup does not require a `.env` file. Builds run from source keep their data in `~/Library/Application Support/txinTrade Dev`, apart from the installed app, so an unreleased database schema never reaches it.
 
 In **Settings**, choose a model provider and connect your account:
 
