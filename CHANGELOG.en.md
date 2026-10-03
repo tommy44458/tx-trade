@@ -4,6 +4,8 @@ The product version is managed in `version.json`. Dates record release preparati
 
 ## [Unreleased]
 
+## [1.0.7] - 2026-10-03
+
 ### Changed
 
 - Fund-flow charts show each period's inflow and outflow on hover or tap, and large movements are paged ten at a time.
