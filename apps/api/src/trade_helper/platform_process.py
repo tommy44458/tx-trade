@@ -116,17 +116,31 @@ def contain_descendants() -> bool:
 
     kill_on_job_close, extended_limit_information = 0x2000, 9
     kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    # Without declared types ctypes passes a 64-bit HANDLE as a C int and overflows.
+    kernel32.CreateJobObjectW.argtypes = [ctypes.c_void_p, wintypes.LPCWSTR]
     kernel32.CreateJobObjectW.restype = wintypes.HANDLE
+    kernel32.GetCurrentProcess.argtypes = []
     kernel32.GetCurrentProcess.restype = wintypes.HANDLE
-    job = kernel32.CreateJobObjectW(None, None)
-    if not job:
-        return False
-    limits = ExtendedLimits()
-    limits.BasicLimitInformation.LimitFlags = kill_on_job_close
-    if (not kernel32.SetInformationJobObject(job, extended_limit_information,
-                                             ctypes.byref(limits), ctypes.sizeof(limits))
-            or not kernel32.AssignProcessToJobObject(job, kernel32.GetCurrentProcess())):
-        kernel32.CloseHandle(job)
+    kernel32.SetInformationJobObject.argtypes = [wintypes.HANDLE, ctypes.c_int, ctypes.c_void_p,
+                                                 wintypes.DWORD]
+    kernel32.SetInformationJobObject.restype = wintypes.BOOL
+    kernel32.AssignProcessToJobObject.argtypes = [wintypes.HANDLE, wintypes.HANDLE]
+    kernel32.AssignProcessToJobObject.restype = wintypes.BOOL
+    kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+    kernel32.CloseHandle.restype = wintypes.BOOL
+    try:
+        job = kernel32.CreateJobObjectW(None, None)
+        if not job:
+            return False
+        limits = ExtendedLimits()
+        limits.BasicLimitInformation.LimitFlags = kill_on_job_close
+        if (not kernel32.SetInformationJobObject(job, extended_limit_information,
+                                                 ctypes.byref(limits), ctypes.sizeof(limits))
+                or not kernel32.AssignProcessToJobObject(job, kernel32.GetCurrentProcess())):
+            kernel32.CloseHandle(job)
+            return False
+    except (OSError, ctypes.ArgumentError):
+        # The backend still runs; only the orphan protection is lost.
         return False
     # Kept open for the life of this process; Windows closes it at exit.
     _job = job

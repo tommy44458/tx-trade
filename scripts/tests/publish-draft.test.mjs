@@ -8,6 +8,8 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 const sourceRoot = fileURLToPath(new URL("../", import.meta.url));
+// The draft publisher runs on Linux CI; its stand-in gh is a shebang script.
+const linuxPublisher = { skip: process.platform === "win32" && "the publisher runs on Linux" };
 
 function fixture() {
   const root = mkdtempSync(join(tmpdir(), "ai-trade-publish-test-"));
@@ -64,7 +66,7 @@ function calls(f) {
     ? readFileSync(join(f.root, "calls.jsonl"), "utf8").trim().split("\n").map(JSON.parse) : [];
 }
 
-test("draft creation keeps the release unpublished and uploads only verified assets", () => {
+test("draft creation keeps the release unpublished and uploads only verified assets", linuxPublisher, () => {
   const f = fixture();
   try {
     const result = publish(f);
@@ -79,7 +81,7 @@ test("draft creation keeps the release unpublished and uploads only verified ass
   } finally { rmSync(f.root, { recursive: true, force: true }); }
 });
 
-test("reruns replace only an existing draft, while published releases are never changed", () => {
+test("reruns replace only an existing draft, while published releases are never changed", linuxPublisher, () => {
   for (const draft of [true, false]) {
     const f = fixture();
     try {
@@ -126,7 +128,7 @@ function publishBoth(f, releases = []) {
   });
 }
 
-test("one draft carries the signed macOS and the unsigned Windows assets", () => {
+test("one draft carries the signed macOS and the unsigned Windows assets", linuxPublisher, () => {
   const f = fixture();
   try {
     windowsAssets(f);
@@ -140,7 +142,7 @@ test("one draft carries the signed macOS and the unsigned Windows assets", () =>
   } finally { rmSync(f.root, { recursive: true, force: true }); }
 });
 
-test("tampered, mislabelled or incomplete Windows assets fail before contacting GitHub", () => {
+test("tampered, mislabelled or incomplete Windows assets fail before contacting GitHub", linuxPublisher, () => {
   for (const tamper of ["asset", "signed", "platform", "missing"]) {
     const f = fixture();
     try {
@@ -155,7 +157,7 @@ test("tampered, mislabelled or incomplete Windows assets fail before contacting 
   }
 });
 
-test("tampered assets/notes or a different commit fail before contacting GitHub", () => {
+test("tampered assets/notes or a different commit fail before contacting GitHub", linuxPublisher, () => {
   for (const tamper of ["asset", "notes", "commit"]) {
     const f = fixture();
     try {

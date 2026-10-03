@@ -78,7 +78,8 @@ for filename in ('indicators.py','technical_snapshot.py','follow_up.py','analysi
                 texts.append(node.value)
 print(json.dumps(sorted(set(texts)),ensure_ascii=False))
 `;
-  const executable = resolve(project, 'apps/api/.venv/bin/python');
+  const executable = resolve(project, process.platform === 'win32'
+    ? 'apps/api/.venv/Scripts/python.exe' : 'apps/api/.venv/bin/python');
   return JSON.parse(execFileSync(executable, ['-c', script], {
     cwd: project, env: { ...process.env, PYTHONPATH: resolve(project, 'apps/api/src') },
     encoding: 'utf8', maxBuffer: 1_000_000,

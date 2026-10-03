@@ -10,7 +10,7 @@ import { createDesktopUpdater, notesForLocale, updatesAllowed } from "../updater
 const signedPolicy = { enabled: true, signed: true, platform: "darwin", arch: "arm64", channel: "stable" };
 const update = { version: "0.3.0", releaseNotes: "An update for the isolated test" };
 const mainSource = readFileSync(new URL("../main.mjs", import.meta.url), "utf8");
-const stripImports = source => source.replace(/^import\s[\s\S]*?;\n/gm, "");
+const stripImports = source => source.replace(/^import\s[\s\S]*?;\r?\n/gm, "");
 const stringsContext = {};
 runInNewContext(stripImports(readFileSync(new URL("../locales.mjs", import.meta.url), "utf8"))
   .replace(/^export /gm, "") + "\nglobalThis.strings = NATIVE_STRINGS;", stringsContext);

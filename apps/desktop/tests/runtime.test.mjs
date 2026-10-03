@@ -20,7 +20,7 @@ test("desktop fixes SQLite to its private data directory and ignores legacy data
     config: { DATABASE_URL: "postgresql:///test", MIGRATION_DATABASE_URL: "postgresql:///test",
       APP_DB_PATH: "/config.sqlite3",
       TRADE_DERIVATIVES_CONTEXT_ENABLED: "1" },
-    dataDir: "/private/app/data", port: 51234, token: "private-session",
+    dataDir: "/private/app/data", port: 51234, token: "private-session", platform: "darwin",
   });
   assert.deepEqual(env, {
     PATH: "/bin", TRADE_DERIVATIVES_CONTEXT_ENABLED: "1", APP_MODE: "local",

@@ -1,9 +1,49 @@
 import io
 import multiprocessing
+import os
+import subprocess
+import sys
 import time
+
+import pytest
 
 from trade_helper import cli_paths, platform_process
 from trade_helper.desktop_runtime import watch_lifeline
+
+# A parent that contains its descendants, starts one, reports its PID and waits.
+_CONTAINING_PARENT = """
+import subprocess, sys, time
+from trade_helper.platform_process import contain_descendants
+assert contain_descendants(), "job object not applied"
+child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(120)"])
+print(child.pid, flush=True)
+time.sleep(120)
+"""
+
+
+def _running(pid: int) -> bool:
+    listed = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/NH"], capture_output=True,
+                            text=True, check=False).stdout
+    return str(pid) in listed
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows job objects")
+def test_a_hard_stopped_backend_takes_its_children_with_it():
+    parent = subprocess.Popen([sys.executable, "-c", _CONTAINING_PARENT], stdout=subprocess.PIPE,
+                              text=True)
+    try:
+        child = int(parent.stdout.readline())
+        assert _running(child)
+        # TerminateProcess, as when Windows ends the app: no cleanup code runs.
+        subprocess.run(["taskkill", "/PID", str(parent.pid), "/F"], capture_output=True, check=False)
+        parent.wait(10)
+        deadline = time.monotonic() + 10
+        while _running(child) and time.monotonic() < deadline:
+            time.sleep(0.2)
+        assert not _running(child), "the child outlived its job object"
+    finally:
+        if parent.poll() is None:
+            parent.kill()
 
 # The shim npm writes for `npm install -g @anthropic-ai/claude-code` on Windows.
 NPM_SHIM = r'''@ECHO off

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { assertReleaseEnvironment, assertReleaseTag, validateUpdateMetadata, validateWindowsUpdateMetadata,
+import { assertReleaseEnvironment, assertReleaseEnvironment as assertMacEnvironment, assertReleaseTag, validateUpdateMetadata, validateWindowsUpdateMetadata,
   windowsAssetNames, withInstallerDigest } from "../release-assets.mjs";
 
 const state = { version: "1.2.3", channel: "stable" };
@@ -17,7 +17,8 @@ test("official release requires an exact tag, prepared product version, and matc
   ]) assert.throws(() => assertReleaseTag(state, { ...tagEnvironment, ...changed }));
 });
 
-test("official release fails closed for missing secrets, ad-hoc signing, or non-tag CI", () => {
+test("official macOS release fails closed for missing secrets, ad-hoc signing, or non-tag CI", () => {
+  const assertReleaseEnvironment = (s, environment) => assertMacEnvironment(s, environment, { platform: "darwin" });
   assert.doesNotThrow(() => assertReleaseEnvironment(state, credentials));
   assert.throws(() => assertReleaseEnvironment(state, {}), /credentials are missing/);
   for (const name of Object.keys(credentials)) {

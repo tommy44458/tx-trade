@@ -104,6 +104,7 @@ test("a failed move keeps using the legacy profile instead of starting empty", (
     readlinkSync: () => { throw new Error("no lock"); },
     renameSync: () => { throw new Error("permission denied"); },
   };
-  assert.deepEqual(resolveUserData({ appData: "/isolated", current: "/isolated/txinTrade", fs, alive: dead }),
+  assert.deepEqual(resolveUserData({ appData: "/isolated", current: "/isolated/txinTrade", fs, alive: dead,
+    platform: "darwin" }),
     { path: join("/isolated", "txTrade"), migrated: false });
 });
