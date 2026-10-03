@@ -2,6 +2,7 @@ import json
 import logging
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from hashlib import sha256
@@ -21,6 +22,7 @@ from .desktop_updates import (
 from .discussions import run_once as run_discussion_once
 from .error_locale import analysis_failure_message, model_error_message, system_error_message
 from .events import event_snapshot
+from .fund_flows import fund_flows_context, unavailable_fund_flows
 from .macro_interpretation import analysis_macro_interpretation, ensure_macro_interpretation
 from .market import (
     MAIN_HISTORY_LIMIT,
@@ -52,6 +54,8 @@ class ModelAnalysisError(RuntimeError):
 
 
 _LOG = logging.getLogger(__name__)
+# Fund flows are context, never a reason to fail or hold up an analysis.
+FUND_FLOWS_WAIT_SECONDS = 20
 
 
 def _required_market_fetch(fetch):
@@ -161,12 +165,22 @@ def run_once() -> bool:
         quote["events_status"] = events["status"]
         quote["event_context"] = events
         cutoff = datetime.fromisoformat(quote["observed_at"])
+        # Fund flows come from the cloud in one cached request; fetch them while the
+        # derivatives and market reference are read, so they add no waiting.
+        flows_pool = ThreadPoolExecutor(max_workers=1)
+        fund_flows = flows_pool.submit(fund_flows_context, request["market_id"])
+        flows_pool.shutdown(wait=False)
         stage = "derivatives"
         quote["derivatives_context"] = fetch_derivatives_context(
             request["market_id"], cutoff, request["timeframe"])
         stage = "market_reference"
         quote["market_reference"] = fetch_market_reference(
             request["market_id"], request["timeframe"], candles, context_candles, cutoff)
+        stage = "fund_flows"
+        try:
+            quote["fund_flows_context"] = fund_flows.result(timeout=FUND_FLOWS_WAIT_SECONDS)
+        except TimeoutError:
+            quote["fund_flows_context"] = unavailable_fund_flows(request["market_id"])
         stage = "news"
         news = news_snapshot(cutoff, request["market_id"])
         news["evidence_pack"] = build_news_evidence_pack(cutoff, request["market_id"])

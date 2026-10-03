@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { DiscussionLiveMarket } from "./discussionLiveMarket.ts";
 import { apiFetch, openEventStream } from "./transport.ts";
 
-export type DiscussionSubjectType = "analysis" | "macro";
+export type DiscussionSubjectType = "analysis" | "macro" | "fund_flows";
 export type DiscussionMessage = {
   id: string;
   sequence: number;

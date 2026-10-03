@@ -19,6 +19,7 @@ import {
   type FlowWindow,
   type SmartMoneyAsset,
   type SmartMoneyOverview,
+  type FlowSnapshot,
   type TrackedAsset,
 } from "./smartMoney";
 import "./SmartMoneyPanel.css";
@@ -157,7 +158,13 @@ function Freshness({ sync, stale, locale }: { sync: SmartMoneyOverview["sync"]; 
   );
 }
 
-export default function SmartMoneyPanel({ marketId, locale }: { marketId: string; locale: UiLocale }) {
+export default function SmartMoneyPanel({ marketId, locale, conversation, onStartConversation }: {
+  marketId: string;
+  locale: UiLocale;
+  /** The follow-up conversation's frozen data: undefined while loading, null when none exists. */
+  conversation?: FlowSnapshot | null;
+  onStartConversation?: (asset: string, window: FlowWindow) => Promise<void>;
+}) {
   const [overview, setOverview] = useState<SmartMoneyOverview | null>(null);
   const [tracked, setTracked] = useState<TrackedAsset[] | null>(null);
   const [detail, setDetail] = useState<SmartMoneyAsset | null>(null);
@@ -202,6 +209,17 @@ export default function SmartMoneyPanel({ marketId, locale }: { marketId: string
     return () => controller.abort();
   }, [shown, span, tracked, refresh]);
 
+  const [starting, setStarting] = useState(false);
+  const startConversation = () => {
+    if (!onStartConversation || starting) return;
+    setStarting(true);
+    onStartConversation(shown, span).catch(() => undefined).finally(() => setStarting(false));
+  };
+  // The first visit starts a conversation about what is on screen, so the AI panel is ready.
+  useEffect(() => {
+    if (conversation === null && tracked) startConversation();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversation, tracked]);
   const stable = overview?.stablecoins;
   // Phones swipe through the overview cards; the dots follow and jump.
   const overviewRef = useRef<HTMLElement>(null);
@@ -232,7 +250,21 @@ export default function SmartMoneyPanel({ marketId, locale }: { marketId: string
       )}
       {overview && (
         <>
-          <Freshness sync={overview.sync} stale={overview.stale} locale={locale} />
+          <div className="sm-meta">
+            <Freshness sync={overview.sync} stale={overview.stale} locale={locale} />
+            {onStartConversation && (
+              <button type="button" className="sm-ask" disabled={starting} onClick={startConversation}
+                title={uiText("用目前畫面上的幣種與期間，以最新資料開始新的 AI 追問")}>
+                {starting ? uiText("準備中…") : uiText("用最新資料開新的 AI 追問")}
+              </button>
+            )}
+          </div>
+          {conversation && (
+            <p className="sm-conversation">{uiText("AI 追問依據：{{p0}} · {{p1}} · {{p2}}", {
+              p0: conversation.asset, p1: windowLabel(conversation.window),
+              p2: new Date(conversation.as_of).toLocaleString(locale, { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }),
+            })}</p>
+          )}
           <section className="sm-overview" ref={overviewRef} aria-label={uiText("BTC、ETH 與穩定幣，左右滑動切換")}
             onScroll={(event) => setCard(Math.round(event.currentTarget.scrollLeft / cardStep()))}>
             {overview.assets.map((a) => (

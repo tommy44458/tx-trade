@@ -51,11 +51,13 @@ import Icon, { type IconName } from "./Icon";
 import AccountMenu from "./AccountMenu";
 import { CLOUD_ACCOUNT_CHANGED } from "./cloudAccountEvents";
 import SmartMoneyPanel from "./SmartMoneyPanel";
+import type { FlowSnapshot, FlowWindow } from "./smartMoney";
 import UpdateDialog from "./UpdateDialog";
 import UpdateNotice from "./UpdateNotice";
 import LocalCloudMenu from "./LocalCloudMenu";
 import DerivativesContext, { type DerivativesData } from "./DerivativesContext";
 import MarketReference, { type MarketReferenceData } from "./MarketReference";
+import FundFlowsContext, { type FundFlowsContextData } from "./FundFlowsContext";
 import DirectionAssessment from "./DirectionAssessment";
 import SettingsPanel from "./SettingsPanel";
 import {
@@ -153,6 +155,7 @@ type Report = {
   response_locale?: UiLocale;
   derivatives_context?: DerivativesData | null;
   market_reference?: MarketReferenceData | null;
+  fund_flows_context?: FundFlowsContextData | null;
   market_id: string;
   timeframe: string;
   generated_at: string;
@@ -890,6 +893,19 @@ function App({ remoteSection, remoteIdentity, remoteMenu, remoteStatus }: {
     { id: "settings", label: uiText("設定"), icon: "settings" },
   ];
   const lastMarketsPage = useRef<"events" | "smartMoney">("events");
+  // The fund-flows follow-up: undefined while loading, null when none was started yet.
+  const [flowSnapshot, setFlowSnapshot] = useState<FlowSnapshot | null | undefined>(undefined);
+  const startFlowConversation = async (asset: string, window: FlowWindow) => {
+    setFlowSnapshot(await api<FlowSnapshot>("/smart-money/snapshots", {
+      method: "POST", body: JSON.stringify({ asset, window }),
+    }));
+  };
+  useEffect(() => {
+    if (view !== "smartMoney" || flowSnapshot !== undefined) return;
+    api<{ snapshot: FlowSnapshot | null }>("/smart-money/snapshots/latest")
+      .then((latest) => setFlowSnapshot(latest.snapshot))
+      .catch(() => setFlowSnapshot(null));
+  }, [view, flowSnapshot]);
   const openPage = (id: typeof view) => {
     if (id === "events" || id === "smartMoney") lastMarketsPage.current = id;
     if (id !== view || viewingHistoricalPosition) latestPositionAnalysis.invalidate();
@@ -952,9 +968,17 @@ function App({ remoteSection, remoteIdentity, remoteMenu, remoteStatus }: {
         : (pendingJob?.phase ?? "");
   const busyLabel = positionsBusy ? uiText("正在分析持倉…") : uiText("正在分析中…");
   const macroResult = macroInterpretation.data?.interpretation;
+  const flowWindowLabel = (w: FlowWindow) =>
+    ({ "1d": uiText("24 小時"), "7d": uiText("7 天"), "30d": uiText("30 天"), "90d": uiText("90 天") })[w];
   const analysisMatchesView = (view === "positions" && job?.submitted_input.kind === "positions") ||
     (view === "market" && job?.submitted_input.kind !== "positions");
-  const discussionSubject: AnalysisDiscussionProps | null = view === "events" && macroResult
+  const discussionSubject: AnalysisDiscussionProps | null = view === "smartMoney" && flowSnapshot
+    ? {
+      subjectType: "fund_flows", subjectId: flowSnapshot.id,
+      contextLabel: `${uiText("資金流向")} · ${flowSnapshot.asset} · ${flowWindowLabel(flowSnapshot.window)}`,
+      resultAt: flowSnapshot.as_of, outputLocale: locale,
+    }
+    : view === "events" && macroResult
     ? {
       subjectType: "macro", subjectId: macroResult.id,
       contextLabel: uiText("宏觀解讀"), resultAt: macroResult.generated_at,
@@ -1357,6 +1381,12 @@ function App({ remoteSection, remoteIdentity, remoteMenu, remoteStatus }: {
                     <MarketReference data={report.market_reference} />
                   </details>
                 )}{" "}
+                {report?.fund_flows_context && (
+                  <details className="secondary-evidence">
+                    <summary>{uiText("資金流向")}</summary>
+                    <FundFlowsContext data={report.fund_flows_context} />
+                  </details>
+                )}{" "}
                 {report && (
                   <details className="secondary-evidence">
                     <summary>{uiText("衍生品市場背景")}</summary>
@@ -1756,6 +1786,12 @@ function App({ remoteSection, remoteIdentity, remoteMenu, remoteStatus }: {
                         <MarketReference data={report.market_reference} />
                       </details>
                     )}
+                    {report.fund_flows_context && (
+                      <details className="secondary-evidence">
+                        <summary>{uiText("資金流向")}</summary>
+                        <FundFlowsContext data={report.fund_flows_context} />
+                      </details>
+                    )}
                     <details className="secondary-evidence">
                       <summary>{uiText("衍生品市場背景")}</summary>
                       <DerivativesContext data={report.derivatives_context} />
@@ -1775,7 +1811,8 @@ function App({ remoteSection, remoteIdentity, remoteMenu, remoteStatus }: {
               ))}
             </div>
           )}
-          {view === "smartMoney" && <SmartMoneyPanel marketId={marketId} locale={locale} />}
+          {view === "smartMoney" && <SmartMoneyPanel marketId={marketId} locale={locale}
+            conversation={flowSnapshot} onStartConversation={startFlowConversation} />}
           {view === "events" && (
             <>
               <div className="page-title">
@@ -1879,7 +1916,7 @@ function App({ remoteSection, remoteIdentity, remoteMenu, remoteStatus }: {
       </main>
       <DiscussionSidebar
         subject={discussionSubject}
-        available={view === "market" || view === "positions" || view === "events"}
+        available={view === "market" || view === "positions" || view === "events" || view === "smartMoney"}
       />
     </div>
   );

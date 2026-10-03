@@ -126,3 +126,7 @@ export function explorerUrl(event: Pick<FlowEvent, "chain" | "tx">): string {
 export function seriesScale(points: FlowPoint[]): number {
   return Math.max(1, ...points.map((p) => Math.max(p.inflow_usd, p.outflow_usd)));
 }
+
+/** The frozen fund flows a follow-up conversation is about. */
+export type FlowSnapshot = { id: string; asset: string; window: FlowWindow; as_of: string; created_at: string };
+

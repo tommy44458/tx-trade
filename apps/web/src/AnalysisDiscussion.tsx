@@ -95,9 +95,12 @@ function DiscussionSession({
         <h3 id={headingId} className="discussion-visually-hidden">{subjectType === "macro" ? uiText("討論這份解讀") : uiText("向 AI 追問")}</h3>
         <span className="discussion-status" role="status" aria-live="polite">{(discussion.loading || discussion.posting || busy) && <AnalysisSpinner />}{status}</span>
       </div>
-      <p className="discussion-context"><span className="discussion-visually-hidden">{contextLabel} · </span>{uiText("分析快照 ·") + " "}<time dateTime={resultAt}>{stamp(resultAt)}</time></p>
-      <p className="discussion-language">{uiText("回覆跟隨本次分析的語言：{{p0}}。", { p0: languageName(replyLocale) })}</p>
+      <p className="discussion-context"><span className="discussion-visually-hidden">{contextLabel} · </span>{(subjectType === "fund_flows" ? uiText("資料時間 ·") : uiText("分析快照 ·")) + " "}<time dateTime={resultAt}>{stamp(resultAt)}</time></p>
+      <p className="discussion-language">{subjectType === "fund_flows"
+        ? uiText("回覆語言：{{p0}}。", { p0: languageName(replyLocale) })
+        : uiText("回覆跟隨本次分析的語言：{{p0}}。", { p0: languageName(replyLocale) })}</p>
       {subjectType === "analysis" && <p className="discussion-live-hint">{uiText("每次追問會讀取這個交易對的現價；支撐、壓力與指標沿用原分析。")}</p>}
+      {subjectType === "fund_flows" && <p className="discussion-live-hint">{uiText("追問依據開始對話時的資金流向資料；要用最新資料，請在頁面上開新的追問。")}</p>}
       {stale && <p className="discussion-stale" role="note">{uiText("正在討論前一版資料的解讀；更新解讀後會使用另一段對話。")}</p>}
 
       <div className="discussion-history-tools">
@@ -167,7 +170,8 @@ function DiscussionSession({
           disabled={discussion.loading || !!discussion.readError}
           maxLength={6_000}
           rows={3}
-          placeholder={subjectType === "macro" ? uiText("討論這份宏觀解讀…") : uiText("追問這份分析…")}
+          placeholder={subjectType === "macro" ? uiText("討論這份宏觀解讀…")
+            : subjectType === "fund_flows" ? uiText("追問這些資金流向…") : uiText("追問這份分析…")}
           aria-describedby={`${hintId} ${countId}`}
           onCompositionStart={() => { composing.current = true; }}
           onCompositionEnd={() => { composing.current = false; }}

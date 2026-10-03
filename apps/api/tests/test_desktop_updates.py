@@ -12,7 +12,7 @@ from fastapi.testclient import TestClient
 from trade_helper import desktop_updates, discussions, macro_interpretation, macro_translation
 from trade_helper.api import app
 from trade_helper.config import local_user_id
-from trade_helper.db import connect, database_path, init_db, utc_now
+from trade_helper.db import SCHEMA_VERSION, connect, database_path, init_db, utc_now
 from trade_helper.news_classification_worker import _claim as claim_news
 from trade_helper.worker import run_once as run_analysis
 
@@ -75,7 +75,7 @@ def test_preparation_preserves_wal_database_and_reuses_private_backup(desktop_cl
     with sqlite3.connect(output) as backup:
         assert backup.execute("PRAGMA integrity_check").fetchone() == ("ok",)
         assert backup.execute("SELECT status FROM analyses").fetchone() == ("queued",)
-        assert backup.execute("PRAGMA user_version").fetchone() == (9,)
+        assert backup.execute("PRAGMA user_version").fetchone() == (SCHEMA_VERSION,)
     if os.name == "posix":
         assert output.stat().st_mode & 0o777 == 0o600
         assert output.parent.stat().st_mode & 0o777 == 0o700

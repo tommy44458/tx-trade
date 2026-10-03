@@ -24,7 +24,7 @@ _LOCK = threading.Lock()
 _cache: dict[str, tuple[float, dict]] = {}
 
 
-def _fetch(path: str) -> dict:
+def fetch_cloud(path: str) -> dict:
     """The cloud's answer for `path`, fresh within a minute, else the last good one marked stale."""
     now = time.monotonic()
     with _LOCK:
@@ -56,12 +56,12 @@ def _fetch(path: str) -> dict:
 
 @router.get("/overview")
 def overview() -> dict:
-    return _fetch("/smart-money/overview")
+    return fetch_cloud("/smart-money/overview")
 
 
 @router.get("/assets")
 def assets() -> dict:
-    return _fetch("/smart-money/assets")
+    return fetch_cloud("/smart-money/assets")
 
 
 @router.get("/assets/{asset}")
@@ -70,7 +70,7 @@ def asset(asset: str, window: str = Query("1d")) -> dict:
         raise HTTPException(404, {"code": "asset_not_tracked"})
     if window not in WINDOWS:
         raise HTTPException(422, {"code": "invalid_window"})
-    return _fetch(f"/smart-money/assets/{asset}?window={window}")
+    return fetch_cloud(f"/smart-money/assets/{asset}?window={window}")
 
 
 def clear_cache() -> None:
