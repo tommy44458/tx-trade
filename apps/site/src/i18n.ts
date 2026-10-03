@@ -20,7 +20,8 @@ export const copy = {
       heroSubtitle: "Bring your own AI to real crypto futures data. It suggests, you decide, and it never trades.",
       download: "Download for Mac", comingSoon: "Coming soon for Mac", github: "GitHub",
       videoLabel: "A 34-second walkthrough of txinTrade",
-      caption: "macOS · Apple Silicon · Free and open source",
+      openSource: "Free and open source", openSourceLabel: "View the source code on GitHub",
+      caption: "macOS · Apple Silicon",
       pause: "Pause video", play: "Play video",
       points: [
         ["Bring your own AI", "Uses the Claude Code or Codex you already run."],
@@ -79,7 +80,8 @@ export const copy = {
       heroSubtitle: "自帶你的 AI，看懂真實的合約行情。它提出建議，由你決定，永遠不會下單。",
       download: "下載 Mac 版", comingSoon: "Mac 版即將推出", github: "GitHub",
       videoLabel: "txinTrade 34 秒操作示範",
-      caption: "macOS · Apple Silicon · 免費開源",
+      openSource: "免費、開放原始碼", openSourceLabel: "在 GitHub 查看原始碼",
+      caption: "macOS · Apple Silicon",
       pause: "暫停影片", play: "播放影片",
       points: [
         ["自帶你的 AI", "直接用你已登入的 Claude Code 或 Codex。"],
