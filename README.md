@@ -93,9 +93,11 @@ With an optional txinTrade cloud account, you can open the same screens from you
 
 ## Getting started
 
-txinTrade runs on **macOS with Apple Silicon** (M1 or later).
+txinTrade runs on **macOS with Apple Silicon** (M1 or later) and on **64-bit Windows 10 or 11**.
 
-1. [Download txinTrade for Mac](https://txintrade.com/download) (or from the [latest release](https://github.com/tommy44458/txin-trade/releases/latest)), open the DMG and drag txinTrade to Applications. The app is signed and notarized by Apple.
+1. [Download txinTrade](https://txintrade.com/download) (or from the [latest release](https://github.com/tommy44458/txin-trade/releases/latest)).
+   - **Mac:** open the DMG and drag txinTrade to Applications. The app is signed and notarized by Apple.
+   - **Windows:** run the installer. It is not code-signed yet, so Windows may say it protected your PC: choose **More info**, then **Run anyway**.
 2. Open txinTrade. Your data is created automatically; there is no database or configuration file to set up.
 3. In **Settings**, connect the AI subscription you already have:
    - **Codex** — uses the Codex app you have installed and its sign-in.

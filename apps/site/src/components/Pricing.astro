@@ -1,6 +1,6 @@
 ---
 import { t } from "../i18n";
-import { DOWNLOAD_MAC, RELEASED, WEB_APP, localePath, type Locale } from "../site";
+import { WEB_APP, localePath, type Locale } from "../site";
 
 interface Props { locale: Locale }
 const { locale } = Astro.props;
@@ -15,7 +15,7 @@ const text = t(locale).pricing;
       <p class="price">{text.freePrice}</p>
       <p class="note">{text.freeNote}</p>
       <ul>{text.freeFeatures.map((item) => <li>{item}</li>)}</ul>
-      <a class="button" href={RELEASED ? DOWNLOAD_MAC : localePath("/download", locale)}>{text.getApp}</a>
+      <a class="button" href={localePath("/download", locale)}>{text.getApp}</a>
     </article>
     <article class="plan featured">
       <h2>{text.remoteName}</h2>

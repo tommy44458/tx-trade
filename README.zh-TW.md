@@ -93,9 +93,11 @@ txinTrade 會蒐集美國官方公布的數據——CPI、就業、PCE、GDP 與
 
 ## 開始使用
 
-txinTrade 支援搭載 **Apple Silicon（M1 或更新）的 macOS**。
+txinTrade 支援搭載 **Apple Silicon（M1 或更新）的 macOS**，以及 **64 位元的 Windows 10 / 11**。
 
-1. [下載 Mac 版 txinTrade](https://txintrade.com/zh-TW/download)（或從 [最新版本](https://github.com/tommy44458/txin-trade/releases/latest) 下載），打開 DMG，把 txinTrade 拖到「應用程式」。App 已通過 Apple 簽章與公證。
+1. [下載 txinTrade](https://txintrade.com/zh-TW/download)（或從 [最新版本](https://github.com/tommy44458/txin-trade/releases/latest) 下載）。
+   - **Mac：** 打開 DMG，把 txinTrade 拖到「應用程式」。App 已通過 Apple 簽章與公證。
+   - **Windows：** 執行安裝程式。目前尚未做程式碼簽章，Windows 可能會顯示「已保護您的電腦」：請按 **其他資訊**，再按 **仍要執行**。
 2. 開啟 txinTrade。資料會自動建立，不需要設定資料庫或設定檔。
 3. 在**設定**連結你已經有的 AI 訂閱：
    - **Codex**：使用你已安裝的 Codex 與它的登入狀態。

@@ -1,6 +1,6 @@
 ---
 import { t } from "../i18n";
-import { DOWNLOAD_MAC, RELEASED, REPOSITORY, localePath, type Locale } from "../site";
+import { DOWNLOAD_MAC, DOWNLOAD_WINDOWS, RELEASED, REPOSITORY, localePath, type Locale } from "../site";
 
 interface Props { locale: Locale }
 const { locale } = Astro.props;
@@ -32,10 +32,14 @@ const words = text.heroTitle.split(names).flatMap((part) =>
   </h1>
   <p class="lead wrap fade" style="--d:0.35s">{text.heroSubtitle}</p>
   <div class="actions fade" style="--d:0.5s">
-    <a class="button" href={download}>{RELEASED ? text.download : text.comingSoon}</a>
+    <a class="button" href={download} data-download
+      data-windows-href={DOWNLOAD_WINDOWS} data-windows-label={text.downloadWindows}>{RELEASED ? text.download : text.comingSoon}</a>
     <a class="button secondary" href={REPOSITORY} target="_blank" rel="noopener">{text.github} <span class="arrow" aria-hidden="true">↗</span></a>
   </div>
-  <p class="caption fade" style="--d:0.6s">{text.caption}</p>
+  <p class="caption fade" style="--d:0.6s">
+    <span data-caption data-windows-caption={text.captionWindows}>{text.caption}</span>
+    {RELEASED && <>{" · "}<a href={localePath("/download", locale)} data-other data-windows-other={text.alsoMac}>{text.alsoWindows}</a></>}
+  </p>
 </section>
 
 <section class="stage">
@@ -65,6 +69,18 @@ const words = text.heroTitle.split(names).flatMap((part) =>
 </ol>
 
 <script>
+  // The page is static and offers the Mac installer; Windows visitors get theirs.
+  if (/Windows/.test(navigator.userAgent)) {
+    const button = document.querySelector<HTMLAnchorElement>("[data-download]");
+    const caption = document.querySelector<HTMLElement>("[data-caption]");
+    const other = document.querySelector<HTMLElement>("[data-other]");
+    if (button?.dataset.windowsHref && button.dataset.windowsLabel && caption?.dataset.windowsCaption) {
+      button.href = button.dataset.windowsHref;
+      button.textContent = button.dataset.windowsLabel;
+      caption.textContent = caption.dataset.windowsCaption;
+      if (other?.dataset.windowsOther) other.textContent = other.dataset.windowsOther;
+    }
+  }
   const video = document.querySelector<HTMLVideoElement>("[data-video]");
   const toggle = document.querySelector<HTMLButtonElement>("[data-toggle]");
   if (video && toggle) {
@@ -149,6 +165,7 @@ const words = text.heroTitle.split(names).flatMap((part) =>
   .hero .lead { max-width: 36em; margin: 32px auto 0; text-wrap: balance; }
   .hero .actions { justify-content: center; }
   .caption { margin: 18px 0 0; color: var(--text-tertiary); font-size: 13px; letter-spacing: 0; }
+  .caption a { color: var(--text-secondary); }
   .fade { animation: rise 1s var(--ease) both; animation-delay: var(--d); }
   @keyframes rise { from { opacity: 0; transform: translateY(0.4em); filter: blur(6px); } }
   @keyframes shine { 0%, 100% { background-position: 100% 0; } 50% { background-position: 0 0; } }

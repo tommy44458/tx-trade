@@ -1,6 +1,6 @@
 ---
 import { t } from "../i18n";
-import { DOWNLOAD_MAC, RELEASED, RELEASES, REPOSITORY, VERSION, WEB_APP, type Locale } from "../site";
+import { DOWNLOAD_MAC, DOWNLOAD_WINDOWS, RELEASED, RELEASES, REPOSITORY, VERSION, WEB_APP, type Locale } from "../site";
 
 interface Props { locale: Locale }
 const text = t(Astro.props.locale).download;
@@ -10,7 +10,8 @@ const text = t(Astro.props.locale).download;
   <p class="lead">{text.intro}</p>
   {RELEASED ? (
     <div class="actions">
-      <a class="button" href={DOWNLOAD_MAC}>{text.button}</a>
+      <a class="button" href={DOWNLOAD_MAC} data-platform="mac">{text.button}</a>
+      <a class="button secondary" href={DOWNLOAD_WINDOWS} data-platform="windows">{text.buttonWindows}</a>
       <span class="version">{text.version} {VERSION}</span>
     </div>
   ) : (
@@ -26,13 +27,33 @@ const text = t(Astro.props.locale).download;
     </div>
     <div>
       <h2>{text.stepsTitle}</h2>
-      <ol>{text.steps.map((item) => <li>{item}</li>)}</ol>
+      <ol>
+        <li>{text.install}
+          <ul class="platforms">
+            <li>{text.installMac}</li>
+            <li>{text.installWindows}</li>
+          </ul>
+        </li>
+        {text.steps.map((item) => <li>{item}</li>)}
+      </ol>
       <p class="muted">{text.updates}</p>
     </div>
   </div>
   <p class="remote">{text.remote} <a href={WEB_APP} target="_blank" rel="noopener">{new URL(WEB_APP).host} ↗</a></p>
   <p><a href={RELEASES}>{text.allReleases} →</a></p>
 </section>
+<script>
+  // Windows visitors get their installer as the primary button, listed first.
+  if (/Windows/.test(navigator.userAgent)) {
+    const mac = document.querySelector<HTMLElement>('[data-platform="mac"]');
+    const windows = document.querySelector<HTMLElement>('[data-platform="windows"]');
+    if (mac && windows) {
+      mac.classList.add("secondary");
+      windows.classList.remove("secondary");
+      mac.before(windows);
+    }
+  }
+</script>
 <style>
   .page { padding-top: 72px; max-width: 900px; }
   h1 { font-size: clamp(40px, 6vw, 60px); }
@@ -42,6 +63,8 @@ const text = t(Astro.props.locale).download;
   .columns { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin: 56px 0 32px; }
   h2 { font-size: 22px; margin-bottom: 12px; }
   li { margin: 8px 0; }
+  .platforms { padding-left: 20px; color: var(--text-secondary); }
+  .platforms li { margin: 4px 0; }
   .muted { color: var(--text-secondary); font-size: 15px; }
   @media (max-width: 720px) { .columns { grid-template-columns: 1fr; } }
 </style>
