@@ -886,8 +886,7 @@ function App({ remoteSection, remoteIdentity, remoteMenu, remoteStatus }: {
   const pages: { id: typeof view; label: string; icon: IconName }[] = [
     { id: "market", label: uiText("市場分析"), icon: "market" },
     { id: "positions", label: uiText("我的持倉"), icon: "positions" },
-    // On-chain data is read from the cloud by the computer; the remote page does not offer it yet.
-    ...(isRemoteMode() ? [] : [{ id: "smartMoney" as const, label: uiText("資金流向"), icon: "flows" as const }]),
+    { id: "smartMoney", label: uiText("資金流向"), icon: "flows" },
     { id: "events", label: uiText("經濟事件"), icon: "events" },
     { id: "history", label: uiText("分析紀錄"), icon: "history" },
     { id: "settings", label: uiText("設定"), icon: "settings" },

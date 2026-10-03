@@ -8,6 +8,7 @@ The product version is managed in `version.json`. Dates record release preparati
 
 - A new Fund flows page follows large exchange inflows and outflows, whale transfers and stablecoin supply.
 - The AI answers follow-up questions on the Fund flows page, and market and position analyses consider fund flows.
+- The remote web page offers Fund flows and its AI follow-ups too.
 
 ### Changed
 

@@ -79,9 +79,18 @@ def test_untracked_assets_are_404_and_malformed_requests_never_reach_the_cloud(c
                               f"{ORIGIN}/smart-money/assets/LINK?window=1d"]
 
 
-def test_remote_access_cannot_reach_smart_money_yet():
-    from trade_helper.cloud_routes import allowed
+def test_remote_pages_reach_fund_flow_follow_ups_but_read_public_flows_from_the_cloud():
+    from trade_helper.cloud_routes import STREAM_ROUTE, allowed
+    # The public data never needs the computer; the remote page reads it from the cloud.
     assert not allowed({"method": "GET", "path": "/api/v1/smart-money/overview"})
+    assert allowed({"method": "GET", "path": "/api/v1/smart-money/snapshots/latest"})
+    assert allowed({"method": "POST", "path": "/api/v1/smart-money/snapshots",
+                    "body": {"asset": "ETH", "window": "1d"}})
+    assert allowed({"method": "GET", "path": "/api/v1/discussions/fund_flows/flow_abc"})
+    assert allowed({"method": "POST", "path": "/api/v1/discussions/fund_flows/flow_abc/messages",
+                    "body": {"message": "hi", "request_id": "00000000-0000-4000-8000-000000000001"}})
+    assert STREAM_ROUTE.fullmatch("/api/v1/discussions/fund_flows/flow_abc/stream")
+    assert not allowed({"method": "DELETE", "path": "/api/v1/smart-money/snapshots"})
 
 
 
