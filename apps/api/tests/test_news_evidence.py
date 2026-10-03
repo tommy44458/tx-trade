@@ -156,7 +156,9 @@ def test_agent_only_receives_verified_fact_and_report_rejects_future_evidence():
     add_article("fed-1", "fed_monetary_rss", FED_URL)
     add_article("sec-1", "sec_press_rss", SEC_URL, title="SEC issues market statement",
                 full=False)
-    analysis_time = START + timedelta(hours=1)
+    # Now, not START + 1 h: the quote must be fresh when the report is built, and
+    # a slow run can reach this test minutes after the module was imported.
+    analysis_time = datetime.now(UTC)
     pack = build_news_evidence_pack(analysis_time, MARKET)
     news = {"status": "available", "cutoff": analysis_time.isoformat(),
             "risk": "none", "items": [], "archive": [],
