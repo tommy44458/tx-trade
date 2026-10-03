@@ -111,6 +111,10 @@ jobs:
         run: node --test scripts/tests/*.test.mjs apps/desktop/tests/*.test.mjs apps/web/tests/*.test.mjs
       - name: Check backend on Windows
         working-directory: apps/api
+        # The app always runs Python in UTF-8 mode (the packaged backend is built
+        # with it); without it Windows would read and write files as cp1252.
+        env:
+          PYTHONUTF8: '1'
         run: uv run --frozen pytest
       - name: Build the unsigned test installer
         # Built even when a check above fails, so the app can still be tried by hand.
@@ -227,6 +231,8 @@ jobs:
           pnpm --dir apps/web install --frozen-lockfile
           pnpm --dir apps/desktop install --frozen-lockfile
       - name: Check JavaScript behavior and the backend on Windows
+        env:
+          PYTHONUTF8: '1'
         run: |
           node --test scripts/tests/*.test.mjs apps/desktop/tests/*.test.mjs apps/web/tests/*.test.mjs
           (cd apps/api && uv run --frozen pytest)

@@ -69,7 +69,7 @@ def test_migration_preserves_personal_reports_json_vectors_decimals_and_archived
     assert original_path.read_bytes() == before
     assert result["row_counts"]["positions"] == 1
     assert result["archived_tables"] == {"retired_feature": 1}
-    assert target.stat().st_mode & 0o777 == 0o600
+    assert os.name != "posix" or target.stat().st_mode & 0o777 == 0o600
     with closing(sqlite3.connect(target)) as db:
         assert db.execute("SELECT entry_price,quantity,notes FROM positions").fetchone() == (
             "85277.4000", "0.00500000", "保留原始持倉",
@@ -204,7 +204,7 @@ def test_backup_contains_committed_wal_and_remains_independent_of_later_writes(t
             assert backed_up.execute("PRAGMA integrity_check").fetchone() == ("ok",)
             assert backed_up.execute("PRAGMA journal_mode").fetchone() == ("delete",)
         assert writer.execute("SELECT count(*) FROM backup_probe").fetchone()[0] == 2
-    assert output.stat().st_mode & 0o777 == 0o600
+    assert os.name != "posix" or output.stat().st_mode & 0o777 == 0o600
     assert not list(output.parent.glob(".sqlite-backup-*"))
 
 

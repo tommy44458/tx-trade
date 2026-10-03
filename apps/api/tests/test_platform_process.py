@@ -70,8 +70,10 @@ def test_npm_shim_runs_its_script_with_node_and_no_shell(tmp_path, monkeypatch):
     monkeypatch.setattr(platform_process, "WINDOWS", True)
     shim = tmp_path / "claude.cmd"
     shim.write_text(NPM_SHIM, encoding="utf-8")
-    # The shim's backslashes are a Windows path; build the same file here.
-    script = tmp_path / "node_modules\\@anthropic-ai\\claude-code\\cli.js"
+    # The shim names its script with backslashes: nested folders on Windows, one
+    # file name elsewhere. Build whichever this platform resolves.
+    script = platform_process.Path(f"{tmp_path}{os.sep}node_modules\\@anthropic-ai\\claude-code\\cli.js")
+    script.parent.mkdir(parents=True, exist_ok=True)
     script.write_text("", encoding="utf-8")
     monkeypatch.setattr(platform_process.shutil, "which", lambda name: "C:/node/node.exe")
     assert platform_process.launch_command(str(shim)) == ["C:/node/node.exe", str(script)]
@@ -164,4 +166,6 @@ def test_lifeline_stops_at_end_of_file():
 
 def test_contain_descendants_is_a_no_op_off_windows(monkeypatch):
     monkeypatch.setattr(platform_process, "WINDOWS", False)
+    # On Windows another test may already have contained this test process.
+    monkeypatch.setattr(platform_process, "_job", None)
     assert platform_process.contain_descendants() is False
