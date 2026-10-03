@@ -20,12 +20,12 @@ txinTrade looks at a Binance USDT perpetual market the way a careful trader woul
 
 **It never trades for you.** txinTrade only analyzes and, if you allow it, reads your positions. It cannot place orders, close positions, change leverage, or move funds.
 
-## The smartest AI, with the subscription you already have
+## Bring your own AI
 
-txinTrade works with your existing **Claude** or **ChatGPT** plan through **Claude Code** or **Codex**. Connect once in Settings, and every analysis runs on the most capable models your plan offers, such as Claude Opus.
+txinTrade integrates with the AI tools already installed and signed in on your computer: **Claude Code** or **Codex**. It hands them real market data and lets them do the analysis, on the **Claude** or **ChatGPT** plan you already use and with the most capable models it offers, such as Claude Opus.
 
-- **No API key** to create, and no pay-per-use AI bill.
-- **No extra AI subscription** on top of the one you already pay for.
+- **Works with what you already have.** Choose Claude Code or Codex once in Settings; there is no new AI account to open.
+- **Your AI, your plan.** Every analysis runs under your own sign-in, and txinTrade adds no AI fees.
 - **Pick the model** you want for analysis in Settings.
 
 Your sign-in stays with Claude Code or Codex; txinTrade never reads or stores those credentials.
@@ -129,7 +129,7 @@ No. It analyzes markets and positions and gives recommendations. You decide and 
 All currently tradable Binance USDT perpetual futures. Coin-margined, USDC and delivery contracts are not included.
 
 **What does it cost?**
-The app is free and open source, and the AI runs on the Claude or ChatGPT plan you already have — no API key or separate AI bill. Remote access from your phone is an optional paid cloud service.
+The app is free and open source. Bring your own AI: analyses run through the Claude Code or Codex already signed in on your computer, on the plan you already have, and txinTrade adds no AI fees. Remote access from your phone is an optional paid cloud service.
 
 **Can I trust the recommendations?**
 Treat them as a well-reasoned second opinion, not a guarantee. Every report shows the evidence and the conditions that would invalidate it, so you can judge it yourself.
