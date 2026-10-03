@@ -4,6 +4,10 @@ The product version is managed in `version.json`. Dates record release preparati
 
 ## [Unreleased]
 
+### Changed
+
+- Traditional Chinese reports display a full-width comma wherever an ASCII comma sits next to Chinese text, so they read naturally; thousands separators such as 8,500 and commas between English words stay as they are. The saved report is unchanged.
+
 ## [1.0.4] - 2026-10-02
 
 ### Changed

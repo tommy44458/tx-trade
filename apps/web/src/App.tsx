@@ -45,6 +45,7 @@ import AnalysisProgress, {
 } from "./AnalysisProgress";
 import ExchangeSyncPanel from "./ExchangeSyncPanel";
 import { levelLadder } from "./levelLadder";
+import { localizeReportText } from "./zhPunctuation";
 import { importedPositionFacts, isManualPosition, liquidationSourceLabel, positionSourceLabel, type PositionSource } from "./positionSources";
 import Icon, { type IconName } from "./Icon";
 import AccountMenu from "./AccountMenu";
@@ -545,10 +546,14 @@ function App({ remoteSection, remoteIdentity, remoteMenu, remoteStatus }: {
     : view === "market"
       ? viewedMarketJob ?? latestMarketAnalysis.data
       : analysisJob;
-  const report =
+  const shownReport =
     submittingKind !== "positions" && job?.report?.market_id === marketId && job.report.timeframe === timeframe
       ? job.report
       : null;
+  // Traditional Chinese reports read with full-width commas; the saved report stays as written.
+  const report = useMemo(() => localizeReportText(shownReport,
+    shownReport?.response_locale ?? shownReport?.output_locale ?? job?.submitted_input.output_locale ?? "zh-TW"),
+  [shownReport, job?.submitted_input.output_locale]);
   // Indicators the report used, drawn only on the chart of that same timeframe.
   const chartIndicators = useMemo(() => reportIndicators(report as IndicatorReport | null), [report]);
   const jobId = pendingJob?.id;
