@@ -4,6 +4,10 @@ The product version is managed in `version.json`. Dates record release preparati
 
 ## [Unreleased]
 
+### Added
+
+- A new Smart money page follows large exchange inflows and outflows, whale transfers and stablecoin supply.
+
 ## [1.0.5] - 2026-10-03
 
 ### Changed

@@ -1,0 +1,336 @@
+.smart-money {
+  display: grid;
+  gap: var(--space-6);
+}
+.smart-money .page-title {
+  margin-bottom: 0;
+}
+.sm-fresh {
+  margin: calc(var(--space-2) * -1) 0 0;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+.sm-fresh-late {
+  color: var(--warning);
+}
+
+/* BTC, ETH and stablecoins side by side; one column on narrow screens. */
+.sm-overview {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+.sm-card {
+  padding: var(--space-5);
+  display: grid;
+  gap: var(--space-4);
+  align-content: start;
+  min-width: 0;
+  box-shadow: none;
+}
+.sm-card header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.sm-card h2,
+.sm-detail h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+}
+.sm-card header span {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.sm-net {
+  margin: 0;
+  display: grid;
+  gap: 2px;
+}
+.sm-net span {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.sm-net strong {
+  font-size: 24px;
+  font-weight: 650;
+  line-height: 1.25;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.sm-net small {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.sm-net-in strong {
+  color: var(--warning);
+}
+.sm-net-out strong {
+  color: var(--accent);
+}
+.sm-net-none {
+  font-size: 13px;
+  color: var(--text-tertiary);
+}
+
+.sm-figures {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3) var(--space-4);
+}
+.sm-figures-wide {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.sm-figures div {
+  min-width: 0;
+}
+.sm-figures dt {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+.sm-figures dd {
+  margin: 2px 0 0;
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.sm-figures dd small {
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+
+/* Inflow above the line, outflow below: the same scale for both. */
+.sm-bars {
+  margin: 0;
+}
+.sm-bars svg {
+  display: block;
+  width: 100%;
+  height: 88px;
+}
+.sm-axis {
+  stroke: var(--border-strong);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+.sm-bar-in {
+  fill: var(--warning);
+  background: var(--warning);
+}
+.sm-bar-out {
+  fill: var(--accent);
+  background: var(--accent);
+}
+.sm-bars figcaption {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+.sm-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+.sm-legend i {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  margin-left: 6px;
+}
+
+.sm-note {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--text-secondary);
+}
+
+.sm-detail {
+  padding: var(--space-6);
+  display: grid;
+  gap: var(--space-5);
+  box-shadow: none;
+}
+.sm-detail-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+.sm-detail-head .sm-note {
+  margin-top: 6px;
+  max-width: 52ch;
+}
+.sm-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.sm-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.sm-select .control-label {
+  margin: 0;
+}
+.sm-controls .segments button {
+  white-space: nowrap;
+}
+.sm-select select {
+  min-height: 32px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-control);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  padding: 0 8px;
+}
+.sm-untracked {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-sm);
+  background: var(--surface-subtle);
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.sm-events-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+.sm-events {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.sm-event {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--border);
+}
+.sm-event:first-child {
+  border-top: 0;
+}
+.sm-event-main,
+.sm-event-value {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.sm-event-main strong,
+.sm-event-value strong {
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.sm-event-exchange_in .sm-event-main strong {
+  color: var(--warning);
+}
+.sm-event-exchange_out .sm-event-main strong {
+  color: var(--accent);
+}
+.sm-event-route,
+.sm-event-value span {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sm-event-value {
+  text-align: right;
+}
+.sm-event-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+  text-decoration: none;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.sm-event-time:hover {
+  color: var(--accent);
+}
+.sm-event-time svg {
+  width: 12px;
+  height: 12px;
+}
+.sm-empty {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-tertiary);
+}
+.sm-sources {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--text-tertiary);
+}
+
+@media (max-width: 1100px) {
+  .sm-overview {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .sm-stable {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 700px) {
+  .sm-overview {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .sm-detail {
+    padding: var(--space-5);
+  }
+  .sm-figures-wide {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .sm-controls,
+  .sm-controls .segments {
+    width: 100%;
+  }
+  .sm-controls .segments button {
+    flex: 1;
+  }
+  /* Phone rows: what moved and its value on one line, the time link beneath. */
+  .sm-event {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 4px var(--space-3);
+  }
+  .sm-event-time {
+    grid-column: 1 / -1;
+  }
+}
+@media (pointer: coarse) {
+  .sm-select .control-label {
+  margin: 0;
+}
+.sm-controls .segments button {
+  white-space: nowrap;
+}
+.sm-select select {
+    min-height: 44px;
+  }
+}

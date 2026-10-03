@@ -50,6 +50,7 @@ import { importedPositionFacts, isManualPosition, liquidationSourceLabel, positi
 import Icon, { type IconName } from "./Icon";
 import AccountMenu from "./AccountMenu";
 import { CLOUD_ACCOUNT_CHANGED } from "./cloudAccountEvents";
+import SmartMoneyPanel from "./SmartMoneyPanel";
 import UpdateDialog from "./UpdateDialog";
 import UpdateNotice from "./UpdateNotice";
 import LocalCloudMenu from "./LocalCloudMenu";
@@ -377,7 +378,7 @@ function App({ remoteSection, remoteIdentity, remoteMenu, remoteStatus }: {
 } = {}) {
   const locale = useUiLocale();
   const [view, setView] = useState<
-    "market" | "positions" | "events" | "history" | "settings"
+    "market" | "positions" | "smartMoney" | "events" | "history" | "settings"
   >("market");
   const [localSettings, setLocalSettings] = useState<LocalSettings | null>(
     null,
@@ -882,6 +883,8 @@ function App({ remoteSection, remoteIdentity, remoteMenu, remoteStatus }: {
   const pages: { id: typeof view; label: string; icon: IconName }[] = [
     { id: "market", label: uiText("市場分析"), icon: "market" },
     { id: "positions", label: uiText("我的持倉"), icon: "positions" },
+    // On-chain data is read from the cloud by the computer; the remote page does not offer it yet.
+    ...(isRemoteMode() ? [] : [{ id: "smartMoney" as const, label: uiText("聰明錢"), icon: "flows" as const }]),
     { id: "events", label: uiText("經濟事件"), icon: "events" },
     { id: "history", label: uiText("分析紀錄"), icon: "history" },
     { id: "settings", label: uiText("設定"), icon: "settings" },
@@ -1739,6 +1742,7 @@ function App({ remoteSection, remoteIdentity, remoteMenu, remoteStatus }: {
               </div>
             </>
           )}
+          {view === "smartMoney" && <SmartMoneyPanel marketId={marketId} locale={locale} />}
           {view === "events" && (
             <>
               <div className="page-title">

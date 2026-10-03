@@ -63,6 +63,7 @@ from .models import AnalysisRequest, PositionInput, PositionUpdate
 from .news import news_snapshot
 from .position_chart_snapshot import router as position_chart_snapshot_router
 from .product_version import product_version
+from .smart_money import router as smart_money_router
 
 
 @asynccontextmanager
@@ -94,6 +95,7 @@ app.include_router(macro_interpretation_router)
 app.include_router(position_chart_snapshot_router)
 app.include_router(discussions_router)
 app.include_router(desktop_updates_router)
+app.include_router(smart_money_router)
 
 
 @app.exception_handler(RequestValidationError)
