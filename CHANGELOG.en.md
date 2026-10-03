@@ -4,6 +4,8 @@ The product version is managed in `version.json`. Dates record release preparati
 
 ## [Unreleased]
 
+## [1.0.5] - 2026-10-03
+
 ### Changed
 
 - Traditional Chinese reports show full-width commas and semicolons next to Chinese text.
